@@ -1,0 +1,314 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Style guide · KampongShare</title>
+    <link rel="icon" href="/img/favicon.svg" type="image/svg+xml" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" />
+    <link rel="stylesheet" href="/css/style.css" />
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="/js/config.js"></script>
+    <script src="/js/supabase.js"></script>
+    <script src="/js/auth.js"></script>
+    <script src="/js/ui.js"></script>
+    <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3/dist/cdn.min.js"></script>
+  </head>
+  <body class="pb-24 sm:pb-0">
+    <header class="topbar">
+      <div class="container-page flex min-h-16 items-center gap-3">
+        <a href="/" class="flex items-center gap-2 rounded-sm font-bold text-primary focus-visible:outline-2 focus-visible:outline-primary" aria-label="KampongShare home">
+          <img src="/img/favicon.svg" alt="" class="size-8" />
+          <span class="hidden sm:inline">KampongShare</span>
+        </a>
+        <span class="text-line" aria-hidden="true">/</span>
+        <span class="truncate font-semibold">Style guide</span>
+        <div class="relative ml-auto" x-data="{ open: false }" @keydown.escape="open = false" @click.outside="open = false">
+          <button type="button" class="btn btn-secondary px-4" :aria-expanded="open.toString()" aria-controls="profile-menu" @click="open = !open">
+            Account
+          </button>
+          <div id="profile-menu" class="menu" x-show="open" x-cloak>
+            <a href="/profile.html" class="menu-item">My profile</a>
+            <button type="button" class="menu-item" @click="logout()">Log out</button>
+          </div>
+        </div>
+      </div>
+    </header>
+
+    <main class="container-page space-y-12 py-8">
+      <div>
+        <h1 class="text-2xl font-bold sm:text-3xl">Style guide</h1>
+        <p class="mt-2 text-muted">Every shared component from <code>src/input.css</code>, with sample data. All names here are made up.</p>
+      </div>
+
+      <!-- Colours -->
+      <section aria-labelledby="sg-colours" class="space-y-4">
+        <h2 id="sg-colours" class="text-xl font-semibold">Colours</h2>
+        <div class="grid grid-cols-2 gap-3 sm:grid-cols-4 lg:grid-cols-6">
+          <div class="rounded-md bg-primary p-4 text-sm font-semibold text-white">primary</div>
+          <div class="rounded-md bg-primary-hover p-4 text-sm font-semibold text-white">primary-hover</div>
+          <div class="rounded-md bg-primary-soft p-4 text-sm font-semibold text-primary">primary-soft</div>
+          <div class="rounded-md bg-accent p-4 text-sm font-semibold text-ink">accent</div>
+          <div class="rounded-md border border-line bg-canvas p-4 text-sm font-semibold text-ink">canvas</div>
+          <div class="rounded-md border border-line bg-surface p-4 text-sm font-semibold text-ink">surface</div>
+          <div class="rounded-md bg-ink p-4 text-sm font-semibold text-white">ink</div>
+          <div class="rounded-md bg-muted p-4 text-sm font-semibold text-white">muted</div>
+          <div class="rounded-md bg-success-soft p-4 text-sm font-semibold text-success">success</div>
+          <div class="rounded-md bg-warning-soft p-4 text-sm font-semibold text-warning">warning</div>
+          <div class="rounded-md bg-danger-soft p-4 text-sm font-semibold text-danger">danger</div>
+          <div class="rounded-md bg-info-soft p-4 text-sm font-semibold text-info">info</div>
+        </div>
+      </section>
+
+      <!-- Buttons -->
+      <section aria-labelledby="sg-buttons" class="space-y-4">
+        <h2 id="sg-buttons" class="text-xl font-semibold">Buttons</h2>
+        <div class="flex flex-wrap gap-3">
+          <button type="button" class="btn btn-primary">Make an offer</button>
+          <button type="button" class="btn btn-secondary">View details</button>
+          <button type="button" class="btn btn-danger">Reject</button>
+          <button type="button" class="btn btn-ghost">Cancel</button>
+          <button type="button" class="btn btn-primary" disabled>Disabled</button>
+        </div>
+        <div x-data="{ busy: false }">
+          <button type="button" class="btn btn-primary" :disabled="busy" @click="busy = true; setTimeout(() => busy = false, 1500)">
+            <span class="spinner" x-show="busy" x-cloak aria-hidden="true"></span>
+            <span x-text="busy ? 'Sending…' : 'Click to see loading state'">Click to see loading state</span>
+          </button>
+        </div>
+      </section>
+
+      <!-- Badges -->
+      <section aria-labelledby="sg-badges" class="space-y-4">
+        <h2 id="sg-badges" class="text-xl font-semibold">Badges</h2>
+        <div class="space-y-3">
+          <p class="text-sm font-medium text-muted">Request status</p>
+          <div class="flex flex-wrap gap-2">
+            <span class="badge badge-warning">Waiting for approval</span>
+            <span class="badge badge-info">Open</span>
+            <span class="badge badge-success">Fulfilled</span>
+            <span class="badge badge-neutral">Closed</span>
+            <span class="badge badge-danger">Rejected</span>
+          </div>
+          <p class="text-sm font-medium text-muted">Offer status</p>
+          <div class="flex flex-wrap gap-2">
+            <span class="badge badge-warning">Pending</span>
+            <span class="badge badge-info">Accepted</span>
+            <span class="badge badge-success">Delivered</span>
+            <span class="badge badge-neutral">Rejected</span>
+            <span class="badge badge-neutral">Cancelled</span>
+          </div>
+          <p class="text-sm font-medium text-muted">Urgency (score and word, never colour alone)</p>
+          <div class="flex flex-wrap gap-2">
+            <span class="badge badge-danger">92 · Critical</span>
+            <span class="badge badge-warning">68 · High</span>
+            <span class="badge badge-info">45 · Medium</span>
+            <span class="badge badge-neutral">20 · Low</span>
+            <span class="badge badge-ai">AI-suggested</span>
+          </div>
+        </div>
+      </section>
+
+      <!-- Cards -->
+      <section aria-labelledby="sg-cards" class="space-y-4">
+        <h2 id="sg-cards" class="text-xl font-semibold">Request cards</h2>
+        <p class="text-muted">One column on mobile, two on tablets, three on desktop.</p>
+        <div class="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+          <article class="card space-y-4" x-data="{ why: false }">
+            <div class="flex flex-wrap items-center gap-2">
+              <span class="badge badge-danger">88 · Critical</span>
+              <span class="badge badge-info">Open</span>
+            </div>
+            <div>
+              <h3 class="text-lg font-semibold">Rice and cooking oil for 40 families</h3>
+              <p class="mt-1 text-sm text-muted">Sunrise Community Pantry · Tampines · Needed by 30 Oct 2026</p>
+            </div>
+            <div class="space-y-1">
+              <div class="flex justify-between text-sm">
+                <span class="font-medium">Rice (5 kg bags)</span>
+                <span class="text-muted">6 of 10 bags</span>
+              </div>
+              <div class="progress" role="img" aria-label="4 bags received, 2 promised, 4 still needed">
+                <div class="progress-received" style="width: 40%"></div>
+                <div class="progress-committed" style="width: 20%"></div>
+              </div>
+              <p class="helper-text">4 received · 2 promised</p>
+            </div>
+            <div>
+              <button type="button" class="btn btn-ghost -ml-3 px-3" :aria-expanded="why.toString()" aria-controls="why-1" @click="why = !why">
+                Why this score?
+              </button>
+              <div id="why-1" class="mt-2 space-y-2 rounded-md bg-canvas p-3 text-sm" x-show="why" x-cloak>
+                <span class="badge badge-ai">AI-suggested</span>
+                <ul class="list-disc space-y-1 pl-5">
+                  <li>Deadline is in 7 days</li>
+                  <li>Only 60% of the items are covered so far</li>
+                  <li>Organization marked this request as high urgency</li>
+                </ul>
+                <p class="text-muted">The score comes from a fixed formula. People always make the final decision.</p>
+              </div>
+            </div>
+            <button type="button" class="btn btn-primary w-full">Offer rice</button>
+          </article>
+
+          <article class="card space-y-4">
+            <div class="flex flex-wrap items-center gap-2">
+              <span class="badge badge-warning">64 · High</span>
+              <span class="badge badge-info">Open</span>
+            </div>
+            <div>
+              <h3 class="text-lg font-semibold">School supplies for after-school club</h3>
+              <p class="mt-1 text-sm text-muted">Harbour Kids Club · Jurong West · Needed by 15 Nov 2026</p>
+            </div>
+            <div class="space-y-1">
+              <div class="flex justify-between text-sm">
+                <span class="font-medium">Exercise books</span>
+                <span class="text-muted">12 of 50 books</span>
+              </div>
+              <div class="progress" role="img" aria-label="12 books received, 0 promised, 38 still needed">
+                <div class="progress-received" style="width: 24%"></div>
+              </div>
+            </div>
+            <button type="button" class="btn btn-primary w-full">Offer exercise books</button>
+          </article>
+
+          <article class="card space-y-4">
+            <div class="flex flex-wrap items-center gap-2">
+              <span class="badge badge-neutral">22 · Low</span>
+              <span class="badge badge-success">Fulfilled</span>
+            </div>
+            <div>
+              <h3 class="text-lg font-semibold">Winter blankets for shelter</h3>
+              <p class="mt-1 text-sm text-muted">Bedok Care Home · Bedok · Closed 1 Oct 2026</p>
+            </div>
+            <div class="space-y-1">
+              <div class="flex justify-between text-sm">
+                <span class="font-medium">Blankets</span>
+                <span class="text-muted">20 of 20 blankets</span>
+              </div>
+              <div class="progress" role="img" aria-label="All 20 blankets received">
+                <div class="progress-received" style="width: 100%"></div>
+              </div>
+            </div>
+          </article>
+        </div>
+      </section>
+
+      <!-- Stat cards -->
+      <section aria-labelledby="sg-stats" class="space-y-4">
+        <h2 id="sg-stats" class="text-xl font-semibold">Summary stat cards</h2>
+        <div class="grid grid-cols-2 gap-4 lg:grid-cols-4">
+          <div class="card">
+            <p class="text-sm text-muted">Open requests</p>
+            <p class="mt-1 text-3xl font-bold">12</p>
+          </div>
+          <div class="card">
+            <p class="text-sm text-muted">Items still needed</p>
+            <p class="mt-1 text-3xl font-bold">248</p>
+          </div>
+          <div class="card">
+            <p class="text-sm text-muted">Offers waiting</p>
+            <p class="mt-1 text-3xl font-bold">5</p>
+          </div>
+          <div class="card">
+            <p class="text-sm text-muted">Upcoming events</p>
+            <p class="mt-1 text-3xl font-bold">3</p>
+          </div>
+        </div>
+      </section>
+
+      <!-- Forms -->
+      <section aria-labelledby="sg-forms" class="space-y-4">
+        <h2 id="sg-forms" class="text-xl font-semibold">Form fields</h2>
+        <form class="card max-w-xl space-y-5" novalidate @submit.prevent>
+          <div>
+            <label for="sg-name" class="label">Full name <span class="text-danger" aria-hidden="true">*</span></label>
+            <input id="sg-name" class="input" type="text" required autocomplete="name" value="Tan Mei Ling" />
+          </div>
+          <div>
+            <label for="sg-postal" class="label">Postal code</label>
+            <input id="sg-postal" class="input" type="text" inputmode="numeric" maxlength="6" aria-describedby="sg-postal-help" />
+            <p id="sg-postal-help" class="helper-text">6 digits. We only use it to show needs near you, never your full address.</p>
+          </div>
+          <div>
+            <label for="sg-qty" class="label">Quantity <span class="text-danger" aria-hidden="true">*</span></label>
+            <input id="sg-qty" class="input" type="number" required value="12" aria-invalid="true" aria-describedby="sg-qty-error" />
+            <p id="sg-qty-error" class="field-error">You can offer up to 4 bags — that's all that's still needed.</p>
+          </div>
+          <div>
+            <label for="sg-category" class="label">Category</label>
+            <select id="sg-category" class="input">
+              <option>Food</option>
+              <option>Clothing</option>
+              <option>Hygiene</option>
+              <option>Household</option>
+              <option>Baby</option>
+              <option>Education</option>
+            </select>
+          </div>
+          <div>
+            <label for="sg-message" class="label">Message to the organization</label>
+            <textarea id="sg-message" class="input py-2" rows="3" maxlength="500"></textarea>
+            <p class="helper-text">Up to 500 characters.</p>
+          </div>
+          <label class="flex items-start gap-3 text-sm">
+            <input type="checkbox" class="mt-0.5 size-5 accent-primary" />
+            <span>Items are sealed, unopened and not past their expiry date.</span>
+          </label>
+          <p class="text-sm text-muted"><span class="text-danger" aria-hidden="true">*</span> Required</p>
+          <button type="submit" class="btn btn-primary">Send offer</button>
+        </form>
+      </section>
+
+      <!-- Toasts and dialog -->
+      <section aria-labelledby="sg-feedback" class="space-y-4">
+        <h2 id="sg-feedback" class="text-xl font-semibold">Toasts and confirm dialog</h2>
+        <div class="flex flex-wrap gap-3">
+          <button type="button" class="btn btn-secondary" onclick="toast('Your offer was sent. The organization will confirm within 2 days.')">Show success toast</button>
+          <button type="button" class="btn btn-secondary" onclick="toast('We couldn\'t send your offer. Please check your connection and try again.', 'error')">Show error toast</button>
+          <button
+            type="button"
+            class="btn btn-danger"
+            onclick="confirmDialog('The donor will be told their offer wasn\'t needed.', { title: 'Reject this offer?', confirmText: 'Reject offer', danger: true }).then((ok) => toast(ok ? 'Offer rejected.' : 'Nothing changed.'))"
+          >
+            Open confirm dialog
+          </button>
+        </div>
+      </section>
+
+      <!-- Empty and loading states -->
+      <section aria-labelledby="sg-states" class="space-y-4">
+        <h2 id="sg-states" class="text-xl font-semibold">Empty and loading states</h2>
+        <div class="grid gap-4 sm:grid-cols-2">
+          <div class="card flex flex-col items-center gap-3 py-10 text-center">
+            <div class="grid size-12 place-items-center rounded-full bg-primary-soft text-2xl text-primary" aria-hidden="true">+</div>
+            <p class="text-muted">No requests yet.</p>
+            <button type="button" class="btn btn-primary">Create your first request</button>
+          </div>
+          <div class="card space-y-3" aria-busy="true" aria-label="Loading requests">
+            <div class="skeleton h-5 w-24"></div>
+            <div class="skeleton h-6 w-3/4"></div>
+            <div class="skeleton h-4 w-1/2"></div>
+            <div class="skeleton h-2.5 w-full"></div>
+            <div class="skeleton h-11 w-full"></div>
+          </div>
+        </div>
+      </section>
+
+      <!-- Bottom nav -->
+      <section aria-labelledby="sg-nav" class="space-y-4">
+        <h2 id="sg-nav" class="text-xl font-semibold">Mobile bottom navigation</h2>
+        <p class="text-muted">Shown only on phones (below 640px), fixed to the bottom of this page.</p>
+      </section>
+    </main>
+
+    <nav class="bottom-nav" aria-label="Main">
+      <a href="/donor.html" class="bottom-nav-link text-primary" aria-current="page">Dashboard</a>
+      <a href="/needs.html" class="bottom-nav-link">Needs</a>
+      <a href="/donor.html" class="bottom-nav-link">My offers</a>
+      <a href="/profile.html" class="bottom-nav-link">Profile</a>
+    </nav>
+  </body>
+</html>

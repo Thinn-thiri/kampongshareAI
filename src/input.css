@@ -1,0 +1,188 @@
+@import "tailwindcss";
+
+@theme {
+  /* brand */
+  --color-primary: #0f766e; /* teal — buttons, links */
+  --color-primary-hover: #115e59;
+  --color-primary-soft: #ccfbf1; /* tinted backgrounds */
+  --color-accent: #f59e0b; /* warm amber — highlights only */
+
+  /* neutrals:  bg-canvas, bg-surface, border-line, text-ink, text-muted */
+  --color-canvas: #f8faf9;
+  --color-surface: #ffffff;
+  --color-line: #e2e8f0;
+  --color-ink: #0f172a;
+  --color-muted: #64748b;
+
+  /* status */
+  --color-success: #15803d;
+  --color-success-soft: #dcfce7;
+  --color-warning: #b45309;
+  --color-warning-soft: #fef3c7;
+  --color-danger: #b91c1c;
+  --color-danger-soft: #fee2e2;
+  --color-info: #1d4ed8;
+  --color-info-soft: #dbeafe;
+
+  /* shape */
+  --radius-sm: 8px;
+  --radius-md: 12px;
+  --radius-lg: 20px;
+  --shadow-sm: 0 1px 2px rgb(15 23 42 / 0.06);
+  --shadow-md: 0 4px 16px rgb(15 23 42 / 0.08);
+
+  /* type */
+  --font-sans: "Plus Jakarta Sans", system-ui, sans-serif;
+}
+
+@layer base {
+  body {
+    @apply bg-canvas font-sans text-ink antialiased;
+  }
+  /* hide Alpine-controlled parts until Alpine has started */
+  [x-cloak] {
+    display: none !important;
+  }
+}
+
+@layer components {
+  /* buttons — min height 44px */
+  .btn {
+    @apply inline-flex min-h-11 items-center justify-center gap-2 rounded-md px-5 text-sm font-semibold transition-colors duration-200 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary disabled:cursor-not-allowed disabled:opacity-60;
+  }
+  .btn-primary {
+    @apply bg-primary text-white hover:bg-primary-hover;
+  }
+  .btn-secondary {
+    @apply border border-line bg-surface text-ink hover:bg-canvas;
+  }
+  .btn-danger {
+    @apply bg-danger text-white hover:opacity-90;
+  }
+  .btn-ghost {
+    @apply text-primary hover:bg-primary-soft;
+  }
+
+  /* cards */
+  .card {
+    @apply rounded-lg border border-line bg-surface p-5 shadow-sm transition-shadow duration-200 hover:shadow-md;
+  }
+
+  /* badges */
+  .badge {
+    @apply inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-xs font-semibold;
+  }
+  .badge-success {
+    @apply bg-success-soft text-success;
+  }
+  .badge-warning {
+    @apply bg-warning-soft text-warning;
+  }
+  .badge-danger {
+    @apply bg-danger-soft text-danger;
+  }
+  .badge-info {
+    @apply bg-info-soft text-info;
+  }
+  .badge-neutral {
+    @apply border border-line bg-canvas text-muted;
+  }
+
+  /* forms */
+  .label {
+    @apply mb-1 block text-sm font-medium text-ink;
+  }
+  .input {
+    @apply min-h-11 w-full rounded-md border border-line bg-surface px-3 text-base text-ink placeholder:text-muted focus:border-primary focus:outline-2 focus:outline-primary-soft;
+  }
+  .helper-text {
+    @apply mt-1 text-sm text-muted;
+  }
+  .field-error {
+    @apply mt-1 text-sm text-danger;
+  }
+
+  /* ---- extra components (pieces section 3 describes but doesn't define) ---- */
+
+  /* page width: max 1100px, 16px side padding on mobile */
+  .container-page {
+    @apply mx-auto w-full max-w-[1100px] px-4;
+  }
+
+  /* top bar and mobile bottom navigation */
+  .topbar {
+    @apply sticky top-0 z-30 border-b border-line bg-surface;
+  }
+  .bottom-nav {
+    @apply fixed inset-x-0 bottom-0 z-30 flex border-t border-line bg-surface sm:hidden;
+  }
+  .bottom-nav-link {
+    @apply flex min-h-14 flex-1 flex-col items-center justify-center gap-0.5 text-xs font-medium text-muted hover:text-primary focus-visible:outline-2 focus-visible:outline-primary;
+  }
+  .menu {
+    @apply absolute right-0 mt-2 w-48 rounded-md border border-line bg-surface p-1 shadow-md;
+  }
+  .menu-item {
+    @apply flex min-h-11 w-full items-center rounded-sm px-3 text-left text-sm text-ink hover:bg-canvas focus-visible:outline-2 focus-visible:outline-primary;
+  }
+
+  /* "AI-suggested" tag */
+  .badge-ai {
+    @apply border border-primary-soft bg-primary-soft text-primary;
+  }
+
+  /* item progress bar: received (solid) + committed-not-yet-received (striped) */
+  .progress {
+    @apply flex h-2.5 w-full overflow-hidden rounded-full bg-line;
+  }
+  .progress-received {
+    @apply h-full bg-primary;
+  }
+  .progress-committed {
+    @apply h-full bg-primary-soft;
+    background-image: repeating-linear-gradient(
+      45deg,
+      var(--color-primary) 0 3px,
+      transparent 3px 7px
+    );
+  }
+
+  /* loading skeleton */
+  .skeleton {
+    @apply animate-pulse rounded-md bg-line;
+  }
+
+  /* toasts: bottom-centre on mobile, top-right on desktop */
+  .toast-region {
+    @apply pointer-events-none fixed inset-x-4 bottom-20 z-50 flex flex-col items-center gap-2 sm:inset-x-auto sm:top-20 sm:right-4 sm:bottom-auto sm:items-end;
+  }
+  .toast {
+    @apply pointer-events-auto w-full max-w-sm rounded-md border px-4 py-3 text-sm font-medium shadow-md;
+  }
+  .toast-success {
+    @apply border-success bg-success-soft text-success;
+  }
+  .toast-error {
+    @apply border-danger bg-danger-soft text-danger;
+  }
+
+  /* confirm dialog (native <dialog>) */
+  .dialog {
+    @apply m-auto w-[calc(100%-2rem)] max-w-md rounded-lg border border-line bg-surface p-6 text-ink shadow-md backdrop:bg-ink/40;
+  }
+
+  /* button spinner */
+  .spinner {
+    @apply inline-block size-4 animate-spin rounded-full border-2 border-current border-r-transparent;
+  }
+}
+
+/* respect users who turn off animations */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+  }
+}

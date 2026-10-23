@@ -1,0 +1,17 @@
+{
+  "name": "kampongshare-ai",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Community donation and volunteer platform for Singapore (hackathon prototype)",
+  "scripts": {
+    "dev:css": "npx @tailwindcss/cli -i ./src/input.css -o ./css/style.css --watch",
+    "build": "npx @tailwindcss/cli -i ./src/input.css -o ./css/style.css --minify"
+  },
+  "devDependencies": {
+    "@supabase/supabase-js": "^2.118.0",
+    "@tailwindcss/cli": "^4.3.3",
+    "netlify-cli": "^27.14.2",
+    "tailwindcss": "^4.3.3"
+  }
+}

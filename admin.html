@@ -1,0 +1,47 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Admin · KampongShare</title>
+    <link rel="icon" href="/img/favicon.svg" type="image/svg+xml" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" />
+    <link rel="stylesheet" href="/css/style.css" />
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="/js/config.js"></script>
+    <script src="/js/supabase.js"></script>
+    <script src="/js/auth.js"></script>
+    <script src="/js/ui.js"></script>
+    <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3/dist/cdn.min.js"></script>
+  </head>
+  <body>
+    <header class="topbar">
+      <div class="container-page flex min-h-16 items-center gap-3">
+        <a href="/" class="flex items-center gap-2 rounded-sm font-bold text-primary focus-visible:outline-2 focus-visible:outline-primary" aria-label="KampongShare home">
+          <img src="/img/favicon.svg" alt="" class="size-8" />
+          <span class="hidden sm:inline">KampongShare</span>
+        </a>
+        <span class="text-line" aria-hidden="true">/</span>
+        <span class="truncate font-semibold">Admin</span>
+      <div class="relative ml-auto" x-data="{ open: false }" @keydown.escape="open = false" @click.outside="open = false">
+        <button type="button" class="btn btn-secondary px-4" :aria-expanded="open.toString()" aria-controls="profile-menu" @click="open = !open">
+          Account
+        </button>
+        <div id="profile-menu" class="menu" x-show="open" x-cloak>
+          <a href="/profile.html" class="menu-item">My profile</a>
+          <button type="button" class="menu-item" @click="logout()">Log out</button>
+        </div>
+      </div>
+      </div>
+    </header>
+
+    <main class="container-page py-8">
+      <h1 class="text-2xl font-bold sm:text-3xl">Admin dashboard</h1>
+      <div class="card mt-6 text-center">
+        <p class="text-muted">This page is coming soon.</p>
+      </div>
+    </main>
+  </body>
+</html>

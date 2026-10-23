@@ -1,0 +1,9 @@
+[build]
+  command = "npm run build"
+  publish = "."
+
+# Shared event links: /e/<id> → server-made preview page (REQUIREMENTS.md 5.2)
+[[redirects]]
+  from = "/e/:id"
+  to = "/.netlify/functions/share-event?id=:id"
+  status = 200
