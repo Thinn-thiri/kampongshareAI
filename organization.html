@@ -22,6 +22,8 @@
     <script src="/js/organization-dashboard.js"></script>
     <script src="/js/requests.js"></script>
     <script src="/js/org-requests.js"></script>
+    <script src="/js/offers.js"></script>
+    <script src="/js/org-offers.js"></script>
     <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3/dist/cdn.min.js"></script>
   </head>
   <body data-require="organization">
@@ -195,7 +197,7 @@
 
       <!-- Only after approval -->
       <template x-if="!loading && approved && org">
-        <section class="space-y-4" x-data="orgRequests(org.id)" aria-labelledby="requests-heading">
+        <section class="space-y-4" x-data="orgRequests(org.id)" @requests-changed.window="load()" aria-labelledby="requests-heading">
           <div class="flex flex-wrap items-center justify-between gap-3">
             <h2 id="requests-heading" class="text-xl font-semibold">Donation requests</h2>
             <button type="button" class="btn btn-primary" x-show="!showForm" @click="newRequest()">New donation request</button>
@@ -384,6 +386,87 @@
               </article>
             </template>
           </div>
+        </section>
+      </template>
+
+      <!-- Incoming offers -->
+      <template x-if="!loading && approved && org">
+        <section class="space-y-4" x-data="orgOffers(org.id)" @offers-changed.window="load()" aria-labelledby="offers-heading">
+          <div class="flex flex-wrap items-center justify-between gap-3">
+            <div class="flex items-center gap-2">
+              <h2 id="offers-heading" class="text-xl font-semibold">Incoming offers</h2>
+              <span class="badge badge-warning" x-show="pendingCount > 0" x-text="`${pendingCount} waiting`"></span>
+            </div>
+            <div class="segmented w-full sm:w-auto" role="group" aria-label="Show offers">
+              <button type="button" class="segmented-link" :aria-current="filter === 'action' ? 'page' : null" @click="filter = 'action'">Needs action</button>
+              <button type="button" class="segmented-link" :aria-current="filter === 'all' ? 'page' : null" @click="filter = 'all'">All</button>
+            </div>
+          </div>
+
+          <div class="card space-y-3" x-show="loading" aria-busy="true" aria-label="Loading offers">
+            <div class="skeleton h-5 w-24"></div><div class="skeleton h-5 w-2/3"></div><div class="skeleton h-4 w-1/2"></div>
+          </div>
+          <div class="card text-center" x-show="!loading && error" x-cloak role="alert">
+            <p class="text-danger" x-text="error"></p>
+            <button type="button" class="btn btn-secondary mt-3" @click="load()">Try again</button>
+          </div>
+          <div class="card py-10 text-center" x-show="!loading && !error && shown.length === 0" x-cloak>
+            <p class="text-muted" x-text="offers.length === 0
+              ? 'No offers yet. They\'ll appear here when donors respond to your requests.'
+              : 'Nothing needs your action right now.'"></p>
+          </div>
+
+          <ul class="grid gap-4 md:grid-cols-2" x-show="!loading && !error">
+            <template x-for="offer in shown" :key="offer.id">
+              <li class="card flex flex-col gap-3">
+                <div class="flex flex-wrap items-start justify-between gap-3">
+                  <div class="min-w-0">
+                    <p class="font-semibold break-words" x-text="`${offer.quantity} ${offer.item.unit} · ${offer.item.name}`"></p>
+                    <p class="text-sm text-muted break-words" x-text="`For: ${offer.item.request.title}`"></p>
+                  </div>
+                  <span :class="statusInfo(offer.status, 'offer').className" x-text="statusInfo(offer.status, 'offer').label"></span>
+                </div>
+
+                <dl class="grid gap-x-3 gap-y-1 text-sm grid-cols-[max-content_1fr]">
+                  <dt class="text-muted">Donor</dt>
+                  <dd class="break-words" x-text="offer.donor?.full_name || 'Name not given'"></dd>
+                  <dt class="text-muted">Phone</dt>
+                  <dd>
+                    <template x-if="offer.donor?.phone">
+                      <a :href="`tel:${offer.donor.phone}`" class="font-medium text-primary underline" x-text="offer.donor.phone"></a>
+                    </template>
+                    <span class="text-muted" x-show="!offer.donor?.phone">Not given</span>
+                  </dd>
+                  <dt class="text-muted">Offered</dt>
+                  <dd x-text="formatDate(offer.created_at)"></dd>
+                </dl>
+                <p class="text-xs text-muted">The donor's details are only shown to you, to arrange drop-off.</p>
+
+                <p class="rounded-md bg-canvas p-3 text-sm whitespace-pre-line break-words" x-show="offer.message" x-text="offer.message"></p>
+                <p class="text-sm text-success" x-show="offer.item.category === 'food' && offer.food_safety_confirmed">
+                  ✓ Donor confirmed the food is sealed, unopened and not expired.
+                </p>
+
+                <div class="mt-auto flex flex-wrap gap-3 pt-1">
+                  <template x-if="offer.status === 'pending'">
+                    <div class="flex flex-wrap gap-3">
+                      <button type="button" class="btn btn-primary" :disabled="busyId === offer.id" @click="act(offer, 'accepted')">
+                        <span class="spinner" x-show="busyId === offer.id" x-cloak aria-hidden="true"></span>
+                        Accept
+                      </button>
+                      <button type="button" class="btn btn-danger" :disabled="busyId === offer.id" @click="act(offer, 'rejected')">Reject</button>
+                    </div>
+                  </template>
+                  <template x-if="offer.status === 'accepted'">
+                    <button type="button" class="btn btn-primary" :disabled="busyId === offer.id" @click="act(offer, 'delivered')">
+                      <span class="spinner" x-show="busyId === offer.id" x-cloak aria-hidden="true"></span>
+                      Mark delivered
+                    </button>
+                  </template>
+                </div>
+              </li>
+            </template>
+          </ul>
         </section>
       </template>
 

@@ -176,6 +176,8 @@ document.addEventListener("alpine:init", () => {
         toast("The request was closed.");
         if (this.editing?.id === request.id) this.cancelForm();
         await this.load();
+        // Closing declines waiting offers in the database: refresh "Incoming offers".
+        window.dispatchEvent(new CustomEvent("offers-changed"));
       } catch (error) {
         toast(friendlyError(error), "error");
       } finally {

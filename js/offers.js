@@ -95,6 +95,51 @@ async function cancelOffer(id) {
 }
 
 /**
+ * An offer as the receiving organization sees it, with the donor's name and phone
+ * (visible only to this organization and admins — enforced by the database).
+ * @typedef {Object} IncomingOffer
+ * @property {string} id
+ * @property {number} quantity
+ * @property {string | null} message
+ * @property {boolean} food_safety_confirmed
+ * @property {OfferStatus} status
+ * @property {string} created_at
+ * @property {{ full_name: string, phone: string | null } | null} donor
+ * @property {{ name: string, unit: string, category: ItemCategory, request_id: string,
+ *              request: { title: string, status: RequestStatus, organization_id: string } }} item
+ */
+
+/**
+ * Offers on this organization's requests, newest first.
+ * @param {string} orgId
+ * @returns {Promise<IncomingOffer[]>}
+ */
+async function listIncomingOffers(orgId) {
+  const { data, error } = await db()
+    .from("donation_offers")
+    .select(
+      "*, donor:profiles(full_name, phone), item:request_items!inner(name, unit, category, request_id, request:donation_requests!inner(title, status, organization_id))",
+    )
+    .eq("item.request.organization_id", orgId)
+    .order("created_at", { ascending: false });
+  if (error) throw error;
+  return data ?? [];
+}
+
+/**
+ * The organization accepts, rejects or marks an offer delivered.
+ * The database checks the move is allowed and updates the item totals.
+ * @param {string} id
+ * @param {'accepted' | 'rejected' | 'delivered'} status
+ * @returns {Promise<void>}
+ */
+async function setOfferStatus(id, status) {
+  const { data, error } = await db().from("donation_offers").update({ status }).eq("id", id).select("id");
+  if (error) throw error;
+  if (!data?.length) throw { code: "42501", message: "No offer was updated" };
+}
+
+/**
  * Checks the offer form against the item. Returns an error message per field.
  * @param {OfferForm} form
  * @param {RequestItem} item
