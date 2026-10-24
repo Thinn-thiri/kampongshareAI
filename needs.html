@@ -14,6 +14,9 @@
     <script src="/js/supabase.js"></script>
     <script src="/js/auth.js"></script>
     <script src="/js/ui.js"></script>
+    <script src="/js/requests.js"></script>
+    <script src="/js/offers.js"></script>
+    <script src="/js/needs-page.js"></script>
     <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3/dist/cdn.min.js"></script>
   </head>
   <body>
@@ -46,10 +49,175 @@
       </div>
     </header>
 
-    <main class="container-page py-8">
-      <h1 class="text-2xl font-bold sm:text-3xl">Browse needs</h1>
-      <div class="card mt-6 text-center">
-        <p class="text-muted">This page is coming soon.</p>
+    <main class="container-page space-y-6 py-8" x-data="needsPage">
+      <div>
+        <h1 class="text-2xl font-bold sm:text-3xl">Browse needs</h1>
+        <p class="mt-1 text-muted">Every open request from approved organizations, most urgent first. Offer exactly what's needed.</p>
+      </div>
+
+      <!-- Filters (kept in the URL) -->
+      <form class="card grid gap-4 sm:grid-cols-2 lg:grid-cols-4" role="search" aria-label="Filter needs" @submit.prevent>
+        <div class="sm:col-span-2 lg:col-span-1">
+          <label for="f-q" class="label">Search</label>
+          <input id="f-q" class="input" type="search" placeholder="e.g. rice, diapers" maxlength="60"
+            x-model.debounce.300ms="filters.q" @input.debounce.300ms="syncUrl()" />
+        </div>
+        <div>
+          <label for="f-category" class="label">Category</label>
+          <select id="f-category" class="input" x-model="filters.category" @change="syncUrl()">
+            <option value="">All categories</option>
+            <template x-for="option in categories" :key="option.value">
+              <option :value="option.value" x-text="option.label" :selected="option.value === filters.category"></option>
+            </template>
+          </select>
+        </div>
+        <div>
+          <label for="f-area" class="label">Area</label>
+          <select id="f-area" class="input" x-model="filters.area" @change="syncUrl()">
+            <option value="">All areas</option>
+            <template x-for="area in areas" :key="area">
+              <option :value="area" x-text="area" :selected="area === filters.area"></option>
+            </template>
+          </select>
+        </div>
+        <div>
+          <label for="f-urgency" class="label">Urgency</label>
+          <select id="f-urgency" class="input" x-model="filters.urgency" @change="syncUrl()">
+            <option value="">Any urgency</option>
+            <template x-for="option in urgencies.slice().reverse()" :key="option.value">
+              <option :value="option.value" x-text="option.label" :selected="option.value === filters.urgency"></option>
+            </template>
+          </select>
+        </div>
+        <div class="flex flex-wrap items-center justify-between gap-3 sm:col-span-2 lg:col-span-4" aria-live="polite">
+          <p class="text-sm text-muted" x-show="!loading" x-text="`${filtered.length} ${filtered.length === 1 ? 'request' : 'requests'}`"></p>
+          <button type="button" class="btn btn-ghost" x-show="hasFilters" x-cloak @click="clearFilters()">Clear filters</button>
+        </div>
+      </form>
+
+      <!-- Who's looking -->
+      <div class="rounded-md bg-info-soft p-3 text-sm text-info" x-show="!loading && viewer === 'visitor'" x-cloak>
+        You can browse without an account. To offer an item, you'll log in or sign up first — then we bring you back here.
+      </div>
+      <div class="flex flex-wrap items-center justify-between gap-3 rounded-md border border-line bg-canvas p-3 text-sm" x-show="!loading && viewer === 'turn_on'" x-cloak>
+        <p>Turn on donating in your profile to do this.</p>
+        <button type="button" class="btn btn-secondary" :disabled="turningOn" @click="turnOnDonating()">
+          <span class="spinner" x-show="turningOn" x-cloak aria-hidden="true"></span>
+          Turn on donating
+        </button>
+      </div>
+      <div class="flex flex-wrap items-center justify-between gap-3 rounded-md border border-warning bg-warning-soft p-3 text-sm text-warning" x-show="!loading && viewer === 'consent'" x-cloak>
+        <p>Please confirm the privacy consent and that you're 18 or older before offering.</p>
+        <a href="/profile.html" class="btn btn-secondary">Go to my profile</a>
+      </div>
+      <p class="rounded-md bg-canvas p-3 text-sm text-muted" x-show="!loading && viewer === 'not_individual'" x-cloak>Organization and admin accounts can't donate.</p>
+
+      <!-- Loading / error / empty -->
+      <div class="grid gap-4 md:grid-cols-2" x-show="loading" aria-busy="true" aria-label="Loading needs">
+        <div class="card space-y-3"><div class="skeleton h-5 w-24"></div><div class="skeleton h-6 w-3/4"></div><div class="skeleton h-2.5 w-full"></div></div>
+        <div class="card space-y-3"><div class="skeleton h-5 w-24"></div><div class="skeleton h-6 w-2/3"></div><div class="skeleton h-2.5 w-full"></div></div>
+      </div>
+      <div class="card text-center" x-show="!loading && error" x-cloak role="alert">
+        <p class="text-danger" x-text="error"></p>
+        <button type="button" class="btn btn-secondary mt-3" @click="reload()">Try again</button>
+      </div>
+      <div class="card flex flex-col items-center gap-3 py-10 text-center" x-show="!loading && !error && filtered.length === 0" x-cloak>
+        <p class="text-muted" x-text="hasFilters ? 'No requests match these filters.' : 'No open requests right now — check back soon.'"></p>
+        <button type="button" class="btn btn-secondary" x-show="hasFilters" @click="clearFilters()">Clear filters</button>
+      </div>
+
+      <!-- Requests -->
+      <div class="grid gap-4 md:grid-cols-2" x-show="!loading && !error">
+        <template x-for="request in filtered" :key="request.id">
+          <article class="card flex flex-col gap-4">
+            <div class="flex flex-wrap items-center gap-2">
+              <span :class="requestUrgency(request).className" x-text="requestUrgency(request).label"></span>
+              <span class="badge badge-ai" x-show="requestUrgency(request).scored">AI-suggested</span>
+            </div>
+            <div class="min-w-0">
+              <h2 class="text-lg font-semibold break-words" x-text="request.title"></h2>
+              <a class="text-sm font-medium text-primary underline-offset-2 hover:underline" :href="`/org.html?id=${request.organization_id}`"
+                x-text="request.organization?.name || 'Organization'"></a>
+              <p class="text-sm text-muted break-words" x-show="request.organization?.address" x-text="request.organization?.address"></p>
+              <p class="text-sm text-muted" x-text="request.deadline ? `Needed by ${formatDate(request.deadline)}` : 'No deadline'"></p>
+              <p class="mt-2 text-sm whitespace-pre-line break-words" x-show="request.description" x-text="request.description"></p>
+            </div>
+            <div class="rounded-md bg-canvas p-3 text-sm" x-show="request.dropoff_instructions">
+              <p class="font-medium">Drop-off</p>
+              <p class="whitespace-pre-line break-words text-muted" x-text="request.dropoff_instructions"></p>
+            </div>
+
+            <ul class="space-y-4">
+              <template x-for="item in request.request_items" :key="item.id">
+                <li :id="`item-${item.id}`" class="scroll-mt-24 space-y-2 rounded-md border-t border-line pt-3 first:border-0 first:pt-0"
+                  :class="focusItemId === item.id ? 'ring-2 ring-primary-soft ring-offset-4 ring-offset-surface' : ''">
+                  <div class="flex justify-between gap-3 text-sm">
+                    <span class="min-w-0 font-medium break-words" x-text="item.name"></span>
+                    <span class="shrink-0 text-muted" x-text="`${item.quantity_committed} of ${item.quantity_needed} ${item.unit}`"></span>
+                  </div>
+                  <div class="progress" role="img" :aria-label="itemBarLabel(item)">
+                    <div class="progress-received" :style="itemBarStyles(item).received"></div>
+                    <div class="progress-committed" :style="itemBarStyles(item).promised"></div>
+                  </div>
+                  <div class="flex flex-wrap items-center justify-between gap-2">
+                    <p class="text-sm font-semibold" x-text="item.quantity_remaining > 0 ? `Still needed: ${item.quantity_remaining} ${item.unit}` : 'Fully promised — thank you!'"></p>
+                    <template x-if="activeOfferFor(item)">
+                      <span class="text-sm text-muted" x-text="`You offered ${activeOfferFor(item).quantity} — ${statusInfo(activeOfferFor(item).status, 'offer').label.toLowerCase()}`"></span>
+                    </template>
+                    <template x-if="item.quantity_remaining > 0 && !activeOfferFor(item) && offerItemId !== item.id">
+                      <span>
+                        <a class="btn btn-primary min-h-11 px-4" x-show="viewer === 'visitor'" :href="loginHref(item.id)" :aria-label="`Offer ${item.name}`">Offer</a>
+                        <button type="button" class="btn btn-primary min-h-11 px-4" x-show="viewer !== 'visitor'"
+                          :disabled="viewer !== 'donor'" @click="openOffer(item)" :aria-label="`Offer ${item.name}`">Offer</button>
+                      </span>
+                    </template>
+                  </div>
+
+                  <!-- Offer form (donors) -->
+                  <form class="space-y-4 rounded-md border border-primary-soft bg-canvas p-4" novalidate x-show="offerItemId === item.id" x-cloak
+                    @submit.prevent="sendOffer(item)" :aria-label="`Offer ${item.name}`">
+                    <div>
+                      <label :for="`offer-qty-${item.id}`" class="label">How many? <span class="text-danger" aria-hidden="true">*</span></label>
+                      <input :id="`offer-qty-${item.id}`" class="input max-w-40" type="number" inputmode="numeric" step="1" min="1" :max="item.quantity_remaining"
+                        x-model.number="offerForm.quantity" :aria-invalid="offerErrors.quantity ? 'true' : null"
+                        :aria-describedby="`offer-qty-help-${item.id} offer-qty-err-${item.id}`" />
+                      <p :id="`offer-qty-help-${item.id}`" class="helper-text" x-text="`Up to ${item.quantity_remaining} ${item.unit}`"></p>
+                      <p :id="`offer-qty-err-${item.id}`" class="field-error" x-show="offerErrors.quantity" x-text="offerErrors.quantity"></p>
+                    </div>
+                    <div>
+                      <label :for="`offer-msg-${item.id}`" class="label">Message to the organization <span class="font-normal text-muted">(optional)</span></label>
+                      <textarea :id="`offer-msg-${item.id}`" class="input py-2" rows="2" maxlength="500" x-model="offerForm.message"
+                        :aria-invalid="offerErrors.message ? 'true' : null" :aria-describedby="`offer-msg-err-${item.id}`"></textarea>
+                      <p :id="`offer-msg-err-${item.id}`" class="field-error" x-show="offerErrors.message" x-text="offerErrors.message"></p>
+                    </div>
+                    <template x-if="item.category === 'food'">
+                      <div>
+                        <label class="flex items-start gap-3 text-sm">
+                          <input :id="`offer-food-${item.id}`" type="checkbox" class="mt-0.5 size-5 shrink-0 accent-primary" x-model="offerForm.foodSafetyConfirmed"
+                            :aria-invalid="offerErrors.foodSafety ? 'true' : null" :aria-describedby="`offer-food-err-${item.id}`" />
+                          <span>Items are sealed, unopened and not past their expiry date. <span class="text-danger" aria-hidden="true">*</span>
+                            <span class="block text-muted">Cooked or home-made food can't be accepted.</span></span>
+                        </label>
+                        <p :id="`offer-food-err-${item.id}`" class="field-error ml-8" x-show="offerErrors.foodSafety" x-text="offerErrors.foodSafety"></p>
+                      </div>
+                    </template>
+                    <p class="helper-text mt-0" x-show="item.category === 'clothing'">Clothing should be clean and in usable condition.</p>
+                    <div role="alert">
+                      <p class="rounded-md bg-danger-soft p-3 text-sm font-medium text-danger" x-show="offerError" x-text="offerError"></p>
+                    </div>
+                    <div class="flex flex-wrap gap-3">
+                      <button type="submit" class="btn btn-primary" :disabled="sending">
+                        <span class="spinner" x-show="sending" x-cloak aria-hidden="true"></span>
+                        <span x-text="sending ? 'Sending…' : 'Send offer'">Send offer</span>
+                      </button>
+                      <button type="button" class="btn btn-ghost" @click="closeOffer()" :disabled="sending">Cancel</button>
+                    </div>
+                  </form>
+                </li>
+              </template>
+            </ul>
+          </article>
+        </template>
       </div>
     </main>
   </body>

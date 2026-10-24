@@ -84,6 +84,54 @@ const URGENCY_OPTIONS = /** @type {{ value: Urgency, label: string }[]} */ ([
 ]);
 
 /**
+ * Urgency badge for a request: the AI score as number + word when scored, otherwise the
+ * organization's own urgency word. Never colour alone (REQUIREMENTS.md section 3).
+ * @param {{ ai_score: number | null, urgency: Urgency }} request
+ * @returns {{ className: string, label: string, scored: boolean }}
+ */
+function requestUrgency(request) {
+  if (request.ai_score != null) {
+    const level = urgencyLevel(request.ai_score);
+    return { className: level.className, label: `${request.ai_score} · ${level.label}`, scored: true };
+  }
+  /** @type {Record<Urgency, string>} */
+  const classes = { critical: "badge badge-danger", high: "badge badge-warning", medium: "badge badge-info", low: "badge badge-neutral" };
+  const label = URGENCY_OPTIONS.find((option) => option.value === request.urgency)?.label ?? request.urgency;
+  return { className: classes[request.urgency] ?? "badge badge-neutral", label: `${label} urgency`, scored: false };
+}
+
+/**
+ * The urgency word used for filtering: from the AI score when scored, otherwise the organization's.
+ * @param {{ ai_score: number | null, urgency: Urgency }} request
+ * @returns {Urgency}
+ */
+function urgencyWordOf(request) {
+  if (request.ai_score == null) return request.urgency;
+  return /** @type {Urgency} */ (urgencyLevel(request.ai_score).label.toLowerCase());
+}
+
+/**
+ * Inline widths for an item's progress bar: received (solid) and promised-but-not-received (striped).
+ * @param {RequestItem} item
+ * @returns {{ received: string, promised: string }}
+ */
+function itemBarStyles(item) {
+  const needed = Math.max(item.quantity_needed, 1);
+  const received = Math.min(item.quantity_received / needed, 1) * 100;
+  const promised = Math.max(Math.min(((item.quantity_committed - item.quantity_received) / needed) * 100, 100 - received), 0);
+  return { received: `width: ${received}%`, promised: `width: ${promised}%` };
+}
+
+/**
+ * Screen-reader text for an item's progress bar.
+ * @param {RequestItem} item
+ * @returns {string}
+ */
+function itemBarLabel(item) {
+  return `${item.quantity_received} received, ${item.quantity_committed - item.quantity_received} promised, ${item.quantity_remaining} still needed`;
+}
+
+/**
  * True while the organization can still edit or close the request.
  * @param {DonationRequest} request
  * @returns {boolean}
@@ -237,6 +285,23 @@ async function closeRequest(id) {
   const { data, error } = await db().from("donation_requests").update({ status: "closed" }).eq("id", id).select("id");
   if (error) throw error;
   if (!data?.length) throw { code: "42501", message: "No request was updated" };
+}
+
+/**
+ * One organization's open requests (public — works logged out), most urgent first.
+ * @param {string} orgId
+ * @returns {Promise<DonationRequest[]>}
+ */
+async function listOrgOpenRequests(orgId) {
+  const { data, error } = await db()
+    .from("donation_requests")
+    .select("*, request_items(*)")
+    .eq("organization_id", orgId)
+    .eq("status", "open")
+    .order("ai_score", { ascending: false, nullsFirst: false })
+    .order("deadline", { ascending: true, nullsFirst: false });
+  if (error) throw error;
+  return (data ?? []).map(sortItems);
 }
 
 /**

@@ -49,6 +49,14 @@ function isValidSgPhone(phone) {
   return /^[3689]\d{7}$/.test(normalisePhone(phone));
 }
 
+/** Singapore areas for pickers and filters (public area names only). */
+const SG_AREAS = [
+  "Ang Mo Kio", "Bedok", "Bishan", "Bukit Batok", "Bukit Merah", "Bukit Panjang", "Bukit Timah",
+  "Choa Chu Kang", "Clementi", "Geylang", "Hougang", "Jurong East", "Jurong West", "Kallang",
+  "Pasir Ris", "Punggol", "Queenstown", "Sembawang", "Sengkang", "Serangoon", "Tampines",
+  "Toa Payoh", "Woodlands", "Yishun",
+];
+
 /** @type {Record<'success' | 'error', string>} */
 const TOAST_CLASS = {
   success: "toast toast-success",

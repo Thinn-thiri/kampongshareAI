@@ -226,6 +226,23 @@ async function listUpcomingPublicEvents() {
 }
 
 /**
+ * One organization's approved events that haven't finished yet (public).
+ * @param {string} orgId
+ * @returns {Promise<VolunteerEvent[]>}
+ */
+async function listOrgUpcomingEvents(orgId) {
+  const { data, error } = await db()
+    .from("events")
+    .select("*")
+    .eq("organization_id", orgId)
+    .eq("approval", "approved")
+    .in("status", ["upcoming", "ongoing"])
+    .order("starts_at", { ascending: true });
+  if (error) throw error;
+  return (data ?? []).filter(isNotOver);
+}
+
+/**
  * One approved event for event.html, or null if it doesn't exist or isn't public.
  * @param {string} id
  * @returns {Promise<VolunteerEvent | null>}

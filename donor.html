@@ -185,7 +185,8 @@
 
               <div class="min-w-0">
                 <h3 class="text-lg font-semibold break-words" x-text="request.title"></h3>
-                <p class="mt-1 text-sm font-medium text-primary" x-text="request.organization?.name || 'Organization'"></p>
+                <a class="mt-1 block text-sm font-medium text-primary underline-offset-2 hover:underline" :href="`/org.html?id=${request.organization_id}`"
+                  x-text="request.organization?.name || 'Organization'"></a>
                 <p class="text-sm text-muted break-words" x-show="request.organization?.address" x-text="request.organization?.address"></p>
                 <p class="mt-1 text-sm text-muted" x-text="request.deadline ? `Needed by ${formatDate(request.deadline)}` : 'No deadline'"></p>
                 <p class="mt-2 text-sm whitespace-pre-line break-words" x-show="request.description" x-text="request.description"></p>

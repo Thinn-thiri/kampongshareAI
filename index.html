@@ -19,6 +19,10 @@
     <script src="/js/map.js"></script>
     <script src="/js/events.js"></script>
     <script src="/js/public-events.js"></script>
+    <script src="/js/requests.js"></script>
+    <script src="/js/offers.js"></script>
+    <script src="/js/match.js"></script>
+    <script src="/js/home-page.js"></script>
     <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3/dist/cdn.min.js"></script>
   </head>
   <body>
@@ -51,7 +55,7 @@
       </div>
     </header>
 
-    <main class="container-page space-y-12 py-8 sm:py-12">
+    <main class="container-page space-y-12 py-8 sm:py-12" x-data="homePage" @offer-item.window="goOffer($event.detail.itemId)">
       <!-- Hero -->
       <section class="max-w-2xl">
         <h1 class="text-3xl font-bold sm:text-4xl">Give where it's needed most</h1>
@@ -63,6 +67,87 @@
           <a href="/signup.html?roles=donor" class="btn btn-secondary">Sign up to donate</a>
           <a href="/signup.html?roles=volunteer" class="btn btn-secondary">Volunteer</a>
           <a href="/signup.html?role=organization" class="btn btn-ghost">Register your organization</a>
+        </div>
+      </section>
+
+      <!-- Impact numbers (public_stats) -->
+      <section aria-labelledby="impact-heading" class="space-y-4">
+        <h2 id="impact-heading" class="text-xl font-semibold sm:text-2xl">Our impact so far</h2>
+        <div class="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">
+          <template x-for="card in statCards" :key="card.key">
+            <div class="card p-4">
+              <p class="text-sm text-muted" x-text="card.label"></p>
+              <template x-if="!stats">
+                <div class="skeleton mt-2 h-8 w-16" aria-hidden="true"></div>
+              </template>
+              <template x-if="stats">
+                <p class="mt-1" :class="stats[card.key] > 0 ? 'text-3xl font-bold' : 'text-sm font-semibold text-primary'"
+                  x-text="stats[card.key] > 0 ? stats[card.key].toLocaleString('en-SG') : card.empty"></p>
+              </template>
+            </div>
+          </template>
+        </div>
+        <p class="field-error" x-show="statsError" x-text="statsError" role="alert"></p>
+      </section>
+
+      <!-- Most urgent needs -->
+      <section aria-labelledby="urgent-heading" class="space-y-4">
+        <div class="flex flex-wrap items-end justify-between gap-3">
+          <div>
+            <h2 id="urgent-heading" class="text-xl font-semibold sm:text-2xl">Most urgent needs</h2>
+            <p class="mt-1 text-muted">Sorted by urgency. Every item shows exactly how much is still needed.</p>
+          </div>
+          <a href="/needs.html" class="btn btn-secondary">See all needs</a>
+        </div>
+
+        <div class="grid gap-4 md:grid-cols-2 lg:grid-cols-3" x-show="loadingUrgent" aria-busy="true" aria-label="Loading needs">
+          <div class="card space-y-3"><div class="skeleton h-5 w-24"></div><div class="skeleton h-6 w-3/4"></div><div class="skeleton h-2.5 w-full"></div></div>
+          <div class="card space-y-3"><div class="skeleton h-5 w-24"></div><div class="skeleton h-6 w-2/3"></div><div class="skeleton h-2.5 w-full"></div></div>
+          <div class="card space-y-3"><div class="skeleton h-5 w-24"></div><div class="skeleton h-6 w-3/4"></div><div class="skeleton h-2.5 w-full"></div></div>
+        </div>
+        <div class="card text-center" x-show="!loadingUrgent && urgentError" x-cloak role="alert">
+          <p class="text-danger" x-text="urgentError"></p>
+          <button type="button" class="btn btn-secondary mt-3" @click="loadUrgent()">Try again</button>
+        </div>
+        <div class="card py-10 text-center" x-show="!loadingUrgent && !urgentError && urgent.length === 0" x-cloak>
+          <p class="text-muted">No open requests right now — check back soon.</p>
+        </div>
+
+        <div class="grid gap-4 md:grid-cols-2 lg:grid-cols-3" x-show="!loadingUrgent && !urgentError">
+          <template x-for="request in urgent" :key="request.id">
+            <article class="card flex flex-col gap-3">
+              <div class="flex flex-wrap items-center gap-2">
+                <span :class="requestUrgency(request).className" x-text="requestUrgency(request).label"></span>
+                <span class="badge badge-ai" x-show="requestUrgency(request).scored">AI-suggested</span>
+              </div>
+              <div class="min-w-0">
+                <h3 class="text-lg font-semibold break-words" x-text="request.title"></h3>
+                <a class="text-sm font-medium text-primary underline-offset-2 hover:underline" :href="`/org.html?id=${request.organization_id}`"
+                  x-text="request.organization?.name || 'Organization'"></a>
+                <p class="text-sm text-muted break-words" x-show="request.organization?.address" x-text="request.organization?.address"></p>
+                <p class="text-sm text-muted" x-text="request.deadline ? `Needed by ${formatDate(request.deadline)}` : 'No deadline'"></p>
+              </div>
+              <ul class="space-y-3">
+                <template x-for="item in request.request_items" :key="item.id">
+                  <li class="space-y-1">
+                    <div class="flex justify-between gap-3 text-sm">
+                      <span class="min-w-0 font-medium break-words" x-text="item.name"></span>
+                      <span class="shrink-0 text-muted" x-text="`${item.quantity_committed} of ${item.quantity_needed} ${item.unit}`"></span>
+                    </div>
+                    <div class="progress" role="img" :aria-label="itemBarLabel(item)">
+                      <div class="progress-received" :style="itemBarStyles(item).received"></div>
+                      <div class="progress-committed" :style="itemBarStyles(item).promised"></div>
+                    </div>
+                    <div class="flex items-center justify-between gap-2">
+                      <p class="text-xs text-muted" x-text="item.quantity_remaining > 0 ? `${item.quantity_remaining} ${item.unit} still needed` : 'Fully promised'"></p>
+                      <button type="button" class="btn btn-ghost min-h-11 px-3" x-show="item.quantity_remaining > 0"
+                        @click="goOffer(item.id)" :aria-label="`Offer ${item.name}`">Offer</button>
+                    </div>
+                  </li>
+                </template>
+              </ul>
+            </article>
+          </template>
         </div>
       </section>
 
@@ -97,6 +182,89 @@
             <p class="text-sm text-muted" x-show="events.length > 3" x-text="`+ ${events.length - 3} more on the map`"></p>
           </div>
         </div>
+      </section>
+
+      <!-- What can you give? (6.4) -->
+      <section class="card space-y-4" x-data="matchBox" aria-labelledby="match-heading">
+        <div class="flex flex-wrap items-center gap-2">
+          <h2 id="match-heading" class="text-xl font-semibold sm:text-2xl">What can you give?</h2>
+          <span class="badge badge-ai">AI-suggested</span>
+        </div>
+        <p class="text-muted">Try it — no account needed. Tell us what you have and we'll suggest who needs it most.</p>
+        <form class="space-y-3" novalidate @submit.prevent="search">
+          <div>
+            <label for="match-text" class="label">Tell us what you have</label>
+            <textarea id="match-text" class="input py-2" rows="2" maxlength="300" x-model="text"
+              placeholder="What can you give? e.g. 5 bags of rice, baby diapers"
+              :aria-invalid="error ? 'true' : null" aria-describedby="match-help match-error"></textarea>
+            <p id="match-help" class="helper-text">Please don't include your name or phone number. <span x-text="`${text.length} / 300`"></span></p>
+            <p id="match-error" class="field-error" x-show="error" x-text="error"></p>
+          </div>
+          <button type="submit" class="btn btn-primary" :disabled="busy">
+            <span class="spinner" x-show="busy" x-cloak aria-hidden="true"></span>
+            <span x-text="busy ? 'Finding matches…' : 'Find matches'">Find matches</span>
+          </button>
+        </form>
+
+        <div aria-live="polite" class="space-y-4">
+          <p class="rounded-md bg-warning-soft p-3 text-sm text-warning" x-show="status === 'rate_limited'" x-cloak>You've tried a lot of matches — please wait a minute.</p>
+          <p class="rounded-md bg-danger-soft p-3 text-sm text-danger" x-show="status === 'error'" x-cloak>We couldn't find matches just now. Please try again, or browse all needs.</p>
+          <div class="space-y-2" x-show="showCategories" x-cloak>
+            <p class="text-sm">Our AI helper isn't available right now. Pick a category instead:</p>
+            <div class="flex flex-wrap gap-2" role="group" aria-label="Categories">
+              <template x-for="category in categories" :key="category.value">
+                <button type="button" class="btn btn-secondary" :aria-pressed="(pickedCategory === category.value).toString()"
+                  :class="pickedCategory === category.value ? 'border-primary bg-primary-soft text-primary' : ''"
+                  :disabled="busy" @click="searchCategory(category.value)" x-text="category.label"></button>
+              </template>
+            </div>
+          </div>
+          <div class="space-y-3" x-show="showResults" x-cloak>
+            <p class="text-sm text-muted" x-show="understood.length && status === 'ok'"
+              x-text="`We understood: ${understood.map((i) => (i.quantity ? i.quantity + ' ' : '') + i.name).join(', ')}`"></p>
+            <p class="rounded-md bg-canvas p-3 text-sm text-muted" x-show="matches.length === 0">
+              No open requests match that right now — try different words, or <a href="/needs.html" class="font-semibold text-primary underline">browse all needs</a>.
+            </p>
+            <ul class="grid gap-3 md:grid-cols-2" x-show="matches.length">
+              <template x-for="match in matches" :key="match.itemId">
+                <li class="flex flex-col gap-2 rounded-md border border-line bg-canvas p-4">
+                  <div class="flex flex-wrap items-center justify-between gap-2">
+                    <p class="font-semibold break-words" x-text="match.itemName"></p>
+                    <span class="badge badge-ai">AI-suggested</span>
+                  </div>
+                  <p class="text-sm break-words" x-text="match.requestTitle"></p>
+                  <p class="text-sm text-primary" x-text="match.organization"></p>
+                  <p class="text-sm text-muted" x-text="`${match.remaining} ${match.unit} still needed · ${deadlineText(match.deadline)}`"></p>
+                  <p class="text-sm" x-text="match.reason"></p>
+                  <button type="button" class="btn btn-primary mt-auto self-start" @click="offer(match)" :aria-label="`Offer ${match.itemName}`">Offer</button>
+                </li>
+              </template>
+            </ul>
+            <p class="text-xs text-muted" x-show="matches.length">Suggestions are sorted by a simple formula (category, how much is still needed, deadline, urgency). You decide what to give.</p>
+          </div>
+        </div>
+      </section>
+
+      <!-- How it works -->
+      <section aria-labelledby="how-heading" class="space-y-4">
+        <h2 id="how-heading" class="text-xl font-semibold sm:text-2xl">How it works</h2>
+        <ol class="grid gap-4 md:grid-cols-3">
+          <li class="card space-y-2">
+            <span class="grid size-10 place-items-center rounded-full bg-primary-soft font-bold text-primary" aria-hidden="true">1</span>
+            <h3 class="font-semibold">Organizations post what they need</h3>
+            <p class="text-sm text-muted">Local groups list exact items and quantities. An admin checks every organization and request first.</p>
+          </li>
+          <li class="card space-y-2">
+            <span class="grid size-10 place-items-center rounded-full bg-primary-soft font-bold text-primary" aria-hidden="true">2</span>
+            <h3 class="font-semibold">You offer exactly what's needed</h3>
+            <p class="text-sm text-muted">Pick an item, say how many, and see where to drop it off. Or sign up to volunteer at an event.</p>
+          </li>
+          <li class="card space-y-2">
+            <span class="grid size-10 place-items-center rounded-full bg-primary-soft font-bold text-primary" aria-hidden="true">3</span>
+            <h3 class="font-semibold">They confirm and receive</h3>
+            <p class="text-sm text-muted">The organization accepts your offer and marks it delivered — progress updates for everyone to see.</p>
+          </li>
+        </ol>
       </section>
 
       <footer class="border-t border-line pt-6 text-sm text-muted">

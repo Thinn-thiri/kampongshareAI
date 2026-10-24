@@ -140,6 +140,18 @@ async function setOfferStatus(id, status) {
 }
 
 /**
+ * Where an "Offer" button outside needs.html should go: straight to the item on needs.html,
+ * or via login first for visitors (they come back with the offer form open — REQUIREMENTS.md 6.3).
+ * @param {string} itemId
+ * @param {Profile | null} profile
+ * @returns {string}
+ */
+function offerHref(itemId, profile) {
+  const target = `/needs.html?item=${encodeURIComponent(itemId)}`;
+  return profile ? target : `/login.html?next=${encodeURIComponent(target)}`;
+}
+
+/**
  * Checks the offer form against the item. Returns an error message per field.
  * @param {OfferForm} form
  * @param {RequestItem} item

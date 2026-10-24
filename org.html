@@ -8,12 +8,20 @@
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" />
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="" />
     <link rel="stylesheet" href="/css/style.css" />
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="/js/config.js"></script>
     <script src="/js/supabase.js"></script>
     <script src="/js/auth.js"></script>
     <script src="/js/ui.js"></script>
+    <script src="/js/map.js"></script>
+    <script src="/js/orgs.js"></script>
+    <script src="/js/requests.js"></script>
+    <script src="/js/offers.js"></script>
+    <script src="/js/events.js"></script>
+    <script src="/js/org-page.js"></script>
     <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3/dist/cdn.min.js"></script>
   </head>
   <body>
@@ -46,10 +54,92 @@
       </div>
     </header>
 
-    <main class="container-page py-8">
-      <h1 class="text-2xl font-bold sm:text-3xl">Organization</h1>
-      <div class="card mt-6 text-center">
-        <p class="text-muted">This page is coming soon.</p>
+    <main class="container-page py-8" x-data="orgPage">
+      <div class="mx-auto max-w-3xl space-y-4" x-show="loading" aria-busy="true" aria-label="Loading organization">
+        <div class="skeleton h-9 w-2/3"></div><div class="skeleton h-5 w-1/2"></div><div class="skeleton h-56 w-full"></div>
+      </div>
+
+      <div class="mx-auto max-w-xl card space-y-3 py-10 text-center" x-show="!loading && (notFound || error)" x-cloak>
+        <h1 class="text-2xl font-bold">This organization isn't available</h1>
+        <p class="text-muted" x-text="error || 'It may not be approved yet, or the link is wrong.'"></p>
+        <a href="/needs.html" class="btn btn-primary">Browse all needs</a>
+      </div>
+
+      <div class="mx-auto max-w-4xl space-y-8" x-show="!loading && org" x-cloak>
+        <section class="grid gap-6 md:grid-cols-[1fr_320px]">
+          <div class="min-w-0 space-y-3">
+            <h1 class="text-2xl font-bold break-words sm:text-3xl" x-text="org?.name"></h1>
+            <p class="text-muted break-words" x-show="org?.address" x-text="org?.address"></p>
+            <p class="whitespace-pre-line break-words" x-show="org?.description" x-text="org?.description"></p>
+            <div class="flex flex-wrap gap-2 pt-1">
+              <span class="badge badge-success">Approved organization</span>
+              <span class="badge badge-neutral" x-text="`${requests.length} open ${requests.length === 1 ? 'request' : 'requests'}`"></span>
+              <span class="badge badge-neutral" x-text="`${events.length} upcoming ${events.length === 1 ? 'event' : 'events'}`"></span>
+            </div>
+          </div>
+          <div class="isolate h-56 overflow-hidden rounded-lg border border-line md:h-full md:min-h-56" x-show="org?.latitude != null">
+            <div id="org-map" class="h-full min-h-56 w-full"></div>
+          </div>
+        </section>
+
+        <!-- Open requests -->
+        <section class="space-y-4" aria-labelledby="org-requests-heading">
+          <h2 id="org-requests-heading" class="text-xl font-semibold">What they need</h2>
+          <div class="card py-8 text-center" x-show="requests.length === 0">
+            <p class="text-muted">No open requests right now.</p>
+          </div>
+          <div class="grid gap-4 md:grid-cols-2">
+            <template x-for="request in requests" :key="request.id">
+              <article class="card flex flex-col gap-3">
+                <div class="flex flex-wrap items-center gap-2">
+                  <span :class="requestUrgency(request).className" x-text="requestUrgency(request).label"></span>
+                  <span class="badge badge-ai" x-show="requestUrgency(request).scored">AI-suggested</span>
+                </div>
+                <div class="min-w-0">
+                  <h3 class="text-lg font-semibold break-words" x-text="request.title"></h3>
+                  <p class="text-sm text-muted" x-text="request.deadline ? `Needed by ${formatDate(request.deadline)}` : 'No deadline'"></p>
+                  <p class="mt-1 text-sm whitespace-pre-line break-words" x-show="request.description" x-text="request.description"></p>
+                </div>
+                <ul class="space-y-3">
+                  <template x-for="item in request.request_items" :key="item.id">
+                    <li class="space-y-1">
+                      <div class="flex justify-between gap-3 text-sm">
+                        <span class="min-w-0 font-medium break-words" x-text="item.name"></span>
+                        <span class="shrink-0 text-muted" x-text="`${item.quantity_committed} of ${item.quantity_needed} ${item.unit}`"></span>
+                      </div>
+                      <div class="progress" role="img" :aria-label="itemBarLabel(item)">
+                        <div class="progress-received" :style="itemBarStyles(item).received"></div>
+                        <div class="progress-committed" :style="itemBarStyles(item).promised"></div>
+                      </div>
+                      <div class="flex items-center justify-between gap-2">
+                        <p class="text-xs text-muted" x-text="item.quantity_remaining > 0 ? `${item.quantity_remaining} ${item.unit} still needed` : 'Fully promised'"></p>
+                        <button type="button" class="btn btn-ghost min-h-11 px-3" x-show="item.quantity_remaining > 0"
+                          @click="goOffer(item.id)" :aria-label="`Offer ${item.name}`">Offer</button>
+                      </div>
+                    </li>
+                  </template>
+                </ul>
+              </article>
+            </template>
+          </div>
+        </section>
+
+        <!-- Upcoming events -->
+        <section class="space-y-4" aria-labelledby="org-events-heading">
+          <h2 id="org-events-heading" class="text-xl font-semibold">Upcoming events</h2>
+          <div class="card py-8 text-center" x-show="events.length === 0">
+            <p class="text-muted">No upcoming events right now.</p>
+          </div>
+          <div class="grid gap-4 md:grid-cols-2">
+            <template x-for="event in events" :key="event.id">
+              <a :href="`/event.html?id=${event.id}`" class="card block focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary">
+                <p class="font-semibold break-words" x-text="event.title"></p>
+                <p class="mt-1 text-sm text-muted" x-text="formatEventTime(event.starts_at, event.ends_at)"></p>
+                <p class="text-sm text-muted break-words" x-text="event.location_name"></p>
+              </a>
+            </template>
+          </div>
+        </section>
       </div>
     </main>
   </body>

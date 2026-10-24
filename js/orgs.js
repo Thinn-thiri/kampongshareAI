@@ -49,6 +49,22 @@ async function getMyOrganization(ownerId) {
 }
 
 /**
+ * An approved organization for the public org.html page, or null.
+ * @param {string} id
+ * @returns {Promise<Organization | null>}
+ */
+async function getPublicOrganization(id) {
+  const { data, error } = await db()
+    .from("organizations")
+    .select("id, name, description, address, latitude, longitude, approval")
+    .eq("id", id)
+    .eq("approval", "approved")
+    .maybeSingle();
+  if (error) throw error;
+  return /** @type {Organization | null} */ (data);
+}
+
+/**
  * Turns form values into a database row. The name is left out when it is locked.
  * @param {OrganizationDetails} details
  * @param {boolean} includeName
