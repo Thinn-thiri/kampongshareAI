@@ -14,29 +14,277 @@
     <script src="/js/supabase.js"></script>
     <script src="/js/auth.js"></script>
     <script src="/js/ui.js"></script>
+    <script src="/js/signup.js"></script>
     <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3/dist/cdn.min.js"></script>
   </head>
   <body>
-    <header class="topbar">
-      <div class="container-page flex min-h-16 items-center gap-3">
+    <header class="topbar" x-data="topBar">
+      <div class="container-page flex min-h-16 flex-wrap items-center gap-x-3 gap-y-2 py-2">
         <a href="/" class="flex items-center gap-2 rounded-sm font-bold text-primary focus-visible:outline-2 focus-visible:outline-primary" aria-label="KampongShare home">
           <img src="/img/favicon.svg" alt="" class="size-8" />
           <span class="hidden sm:inline">KampongShare</span>
         </a>
         <span class="text-line" aria-hidden="true">/</span>
-        <span class="truncate font-semibold">Sign up</span>
-      <nav class="ml-auto flex items-center gap-1" aria-label="Account">
-        <a href="/login.html" class="btn btn-ghost px-3">Log in</a>
-        <a href="/signup.html" class="btn btn-primary px-4">Sign up</a>
-      </nav>
+        <span class="min-w-0 flex-1 truncate font-semibold">Sign up</span>
+        <nav class="segmented order-last w-full sm:order-none sm:w-auto" aria-label="Switch between donating and volunteering" x-show="canSwitch" x-cloak>
+          <a href="/donor.html" class="segmented-link" :aria-current="here('/donor.html') ? 'page' : null">Donating</a>
+          <a href="/volunteer.html" class="segmented-link" :aria-current="here('/volunteer.html') ? 'page' : null">Volunteering</a>
+        </nav>
+        <nav class="flex items-center gap-1" aria-label="Account" x-show="ready && !profile" x-cloak>
+          <a href="/login.html" class="btn btn-ghost px-3">Log in</a>
+          <a href="/signup.html" class="btn btn-primary px-4">Sign up</a>
+        </nav>
+        <div class="relative" x-show="profile" x-cloak @keydown.escape="open = false" @click.outside="open = false">
+          <button type="button" class="btn btn-secondary px-4" :aria-expanded="open.toString()" aria-controls="account-menu" @click="open = !open">
+            Account
+          </button>
+          <div id="account-menu" class="menu" x-show="open" x-cloak>
+            <a :href="dashboard" href="/" class="menu-item">My dashboard</a>
+            <a href="/profile.html" class="menu-item">My profile</a>
+            <button type="button" class="menu-item" @click="logout()">Log out</button>
+          </div>
+        </div>
       </div>
     </header>
 
     <main class="container-page py-8">
-      <h1 class="text-2xl font-bold sm:text-3xl">Create your account</h1>
-      <div class="card mt-6 text-center">
-        <p class="text-muted">This page is coming soon.</p>
+      <div class="mx-auto max-w-xl">
+        <h1 class="text-2xl font-bold sm:text-3xl">Create your account</h1>
+        <p class="mt-2 text-muted">It takes about a minute. Fields marked <span class="text-danger">*</span> are required.</p>
+
+        <form class="mt-6 space-y-6" novalidate x-data="signupForm" @submit.prevent="submit">
+          <!-- 1. Account type -->
+          <fieldset class="card space-y-3" aria-describedby="err-type">
+            <legend class="sr-only">Account type</legend>
+            <h2 class="text-lg font-semibold">I'm signing up as… <span class="text-danger" aria-hidden="true">*</span></h2>
+            <div class="grid gap-3 sm:grid-cols-2">
+              <label class="choice-card">
+                <input id="su-type-individual" type="radio" name="account-type" value="individual" class="mt-1 size-4 accent-primary" x-model="accountType" />
+                <span>
+                  <span class="block font-semibold">An individual</span>
+                  <span class="block text-sm text-muted">Donate items, volunteer, or both.</span>
+                </span>
+              </label>
+              <label class="choice-card">
+                <input type="radio" name="account-type" value="organization" class="mt-1 size-4 accent-primary" x-model="accountType" />
+                <span>
+                  <span class="block font-semibold">An organization</span>
+                  <span class="block text-sm text-muted">Post what you need and run volunteer events.</span>
+                </span>
+              </label>
+            </div>
+            <p id="err-type" class="field-error" x-show="errors.accountType" x-text="errors.accountType"></p>
+          </fieldset>
+
+          <div class="space-y-6" x-show="accountType" x-cloak>
+            <!-- 2. Donate / volunteer (individuals) -->
+            <fieldset class="card space-y-3" x-show="accountType === 'individual'" aria-describedby="err-roles">
+              <legend class="sr-only">What would you like to do?</legend>
+              <h2 class="text-lg font-semibold">What would you like to do? <span class="text-danger" aria-hidden="true">*</span></h2>
+              <p class="helper-text mt-0">Tick one or both. You can change this later in your profile.</p>
+              <div class="grid gap-3 sm:grid-cols-2">
+                <label class="choice-card">
+                  <input id="su-donate" type="checkbox" class="mt-1 size-4 accent-primary" x-model="wantDonate" />
+                  <span class="font-semibold">I want to donate</span>
+                </label>
+                <label class="choice-card">
+                  <input type="checkbox" class="mt-1 size-4 accent-primary" x-model="wantVolunteer" />
+                  <span class="font-semibold">I want to volunteer</span>
+                </label>
+              </div>
+              <p id="err-roles" class="field-error" x-show="errors.roles" x-text="errors.roles"></p>
+            </fieldset>
+
+            <!-- 3. Your details -->
+            <div class="card space-y-5">
+              <h2 class="text-lg font-semibold">Your details</h2>
+
+              <div>
+                <label for="su-name" class="label">
+                  <span x-text="accountType === 'organization' ? 'Your name' : 'Full name'">Full name</span>
+                  <span class="text-danger" aria-hidden="true">*</span>
+                </label>
+                <input id="su-name" class="input" type="text" autocomplete="name" maxlength="100" required
+                  x-model="fullName" :aria-invalid="errors.fullName ? 'true' : null"
+                  :aria-describedby="accountType === 'organization' ? 'help-name err-name' : 'err-name'" />
+                <p id="help-name" class="helper-text" x-show="accountType === 'organization'">You'll add your organization's details after signing up.</p>
+                <p id="err-name" class="field-error" x-show="errors.fullName" x-text="errors.fullName"></p>
+              </div>
+
+              <div>
+                <label for="su-email" class="label">Email <span class="text-danger" aria-hidden="true">*</span></label>
+                <input id="su-email" class="input" type="email" autocomplete="email" required
+                  x-model="email" :aria-invalid="errors.email ? 'true' : null" aria-describedby="err-email" />
+                <p id="err-email" class="field-error" x-show="errors.email" x-text="errors.email"></p>
+              </div>
+
+              <div>
+                <label for="su-password" class="label">Password <span class="text-danger" aria-hidden="true">*</span></label>
+                <input id="su-password" class="input" type="password" autocomplete="new-password" minlength="8" required
+                  x-model="password" :aria-invalid="errors.password ? 'true' : null" aria-describedby="help-password err-password" />
+                <p id="help-password" class="helper-text">At least 8 characters.</p>
+                <p id="err-password" class="field-error" x-show="errors.password" x-text="errors.password"></p>
+              </div>
+
+              <div>
+                <label for="su-phone" class="label">Phone <span class="font-normal text-muted">(optional)</span></label>
+                <input id="su-phone" class="input" type="tel" autocomplete="tel-national" inputmode="tel"
+                  x-model="phone" :aria-invalid="errors.phone ? 'true' : null" aria-describedby="help-phone err-phone" />
+                <p id="help-phone" class="helper-text">Only shown to organizations you give to or volunteer with, so they can arrange things with you.</p>
+                <p id="err-phone" class="field-error" x-show="errors.phone" x-text="errors.phone"></p>
+              </div>
+
+              <template x-if="accountType === 'individual'">
+                <div class="grid gap-5 sm:grid-cols-2">
+                  <div>
+                    <label for="su-postal" class="label">Postal code <span class="font-normal text-muted">(optional)</span></label>
+                    <input id="su-postal" class="input" type="text" inputmode="numeric" autocomplete="postal-code" maxlength="6"
+                      x-model="postalCode" :aria-invalid="errors.postalCode ? 'true' : null" aria-describedby="help-postal err-postal" />
+                    <p id="help-postal" class="helper-text">Only used to show needs near you. We never ask for your full address.</p>
+                    <p id="err-postal" class="field-error" x-show="errors.postalCode" x-text="errors.postalCode"></p>
+                  </div>
+                  <div>
+                    <label for="su-area" class="label">Area <span class="font-normal text-muted">(optional)</span></label>
+                    <input id="su-area" class="input" type="text" list="sg-areas" maxlength="50" x-model="area" aria-describedby="help-area" />
+                    <p id="help-area" class="helper-text">For example Tampines or Jurong West.</p>
+                  </div>
+                </div>
+              </template>
+            </div>
+
+            <!-- 4. Volunteering (only when "I want to volunteer" is ticked) -->
+            <div class="card space-y-5" x-show="accountType === 'individual' && wantVolunteer" x-cloak>
+              <div>
+                <h2 class="text-lg font-semibold">Volunteering</h2>
+                <p class="helper-text">All optional. It helps organizations plan, and you can change it any time.</p>
+              </div>
+
+              <fieldset>
+                <legend class="label">Days you're usually free</legend>
+                <div class="flex flex-wrap gap-2">
+                  <template x-for="option in dayOptions" :key="option.value">
+                    <label class="check-pill">
+                      <input type="checkbox" class="size-4 accent-primary" :value="option.value" x-model="days" />
+                      <span x-text="option.label"></span>
+                    </label>
+                  </template>
+                </div>
+              </fieldset>
+
+              <fieldset>
+                <legend class="label">Times of day</legend>
+                <div class="flex flex-wrap gap-2">
+                  <template x-for="option in timeOptions" :key="option.value">
+                    <label class="check-pill">
+                      <input type="checkbox" class="size-4 accent-primary" :value="option.value" x-model="times" />
+                      <span x-text="option.label"></span>
+                    </label>
+                  </template>
+                </div>
+              </fieldset>
+
+              <fieldset>
+                <legend class="label">Interests</legend>
+                <div class="flex flex-wrap gap-2">
+                  <template x-for="option in interestOptions" :key="option.value">
+                    <label class="check-pill">
+                      <input type="checkbox" class="size-4 accent-primary" :value="option.value" x-model="interests" />
+                      <span x-text="option.label"></span>
+                    </label>
+                  </template>
+                </div>
+              </fieldset>
+
+              <fieldset>
+                <legend class="label">Skills</legend>
+                <div class="flex flex-wrap gap-2">
+                  <template x-for="option in skillOptions" :key="option.value">
+                    <label class="check-pill">
+                      <input type="checkbox" class="size-4 accent-primary" :value="option.value" x-model="skills" />
+                      <span x-text="option.label"></span>
+                    </label>
+                  </template>
+                </div>
+              </fieldset>
+
+              <label class="flex items-start gap-3 text-sm">
+                <input type="checkbox" class="mt-0.5 size-5 shrink-0 accent-primary" x-model="matchingOptIn" />
+                <span>
+                  Use my availability, interests and skills to recommend volunteer events.
+                  <span class="block text-muted">Optional. If you leave this unticked, we won't use these details for AI suggestions.</span>
+                </span>
+              </label>
+            </div>
+
+            <!-- 5. Consent -->
+            <div class="card space-y-4">
+              <div>
+                <label class="flex items-start gap-3 text-sm">
+                  <input id="su-consent" type="checkbox" class="mt-0.5 size-5 shrink-0 accent-primary" required
+                    x-model="privacyConsent" :aria-invalid="errors.privacyConsent ? 'true' : null" aria-describedby="err-consent" />
+                  <span>
+                    I agree to the <a href="/privacy.html" target="_blank" rel="noopener" class="font-semibold text-primary underline">Privacy Notice</a>
+                    and to KampongShare using my details to coordinate donations and volunteering.
+                    <span class="text-danger" aria-hidden="true">*</span>
+                  </span>
+                </label>
+                <p id="err-consent" class="field-error ml-8" x-show="errors.privacyConsent" x-text="errors.privacyConsent"></p>
+              </div>
+              <div>
+                <label class="flex items-start gap-3 text-sm">
+                  <input id="su-age" type="checkbox" class="mt-0.5 size-5 shrink-0 accent-primary" required
+                    x-model="ageConfirmed" :aria-invalid="errors.ageConfirmed ? 'true' : null" aria-describedby="err-age" />
+                  <span>I confirm I am 18 or older. <span class="text-danger" aria-hidden="true">*</span></span>
+                </label>
+                <p id="err-age" class="field-error ml-8" x-show="errors.ageConfirmed" x-text="errors.ageConfirmed"></p>
+              </div>
+            </div>
+
+            <div role="alert">
+              <p class="rounded-md bg-danger-soft p-3 text-sm font-medium text-danger" x-show="formError" x-text="formError"></p>
+            </div>
+            <div role="status">
+              <p class="rounded-md bg-success-soft p-3 text-sm font-medium text-success" x-show="notice" x-text="notice"></p>
+            </div>
+
+            <button type="submit" class="btn btn-primary w-full" :disabled="busy">
+              <span class="spinner" x-show="busy" x-cloak aria-hidden="true"></span>
+              <span x-text="busy ? 'Creating your account…' : 'Create account'">Create account</span>
+            </button>
+          </div>
+
+          <p class="text-center text-sm text-muted">
+            Already have an account? <a :href="loginHref" href="/login.html" class="font-semibold text-primary underline">Log in</a>
+          </p>
+        </form>
       </div>
     </main>
+
+    <datalist id="sg-areas">
+      <option value="Ang Mo Kio"></option>
+      <option value="Bedok"></option>
+      <option value="Bishan"></option>
+      <option value="Bukit Batok"></option>
+      <option value="Bukit Merah"></option>
+      <option value="Bukit Panjang"></option>
+      <option value="Bukit Timah"></option>
+      <option value="Choa Chu Kang"></option>
+      <option value="Clementi"></option>
+      <option value="Geylang"></option>
+      <option value="Hougang"></option>
+      <option value="Jurong East"></option>
+      <option value="Jurong West"></option>
+      <option value="Kallang"></option>
+      <option value="Pasir Ris"></option>
+      <option value="Punggol"></option>
+      <option value="Queenstown"></option>
+      <option value="Sembawang"></option>
+      <option value="Sengkang"></option>
+      <option value="Serangoon"></option>
+      <option value="Tampines"></option>
+      <option value="Toa Payoh"></option>
+      <option value="Woodlands"></option>
+      <option value="Yishun"></option>
+    </datalist>
   </body>
 </html>

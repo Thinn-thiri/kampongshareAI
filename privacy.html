@@ -17,26 +17,132 @@
     <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3/dist/cdn.min.js"></script>
   </head>
   <body>
-    <header class="topbar">
-      <div class="container-page flex min-h-16 items-center gap-3">
+    <header class="topbar" x-data="topBar">
+      <div class="container-page flex min-h-16 flex-wrap items-center gap-x-3 gap-y-2 py-2">
         <a href="/" class="flex items-center gap-2 rounded-sm font-bold text-primary focus-visible:outline-2 focus-visible:outline-primary" aria-label="KampongShare home">
           <img src="/img/favicon.svg" alt="" class="size-8" />
           <span class="hidden sm:inline">KampongShare</span>
         </a>
         <span class="text-line" aria-hidden="true">/</span>
-        <span class="truncate font-semibold">Privacy</span>
-      <nav class="ml-auto flex items-center gap-1" aria-label="Account">
-        <a href="/login.html" class="btn btn-ghost px-3">Log in</a>
-        <a href="/signup.html" class="btn btn-primary px-4">Sign up</a>
-      </nav>
+        <span class="min-w-0 flex-1 truncate font-semibold">Privacy</span>
+        <nav class="segmented order-last w-full sm:order-none sm:w-auto" aria-label="Switch between donating and volunteering" x-show="canSwitch" x-cloak>
+          <a href="/donor.html" class="segmented-link" :aria-current="here('/donor.html') ? 'page' : null">Donating</a>
+          <a href="/volunteer.html" class="segmented-link" :aria-current="here('/volunteer.html') ? 'page' : null">Volunteering</a>
+        </nav>
+        <nav class="flex items-center gap-1" aria-label="Account" x-show="ready && !profile" x-cloak>
+          <a href="/login.html" class="btn btn-ghost px-3">Log in</a>
+          <a href="/signup.html" class="btn btn-primary px-4">Sign up</a>
+        </nav>
+        <div class="relative" x-show="profile" x-cloak @keydown.escape="open = false" @click.outside="open = false">
+          <button type="button" class="btn btn-secondary px-4" :aria-expanded="open.toString()" aria-controls="account-menu" @click="open = !open">
+            Account
+          </button>
+          <div id="account-menu" class="menu" x-show="open" x-cloak>
+            <a :href="dashboard" href="/" class="menu-item">My dashboard</a>
+            <a href="/profile.html" class="menu-item">My profile</a>
+            <button type="button" class="menu-item" @click="logout()">Log out</button>
+          </div>
+        </div>
       </div>
     </header>
 
     <main class="container-page py-8">
-      <h1 class="text-2xl font-bold sm:text-3xl">Privacy Notice</h1>
-      <div class="card mt-6 text-center">
-        <p class="text-muted">This page is coming soon.</p>
-      </div>
+      <article class="mx-auto max-w-2xl space-y-8">
+        <div>
+          <h1 class="text-2xl font-bold sm:text-3xl">Privacy Notice</h1>
+          <p class="mt-2 text-muted">Last updated 23 October 2026</p>
+          <p class="mt-4">
+            KampongShare connects people in Singapore who want to give with organizations that need help.
+            This notice explains, in plain words, what we collect, why, who can see it, and what you can do about it.
+            We follow Singapore's Personal Data Protection Act (PDPA).
+          </p>
+          <p class="mt-3 rounded-md bg-warning-soft p-3 text-sm text-warning">
+            KampongShare is a hackathon prototype. Please use made-up details when trying it out.
+          </p>
+        </div>
+
+        <section class="space-y-3" aria-labelledby="p-collect">
+          <h2 id="p-collect" class="text-xl font-semibold">What we collect</h2>
+          <ul class="list-disc space-y-1 pl-5">
+            <li><strong>Everyone:</strong> your name, email and password (the password is stored securely by our login provider; we can't see it).</li>
+            <li><strong>Optional:</strong> phone number, postal code and area. We never ask for your full home address.</li>
+            <li><strong>Volunteers (optional):</strong> the days and times you're free, your interests and skills.</li>
+            <li><strong>What you do here:</strong> the donations you offer and the events you apply for.</li>
+            <li><strong>Organizations:</strong> the organization's name, description, address and map location (these are public).</li>
+            <li>Your consent, the time you gave it, and that you confirmed you are 18 or older.</li>
+          </ul>
+          <p>
+            We do <strong>not</strong> collect NRIC/FIN numbers, date of birth, race, religion, income, health information or photos of people.
+          </p>
+        </section>
+
+        <section class="space-y-3" aria-labelledby="p-why">
+          <h2 id="p-why" class="text-xl font-semibold">Why we use it</h2>
+          <ul class="list-disc space-y-1 pl-5">
+            <li>To let you offer items and apply to volunteer, and let organizations arrange drop-offs and events with you.</li>
+            <li>To show needs and events near you (using your postal code or area).</li>
+            <li>To keep the platform safe: admins check organizations, requests and events before they go public.</li>
+          </ul>
+          <p>We don't sell your data, and we don't use ads, trackers or analytics cookies.</p>
+        </section>
+
+        <section class="space-y-3" aria-labelledby="p-who">
+          <h2 id="p-who" class="text-xl font-semibold">Who can see it</h2>
+          <ul class="list-disc space-y-1 pl-5">
+            <li><strong>The public</strong> sees organizations, their approved requests and events, and overall totals — never the names of donors or volunteers.</li>
+            <li><strong>An organization</strong> sees your name and phone number only if you offered items to it or applied to its event. It never sees your offers to other organizations.</li>
+            <li><strong>Admins</strong> see personal details only where needed to review and moderate.</li>
+          </ul>
+        </section>
+
+        <section class="space-y-3" aria-labelledby="p-ai">
+          <h2 id="p-ai" class="text-xl font-semibold">How we use AI</h2>
+          <ul class="list-disc space-y-1 pl-5">
+            <li>AI helps explain how urgent a request is and suggests which needs match what you can give. Every AI result is labelled <span class="badge badge-ai">AI-suggested</span>.</li>
+            <li>The urgency score comes from a clear formula (deadline, how much is still needed, urgency set by the organization). AI only writes the explanation.</li>
+            <li>We <strong>never send personal data to the AI</strong> — only things like item names, quantities, deadlines and area names. Phone numbers and emails are removed first.</li>
+            <li>AI never uses race, religion, nationality, health or income.</li>
+            <li>For volunteers, we use your availability, interests and skills for suggestions <strong>only if you tick the matching box</strong>. You can turn it off any time.</li>
+            <li>People always make the decisions. AI only sorts and suggests.</li>
+          </ul>
+        </section>
+
+        <section class="space-y-3" aria-labelledby="p-keep">
+          <h2 id="p-keep" class="text-xl font-semibold">How long we keep it</h2>
+          <p>
+            We keep your details while your account is open. When you delete your account, we remove your profile and personal details.
+            Records of past donations may be kept for the organization, but without your name or contact details.
+          </p>
+        </section>
+
+        <section class="space-y-3" aria-labelledby="p-choices">
+          <h2 id="p-choices" class="text-xl font-semibold">Your choices</h2>
+          <ul class="list-disc space-y-1 pl-5">
+            <li><strong>See and correct</strong> everything we hold about you on your profile page.</li>
+            <li><strong>Withdraw your consent</strong> on your profile page. You won't be able to donate or volunteer until you agree again.</li>
+            <li><strong>Turn AI matching off</strong> on your profile page.</li>
+            <li><strong>Delete your account</strong> on your profile page.</li>
+          </ul>
+        </section>
+
+        <section class="space-y-3" aria-labelledby="p-security">
+          <h2 id="p-security" class="text-xl font-semibold">Keeping it safe</h2>
+          <p>
+            The site only works over a secure connection (HTTPS). Database rules make sure people can only see what they're allowed to.
+            Secret keys are kept on the server, never in the website. If a serious data breach ever happened, we would tell
+            the Personal Data Protection Commission and the people affected promptly, as the law requires.
+          </p>
+        </section>
+
+        <section class="card space-y-2" aria-labelledby="p-contact">
+          <h2 id="p-contact" class="text-xl font-semibold">Questions?</h2>
+          <p>
+            Contact our Data Protection Officer at
+            <a href="mailto:privacy@kampongshare.example.com" class="font-semibold text-primary underline">privacy@kampongshare.example.com</a>.
+            We'll reply within 5 working days.
+          </p>
+        </section>
+      </article>
     </main>
   </body>
 </html>

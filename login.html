@@ -14,28 +14,71 @@
     <script src="/js/supabase.js"></script>
     <script src="/js/auth.js"></script>
     <script src="/js/ui.js"></script>
+    <script src="/js/login.js"></script>
     <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3/dist/cdn.min.js"></script>
   </head>
   <body>
-    <header class="topbar">
-      <div class="container-page flex min-h-16 items-center gap-3">
+    <header class="topbar" x-data="topBar">
+      <div class="container-page flex min-h-16 flex-wrap items-center gap-x-3 gap-y-2 py-2">
         <a href="/" class="flex items-center gap-2 rounded-sm font-bold text-primary focus-visible:outline-2 focus-visible:outline-primary" aria-label="KampongShare home">
           <img src="/img/favicon.svg" alt="" class="size-8" />
           <span class="hidden sm:inline">KampongShare</span>
         </a>
         <span class="text-line" aria-hidden="true">/</span>
-        <span class="truncate font-semibold">Log in</span>
-      <nav class="ml-auto flex items-center gap-1" aria-label="Account">
-        <a href="/login.html" class="btn btn-ghost px-3">Log in</a>
-        <a href="/signup.html" class="btn btn-primary px-4">Sign up</a>
-      </nav>
+        <span class="min-w-0 flex-1 truncate font-semibold">Log in</span>
+        <nav class="segmented order-last w-full sm:order-none sm:w-auto" aria-label="Switch between donating and volunteering" x-show="canSwitch" x-cloak>
+          <a href="/donor.html" class="segmented-link" :aria-current="here('/donor.html') ? 'page' : null">Donating</a>
+          <a href="/volunteer.html" class="segmented-link" :aria-current="here('/volunteer.html') ? 'page' : null">Volunteering</a>
+        </nav>
+        <nav class="flex items-center gap-1" aria-label="Account" x-show="ready && !profile" x-cloak>
+          <a href="/login.html" class="btn btn-ghost px-3">Log in</a>
+          <a href="/signup.html" class="btn btn-primary px-4">Sign up</a>
+        </nav>
+        <div class="relative" x-show="profile" x-cloak @keydown.escape="open = false" @click.outside="open = false">
+          <button type="button" class="btn btn-secondary px-4" :aria-expanded="open.toString()" aria-controls="account-menu" @click="open = !open">
+            Account
+          </button>
+          <div id="account-menu" class="menu" x-show="open" x-cloak>
+            <a :href="dashboard" href="/" class="menu-item">My dashboard</a>
+            <a href="/profile.html" class="menu-item">My profile</a>
+            <button type="button" class="menu-item" @click="logout()">Log out</button>
+          </div>
+        </div>
       </div>
     </header>
 
-    <main class="container-page py-8">
-      <h1 class="text-2xl font-bold sm:text-3xl">Log in</h1>
-      <div class="card mt-6 text-center">
-        <p class="text-muted">This page is coming soon.</p>
+    <main class="container-page py-12">
+      <div class="mx-auto max-w-md">
+        <h1 class="text-2xl font-bold sm:text-3xl">Welcome back</h1>
+        <p class="mt-2 text-muted">Log in to give, volunteer or manage your organization.</p>
+
+        <form class="card mt-6 space-y-5" novalidate x-data="loginForm" @submit.prevent="submit">
+          <div>
+            <label for="li-email" class="label">Email</label>
+            <input id="li-email" class="input" type="email" autocomplete="email" required x-model="email" />
+          </div>
+          <div>
+            <label for="li-password" class="label">Password</label>
+            <input id="li-password" class="input" type="password" autocomplete="current-password" required x-model="password" />
+          </div>
+
+          <div role="alert">
+            <p class="rounded-md bg-danger-soft p-3 text-sm font-medium text-danger" x-show="error" x-text="error"></p>
+          </div>
+
+          <button type="submit" class="btn btn-primary w-full" :disabled="busy">
+            <span class="spinner" x-show="busy" x-cloak aria-hidden="true"></span>
+            <span x-text="busy ? 'Logging in…' : 'Log in'">Log in</span>
+          </button>
+
+          <p class="text-center text-sm text-muted">
+            New to KampongShare? <a :href="signupHref" href="/signup.html" class="font-semibold text-primary underline">Create an account</a>
+          </p>
+        </form>
+
+        <p class="mt-6 text-center text-sm text-muted">
+          <a href="/privacy.html" class="underline hover:text-ink">Privacy Notice</a>
+        </p>
       </div>
     </main>
   </body>

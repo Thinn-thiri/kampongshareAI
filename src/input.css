@@ -43,6 +43,10 @@
   [x-cloak] {
     display: none !important;
   }
+  /* pages with data-require stay hidden until js/auth.js confirms access */
+  body[data-require]:not([data-access-ok]) main {
+    visibility: hidden;
+  }
 }
 
 @layer components {
@@ -119,8 +123,24 @@
   .bottom-nav-link {
     @apply flex min-h-14 flex-1 flex-col items-center justify-center gap-0.5 text-xs font-medium text-muted hover:text-primary focus-visible:outline-2 focus-visible:outline-primary;
   }
+  /* Donating / Volunteering switch */
+  .segmented {
+    @apply flex rounded-md border border-line bg-canvas p-0.5;
+  }
+  .segmented-link {
+    @apply flex min-h-10 flex-1 items-center justify-center rounded-sm px-3 text-sm font-semibold text-muted hover:text-ink focus-visible:outline-2 focus-visible:outline-primary aria-[current=page]:bg-surface aria-[current=page]:text-primary aria-[current=page]:shadow-sm;
+  }
+
+  /* selectable cards (account type, donate / volunteer) and pills (days, interests…) */
+  .choice-card {
+    @apply flex cursor-pointer items-start gap-3 rounded-md border border-line bg-surface p-4 transition-colors duration-200 hover:border-primary has-checked:border-primary has-checked:bg-primary-soft has-focus-visible:outline-2 has-focus-visible:outline-offset-2 has-focus-visible:outline-primary;
+  }
+  .check-pill {
+    @apply inline-flex min-h-11 cursor-pointer items-center gap-2 rounded-full border border-line bg-surface px-4 text-sm font-medium transition-colors duration-200 hover:border-primary has-checked:border-primary has-checked:bg-primary-soft has-checked:text-primary has-focus-visible:outline-2 has-focus-visible:outline-primary;
+  }
+
   .menu {
-    @apply absolute right-0 mt-2 w-48 rounded-md border border-line bg-surface p-1 shadow-md;
+    @apply absolute right-0 z-40 mt-2 w-48 rounded-md border border-line bg-surface p-1 shadow-md;
   }
   .menu-item {
     @apply flex min-h-11 w-full items-center rounded-sm px-3 text-left text-sm text-ink hover:bg-canvas focus-visible:outline-2 focus-visible:outline-primary;

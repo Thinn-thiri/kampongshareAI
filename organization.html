@@ -16,24 +16,33 @@
     <script src="/js/ui.js"></script>
     <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3/dist/cdn.min.js"></script>
   </head>
-  <body>
-    <header class="topbar">
-      <div class="container-page flex min-h-16 items-center gap-3">
+  <body data-require="organization">
+    <header class="topbar" x-data="topBar">
+      <div class="container-page flex min-h-16 flex-wrap items-center gap-x-3 gap-y-2 py-2">
         <a href="/" class="flex items-center gap-2 rounded-sm font-bold text-primary focus-visible:outline-2 focus-visible:outline-primary" aria-label="KampongShare home">
           <img src="/img/favicon.svg" alt="" class="size-8" />
           <span class="hidden sm:inline">KampongShare</span>
         </a>
         <span class="text-line" aria-hidden="true">/</span>
-        <span class="truncate font-semibold">Organization</span>
-      <div class="relative ml-auto" x-data="{ open: false }" @keydown.escape="open = false" @click.outside="open = false">
-        <button type="button" class="btn btn-secondary px-4" :aria-expanded="open.toString()" aria-controls="profile-menu" @click="open = !open">
-          Account
-        </button>
-        <div id="profile-menu" class="menu" x-show="open" x-cloak>
-          <a href="/profile.html" class="menu-item">My profile</a>
-          <button type="button" class="menu-item" @click="logout()">Log out</button>
+        <span class="min-w-0 flex-1 truncate font-semibold">Organization</span>
+        <nav class="segmented order-last w-full sm:order-none sm:w-auto" aria-label="Switch between donating and volunteering" x-show="canSwitch" x-cloak>
+          <a href="/donor.html" class="segmented-link" :aria-current="here('/donor.html') ? 'page' : null">Donating</a>
+          <a href="/volunteer.html" class="segmented-link" :aria-current="here('/volunteer.html') ? 'page' : null">Volunteering</a>
+        </nav>
+        <nav class="flex items-center gap-1" aria-label="Account" x-show="ready && !profile" x-cloak>
+          <a href="/login.html" class="btn btn-ghost px-3">Log in</a>
+          <a href="/signup.html" class="btn btn-primary px-4">Sign up</a>
+        </nav>
+        <div class="relative" x-show="profile" x-cloak @keydown.escape="open = false" @click.outside="open = false">
+          <button type="button" class="btn btn-secondary px-4" :aria-expanded="open.toString()" aria-controls="account-menu" @click="open = !open">
+            Account
+          </button>
+          <div id="account-menu" class="menu" x-show="open" x-cloak>
+            <a :href="dashboard" href="/" class="menu-item">My dashboard</a>
+            <a href="/profile.html" class="menu-item">My profile</a>
+            <button type="button" class="menu-item" @click="logout()">Log out</button>
+          </div>
         </div>
-      </div>
       </div>
     </header>
 

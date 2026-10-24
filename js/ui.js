@@ -143,5 +143,52 @@ function urgencyLevel(score) {
   return { label: "Low", className: "badge badge-neutral" };
 }
 
+/**
+ * Turns a Supabase / database error into a short, kind message that says how to fix it.
+ * Messages the database raises on purpose (raise exception) are already plain English, so they pass through.
+ * @param {unknown} error
+ * @returns {string}
+ */
+function friendlyError(error) {
+  const err = /** @type {{ message?: unknown, code?: unknown, status?: unknown }} */ (error ?? {});
+  const message = typeof err.message === "string" ? err.message : "";
+  const lower = message.toLowerCase();
+
+  if (lower.includes("invalid login credentials")) {
+    return "That email and password don't match. Please check them and try again.";
+  }
+  if (lower.includes("already registered") || err.code === "user_already_exists") {
+    return "There's already an account with this email. Try logging in instead.";
+  }
+  if (lower.includes("password") && (lower.includes("at least") || err.code === "weak_password")) {
+    return "Your password needs at least 8 characters.";
+  }
+  if (lower.includes("email not confirmed")) {
+    return "Please confirm your email first, using the link we sent you.";
+  }
+  if (lower.includes("invalid format") || (lower.includes("email address") && lower.includes("invalid"))) {
+    return "Please enter a valid email address, like name@example.com.";
+  }
+  if (lower.includes("rate limit") || err.status === 429) {
+    return "Too many tries. Please wait a minute and try again.";
+  }
+  if (lower.includes("failed to fetch") || lower.includes("networkerror") || lower.includes("load failed")) {
+    return "We couldn't reach the server. Check your internet connection and try again.";
+  }
+  if (lower.includes("database error saving new user")) {
+    return "We couldn't create your account. Please check your details and try again.";
+  }
+  if (lower.includes("signups not allowed")) {
+    return "Sign-ups are switched off right now. Please try again later.";
+  }
+  if (err.code === "23514") return "Some details aren't in the right format. Please check the form.";
+  if (err.code === "23505") return "That already exists, so nothing was changed.";
+  if (err.code === "42501" || lower.includes("row-level security")) {
+    return "You don't have permission to do that.";
+  }
+  if (err.code === "P0001" && message) return message;
+  return "Something went wrong. Please try again.";
+}
+
 // Create the toast area early so screen readers already know about it when the first toast appears.
 document.addEventListener("DOMContentLoaded", getToastRegion);
