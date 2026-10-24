@@ -324,12 +324,18 @@ document.addEventListener("alpine:init", () => {
     open: false,
 
     async init() {
+      await this.refresh();
+      this.ready = true;
+      // e.g. profile.html adds a role: show the Donating / Volunteering switch straight away.
+      window.addEventListener("profile-changed", () => this.refresh());
+    },
+
+    async refresh() {
       try {
         this.profile = await getProfile();
       } catch {
         this.profile = null;
       }
-      this.ready = true;
     },
 
     get canSwitch() {

@@ -120,6 +120,29 @@ document.addEventListener("alpine:init", () => {
       setTimeout(() => document.getElementById(`offer-qty-${item.id}`)?.focus(), 0);
     },
 
+    /**
+     * "Offer" pressed on an AI-suggested match: open that item's offer form below.
+     * @param {string} itemId
+     */
+    async offerFromMatch(itemId) {
+      if (this.filterRequestId || this.filterOrgId) this.clearFilter();
+      let item = this.requests.flatMap((r) => r.request_items).find((i) => i.id === itemId);
+      if (!item) {
+        await this.loadRequests();
+        item = this.requests.flatMap((r) => r.request_items).find((i) => i.id === itemId);
+      }
+      if (!item || item.quantity_remaining <= 0) {
+        toast("That item isn't open for donations any more.", "error");
+        return;
+      }
+      if (this.activeOfferFor(item)) {
+        toast("You already have an offer for this item — see My offers below.", "error");
+        return;
+      }
+      this.openOffer(item);
+      setTimeout(() => document.getElementById(`offer-qty-${itemId}`)?.scrollIntoView({ behavior: "smooth", block: "center" }), 50);
+    },
+
     closeOffer() {
       this.offerItemId = null;
     },

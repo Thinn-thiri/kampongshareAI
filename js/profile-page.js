@@ -136,6 +136,40 @@ document.addEventListener("alpine:init", () => {
       return this.profile?.role === "donor" || this.profile?.role === "volunteer";
     },
 
+    /** The role a single-role individual can add ("donor" or "volunteer"), or null. */
+    get missingRole() {
+      if (!this.isIndividual || !this.profile) return null;
+      if (this.profile.is_donor && !this.profile.is_volunteer) return "volunteer";
+      if (this.profile.is_volunteer && !this.profile.is_donor) return "donor";
+      return null;
+    },
+
+    addingRole: false,
+    /** @type {'' | 'donor' | 'volunteer'} the role that was just added, for the follow-up message */
+    justAdded: "",
+
+    /** Adds the other role to this same account, straight away (REQUIREMENTS.md 6.6a). */
+    async addRole() {
+      const role = this.missingRole;
+      if (!role || !this.form) return;
+      this.addingRole = true;
+      try {
+        const profile = await enableRole(role);
+        // Keep any unsaved edits in the form; only take the new role flags from the database.
+        this.profile = profile;
+        this.form.isDonor = profile.is_donor;
+        this.form.isVolunteer = profile.is_volunteer;
+        this.justAdded = role;
+        window.dispatchEvent(new CustomEvent("profile-changed"));
+        toast(role === "volunteer" ? "Volunteering added to your account." : "Donating added to your account.");
+        if (role === "volunteer") this.onVolunteerToggle();
+      } catch (error) {
+        toast(friendlyError(error), "error");
+      } finally {
+        this.addingRole = false;
+      }
+    },
+
     get hasConsent() {
       return Boolean(this.profile?.consented_at && this.profile?.age_confirmed);
     },
@@ -182,6 +216,7 @@ document.addEventListener("alpine:init", () => {
       this.saving = true;
       try {
         this.setProfile(await updateMyProfile(changes));
+        window.dispatchEvent(new CustomEvent("profile-changed"));
         toast("Your profile was saved.");
       } catch (error) {
         this.formError = friendlyError(error);

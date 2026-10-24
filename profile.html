@@ -65,6 +65,30 @@
 
         <template x-if="!loading && form && profile">
           <div class="space-y-6">
+            <!-- Add the other role to this account (single-role individuals) -->
+            <section class="card flex flex-col gap-3 border-primary bg-primary-soft sm:flex-row sm:items-center sm:justify-between"
+              x-show="missingRole" aria-labelledby="add-role-heading">
+              <div>
+                <h2 id="add-role-heading" class="text-lg font-semibold text-ink" x-text="missingRole === 'volunteer' ? 'Want to volunteer too?' : 'Want to donate too?'"></h2>
+                <p class="text-sm text-ink" x-text="missingRole === 'volunteer'
+                  ? 'Add volunteering to this account — no new sign-up needed. You\'ll keep everything you have now.'
+                  : 'Add donating to this account — no new sign-up needed. You\'ll keep everything you have now.'"></p>
+              </div>
+              <button type="button" class="btn btn-primary shrink-0" :disabled="addingRole" @click="addRole()">
+                <span class="spinner" x-show="addingRole" x-cloak aria-hidden="true"></span>
+                <span x-text="missingRole === 'volunteer' ? 'Add volunteering' : 'Add donating'"></span>
+              </button>
+            </section>
+
+            <!-- Just added: what to do next -->
+            <div class="rounded-md border border-success bg-success-soft p-4 text-sm text-success" x-show="justAdded" x-cloak role="status">
+              <p class="font-semibold" x-text="justAdded === 'volunteer' ? 'Volunteering is on.' : 'Donating is on.'"></p>
+              <p class="mt-1 text-ink" x-show="justAdded === 'volunteer'">Add when you're free and what you enjoy below, then press Save changes. You can switch between donating and volunteering in the top bar.</p>
+              <p class="mt-1 text-ink" x-show="justAdded === 'donor'">You can switch between donating and volunteering in the top bar.</p>
+              <a class="btn btn-secondary mt-3" :href="justAdded === 'volunteer' ? '/volunteer.html' : '/donor.html'"
+                x-text="justAdded === 'volunteer' ? 'Go to the volunteer dashboard' : 'Go to the donor dashboard'"></a>
+            </div>
+
             <form class="space-y-6" novalidate @submit.prevent="save">
               <!-- 1. Details -->
               <section class="card space-y-5" aria-labelledby="details-heading">

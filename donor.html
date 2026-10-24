@@ -17,6 +17,7 @@
     <script src="/js/requests.js"></script>
     <script src="/js/offers.js"></script>
     <script src="/js/donor-dashboard.js"></script>
+    <script src="/js/match.js"></script>
     <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3/dist/cdn.min.js"></script>
   </head>
   <body data-require="donor">
@@ -49,7 +50,7 @@
       </div>
     </header>
 
-    <main class="container-page space-y-10 py-8" x-data="donorDashboard">
+    <main class="container-page space-y-10 py-8" x-data="donorDashboard" @offer-item.window="offerFromMatch($event.detail.itemId)">
       <div>
         <h1 class="text-2xl font-bold sm:text-3xl">Donor dashboard</h1>
         <p class="mt-1 text-muted">Give exactly what's needed. Choose an item, offer an amount, and the organization will confirm.</p>
@@ -77,6 +78,77 @@
         <p class="mt-1 text-sm">Please confirm the privacy consent and that you're 18 or older on your profile page.</p>
         <a href="/profile.html" class="btn btn-secondary mt-3">Go to my profile</a>
       </div>
+
+      <!-- What can you give? (REQUIREMENTS.md 6.4) -->
+      <section class="card space-y-4" x-data="matchBox" aria-labelledby="match-heading">
+        <div class="flex flex-wrap items-center gap-2">
+          <h2 id="match-heading" class="text-xl font-semibold">What can you give?</h2>
+          <span class="badge badge-ai">AI-suggested</span>
+        </div>
+        <form class="space-y-3" novalidate @submit.prevent="search">
+          <div>
+            <label for="match-text" class="label">Tell us what you have</label>
+            <textarea id="match-text" class="input py-2" rows="2" maxlength="300" x-model="text"
+              placeholder="What can you give? e.g. 5 bags of rice, baby diapers"
+              :aria-invalid="error ? 'true' : null" aria-describedby="match-help match-error"></textarea>
+            <p id="match-help" class="helper-text">
+              We'll suggest the requests that need it most. Please don't include your name or phone number.
+              <span x-text="`${text.length} / 300`"></span>
+            </p>
+            <p id="match-error" class="field-error" x-show="error" x-text="error"></p>
+          </div>
+          <button type="submit" class="btn btn-primary" :disabled="busy">
+            <span class="spinner" x-show="busy" x-cloak aria-hidden="true"></span>
+            <span x-text="busy ? 'Finding matches…' : 'Find matches'">Find matches</span>
+          </button>
+        </form>
+
+        <div aria-live="polite" class="space-y-4">
+          <p class="rounded-md bg-warning-soft p-3 text-sm text-warning" x-show="status === 'rate_limited'" x-cloak>
+            You've tried a lot of matches — please wait a minute.
+          </p>
+          <p class="rounded-md bg-danger-soft p-3 text-sm text-danger" x-show="status === 'error'" x-cloak>
+            We couldn't find matches just now. Please try again, or browse the requests below.
+          </p>
+
+          <!-- Fallback: the AI isn't available -->
+          <div class="space-y-2" x-show="showCategories" x-cloak>
+            <p class="text-sm">Our AI helper isn't available right now. Pick a category instead:</p>
+            <div class="flex flex-wrap gap-2" role="group" aria-label="Categories">
+              <template x-for="category in categories" :key="category.value">
+                <button type="button" class="btn btn-secondary" :aria-pressed="(pickedCategory === category.value).toString()"
+                  :class="pickedCategory === category.value ? 'border-primary bg-primary-soft text-primary' : ''"
+                  :disabled="busy" @click="searchCategory(category.value)" x-text="category.label"></button>
+              </template>
+            </div>
+          </div>
+
+          <!-- Results -->
+          <div class="space-y-3" x-show="showResults" x-cloak>
+            <p class="text-sm text-muted" x-show="understood.length && status === 'ok'"
+              x-text="`We understood: ${understood.map((i) => (i.quantity ? i.quantity + ' ' : '') + i.name).join(', ')}`"></p>
+            <p class="rounded-md bg-canvas p-3 text-sm text-muted" x-show="matches.length === 0">
+              No open requests match that right now — try different words, or browse all requests below.
+            </p>
+            <ul class="grid gap-3 md:grid-cols-2" x-show="matches.length">
+              <template x-for="match in matches" :key="match.itemId">
+                <li class="flex flex-col gap-2 rounded-md border border-line bg-canvas p-4">
+                  <div class="flex flex-wrap items-center justify-between gap-2">
+                    <p class="font-semibold break-words" x-text="match.itemName"></p>
+                    <span class="badge badge-ai">AI-suggested</span>
+                  </div>
+                  <p class="text-sm break-words" x-text="match.requestTitle"></p>
+                  <p class="text-sm text-primary" x-text="match.organization"></p>
+                  <p class="text-sm text-muted" x-text="`${match.remaining} ${match.unit} still needed · ${deadlineText(match.deadline)}`"></p>
+                  <p class="text-sm" x-text="match.reason"></p>
+                  <button type="button" class="btn btn-primary mt-auto self-start" @click="offer(match)" :aria-label="`Offer ${match.itemName}`">Offer</button>
+                </li>
+              </template>
+            </ul>
+            <p class="text-xs text-muted" x-show="matches.length">Suggestions are sorted by a simple formula (category, how much is still needed, deadline, urgency and distance). You decide what to give.</p>
+          </div>
+        </div>
+      </section>
 
       <!-- Open requests -->
       <section class="space-y-4" aria-labelledby="open-heading">
