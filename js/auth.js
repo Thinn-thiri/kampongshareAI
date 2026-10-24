@@ -247,6 +247,50 @@ async function enableRole(role) {
 }
 
 /**
+ * Saves changes to the logged-in user's own profile and returns the updated row.
+ * Only these columns can be changed from the browser (the database refuses others).
+ * @param {Partial<Pick<Profile, 'full_name' | 'phone' | 'postal_code' | 'area' | 'is_donor' | 'is_volunteer'
+ *   | 'available_days' | 'available_times' | 'interests' | 'skills' | 'consented_at' | 'age_confirmed' | 'matching_opt_in'>>} changes
+ * @returns {Promise<Profile>}
+ */
+async function updateMyProfile(changes) {
+  const profile = await getProfile();
+  if (!profile) throw new Error("Not logged in");
+  const { data, error } = await db().from("profiles").update(changes).eq("id", profile.id).select("*").single();
+  if (error) throw error;
+  profileRequest = Promise.resolve(data);
+  return data;
+}
+
+/**
+ * Gives the privacy consent and 18+ confirmation (REQUIREMENTS.md 4.2). The database sets the time.
+ * @returns {Promise<Profile>}
+ */
+function giveConsent() {
+  return updateMyProfile({ consented_at: new Date().toISOString(), age_confirmed: true });
+}
+
+/**
+ * Withdraws the privacy consent: no offers or applications until it is given again.
+ * @returns {Promise<Profile>}
+ */
+function withdrawConsent() {
+  return updateMyProfile({ consented_at: null });
+}
+
+/**
+ * The logged-in user's email (kept by Supabase Auth, not in profiles).
+ * @returns {Promise<string>}
+ */
+async function getMyEmail() {
+  if (!sb) return "";
+  const {
+    data: { session },
+  } = await sb.auth.getSession();
+  return session?.user.email ?? "";
+}
+
+/**
  * Logs out and returns to the home page.
  * @returns {Promise<void>}
  */

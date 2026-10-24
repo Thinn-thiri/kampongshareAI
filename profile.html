@@ -14,6 +14,8 @@
     <script src="/js/supabase.js"></script>
     <script src="/js/auth.js"></script>
     <script src="/js/ui.js"></script>
+    <script src="/js/volunteer-options.js"></script>
+    <script src="/js/profile-page.js"></script>
     <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3/dist/cdn.min.js"></script>
   </head>
   <body data-require="login">
@@ -46,11 +48,219 @@
       </div>
     </header>
 
-    <main class="container-page py-8">
-      <h1 class="text-2xl font-bold sm:text-3xl">My profile</h1>
-      <div class="card mt-6 text-center">
-        <p class="text-muted">This page is coming soon.</p>
+    <main class="container-page py-8" x-data="profilePage">
+      <div class="mx-auto max-w-2xl space-y-6">
+        <div>
+          <h1 class="text-2xl font-bold sm:text-3xl">My profile</h1>
+          <p class="mt-1 text-muted">Everything we hold about you. You can correct it at any time.</p>
+        </div>
+
+        <div class="card space-y-3" x-show="loading" aria-busy="true" aria-label="Loading your profile">
+          <div class="skeleton h-5 w-1/3"></div><div class="skeleton h-11 w-full"></div><div class="skeleton h-11 w-full"></div>
+        </div>
+        <div class="card text-center" x-show="!loading && loadError" x-cloak role="alert">
+          <p class="text-danger" x-text="loadError"></p>
+          <button type="button" class="btn btn-secondary mt-3" @click="location.reload()">Try again</button>
+        </div>
+
+        <template x-if="!loading && form && profile">
+          <div class="space-y-6">
+            <form class="space-y-6" novalidate @submit.prevent="save">
+              <!-- 1. Details -->
+              <section class="card space-y-5" aria-labelledby="details-heading">
+                <h2 id="details-heading" class="text-lg font-semibold">Your details</h2>
+                <div>
+                  <label for="pf-name" class="label">Full name <span class="text-danger" aria-hidden="true">*</span></label>
+                  <input id="pf-name" class="input" type="text" autocomplete="name" maxlength="100" required x-model="form.fullName"
+                    :aria-invalid="errors.fullName ? 'true' : null" aria-describedby="err-pf-name" />
+                  <p id="err-pf-name" class="field-error" x-show="errors.fullName" x-text="errors.fullName"></p>
+                </div>
+                <div>
+                  <label for="pf-email" class="label">Email</label>
+                  <input id="pf-email" class="input bg-canvas text-muted" type="email" :value="email" readonly aria-describedby="help-pf-email" />
+                  <p id="help-pf-email" class="helper-text">Used to log in. It can't be changed here yet.</p>
+                </div>
+                <div>
+                  <label for="pf-phone" class="label">Phone <span class="font-normal text-muted">(optional)</span></label>
+                  <input id="pf-phone" class="input" type="tel" inputmode="tel" autocomplete="tel-national" x-model="form.phone"
+                    :aria-invalid="errors.phone ? 'true' : null" aria-describedby="help-pf-phone err-pf-phone" />
+                  <p id="help-pf-phone" class="helper-text">Only shown to organizations you give to or volunteer with, and to admins.</p>
+                  <p id="err-pf-phone" class="field-error" x-show="errors.phone" x-text="errors.phone"></p>
+                </div>
+                <div class="grid gap-5 sm:grid-cols-2">
+                  <div>
+                    <label for="pf-postal" class="label">Postal code <span class="font-normal text-muted">(optional)</span></label>
+                    <input id="pf-postal" class="input" type="text" inputmode="numeric" autocomplete="postal-code" maxlength="6" x-model="form.postalCode"
+                      :aria-invalid="errors.postalCode ? 'true' : null" aria-describedby="help-pf-postal err-pf-postal" />
+                    <p id="help-pf-postal" class="helper-text">Only used to show needs near you. We never ask for your full address.</p>
+                    <p id="err-pf-postal" class="field-error" x-show="errors.postalCode" x-text="errors.postalCode"></p>
+                  </div>
+                  <div>
+                    <label for="pf-area" class="label">Area <span class="font-normal text-muted">(optional)</span></label>
+                    <input id="pf-area" class="input" type="text" list="sg-areas" maxlength="50" x-model="form.area"
+                      :aria-invalid="errors.area ? 'true' : null" aria-describedby="err-pf-area" />
+                    <p id="err-pf-area" class="field-error" x-show="errors.area" x-text="errors.area"></p>
+                  </div>
+                </div>
+              </section>
+
+              <!-- 2. Donate / volunteer (individual accounts only) -->
+              <fieldset class="card space-y-3" x-show="isIndividual" aria-describedby="help-pf-roles err-pf-roles">
+                <legend class="sr-only">What would you like to do?</legend>
+                <h2 class="text-lg font-semibold">What would you like to do?</h2>
+                <p id="help-pf-roles" class="helper-text mt-0">Keep at least one turned on.</p>
+                <div class="grid gap-3 sm:grid-cols-2">
+                  <label class="choice-card">
+                    <input id="pf-donate" type="checkbox" class="mt-1 size-4 accent-primary" x-model="form.isDonor" @change="errors = { ...errors, roles: undefined }" />
+                    <span>
+                      <span class="block font-semibold">Donate</span>
+                      <span class="block text-sm text-muted">Offer items to organizations.</span>
+                    </span>
+                  </label>
+                  <label class="choice-card">
+                    <input type="checkbox" class="mt-1 size-4 accent-primary" x-model="form.isVolunteer" @change="onVolunteerToggle()" />
+                    <span>
+                      <span class="block font-semibold">Volunteer</span>
+                      <span class="block text-sm text-muted">Apply to help at events.</span>
+                    </span>
+                  </label>
+                </div>
+                <p id="err-pf-roles" class="field-error" x-show="errors.roles" x-text="errors.roles"></p>
+              </fieldset>
+              <p class="card text-sm text-muted" x-show="!isIndividual">Organization and admin accounts can't donate or volunteer.</p>
+
+              <!-- 3. Volunteering -->
+              <section id="volunteer-section" class="card scroll-mt-24 space-y-5" x-show="isIndividual && form.isVolunteer" aria-labelledby="vol-heading">
+                <div>
+                  <h2 id="vol-heading" class="text-lg font-semibold">Volunteering</h2>
+                  <p class="helper-text">Tell organizations when you're free and what you enjoy. All optional.</p>
+                </div>
+                <fieldset>
+                  <legend class="label">Days you're usually free</legend>
+                  <div class="flex flex-wrap gap-2">
+                    <template x-for="option in dayOptions" :key="option.value">
+                      <label class="check-pill"><input type="checkbox" class="size-4 accent-primary" :value="option.value" x-model="form.days" /><span x-text="option.label"></span></label>
+                    </template>
+                  </div>
+                </fieldset>
+                <fieldset>
+                  <legend class="label">Times of day</legend>
+                  <div class="flex flex-wrap gap-2">
+                    <template x-for="option in timeOptions" :key="option.value">
+                      <label class="check-pill"><input type="checkbox" class="size-4 accent-primary" :value="option.value" x-model="form.times" /><span x-text="option.label"></span></label>
+                    </template>
+                  </div>
+                </fieldset>
+                <fieldset>
+                  <legend class="label">Interests</legend>
+                  <div class="flex flex-wrap gap-2">
+                    <template x-for="option in interestOptions" :key="option.value">
+                      <label class="check-pill"><input type="checkbox" class="size-4 accent-primary" :value="option.value" x-model="form.interests" /><span x-text="option.label"></span></label>
+                    </template>
+                  </div>
+                </fieldset>
+                <fieldset>
+                  <legend class="label">Skills</legend>
+                  <div class="flex flex-wrap gap-2">
+                    <template x-for="option in skillOptions" :key="option.value">
+                      <label class="check-pill"><input type="checkbox" class="size-4 accent-primary" :value="option.value" x-model="form.skills" /><span x-text="option.label"></span></label>
+                    </template>
+                  </div>
+                </fieldset>
+                <label class="flex items-start gap-3 text-sm">
+                  <input type="checkbox" class="mt-0.5 size-5 shrink-0 accent-primary" x-model="form.matchingOptIn" />
+                  <span>
+                    Use my availability, interests and skills to recommend volunteer events.
+                    <span class="block text-muted">Optional. If unticked, we won't use these details for AI suggestions.</span>
+                  </span>
+                </label>
+              </section>
+
+              <div role="alert">
+                <p class="rounded-md bg-danger-soft p-3 text-sm font-medium text-danger" x-show="formError" x-text="formError"></p>
+              </div>
+              <button type="submit" class="btn btn-primary w-full sm:w-auto" :disabled="saving">
+                <span class="spinner" x-show="saving" x-cloak aria-hidden="true"></span>
+                <span x-text="saving ? 'Saving…' : 'Save changes'">Save changes</span>
+              </button>
+            </form>
+
+            <!-- 4. Consent (REQUIREMENTS.md 4.2) -->
+            <section class="card space-y-3" aria-labelledby="consent-heading">
+              <h2 id="consent-heading" class="text-lg font-semibold">Privacy &amp; consent</h2>
+              <template x-if="hasConsent">
+                <div class="space-y-3">
+                  <p class="text-sm">
+                    <span class="badge badge-success">Consent given</span>
+                    <span class="ml-1 text-muted" x-text="`You agreed on ${formatDate(profile.consented_at, true)} and confirmed you're 18 or older.`"></span>
+                  </p>
+                  <p class="text-sm text-muted">You can withdraw it at any time. You won't be able to donate or volunteer until you agree again.</p>
+                  <button type="button" class="btn btn-danger" :disabled="consentBusy" @click="confirmWithdrawConsent()">
+                    <span class="spinner" x-show="consentBusy" x-cloak aria-hidden="true"></span>
+                    Withdraw my consent
+                  </button>
+                </div>
+              </template>
+              <template x-if="!hasConsent">
+                <div class="space-y-3 rounded-md border border-warning bg-warning-soft p-4">
+                  <p class="text-sm font-semibold text-warning">You need to give consent before you can donate or volunteer.</p>
+                  <label class="flex items-start gap-3 text-sm">
+                    <input type="checkbox" class="mt-0.5 size-5 shrink-0 accent-primary" x-model="consentChecked" />
+                    <span>I agree to the <a href="/privacy.html" target="_blank" rel="noopener" class="font-semibold text-primary underline">Privacy Notice</a> and to KampongShare using my details to coordinate donations and volunteering.</span>
+                  </label>
+                  <label class="flex items-start gap-3 text-sm">
+                    <input type="checkbox" class="mt-0.5 size-5 shrink-0 accent-primary" x-model="ageChecked" />
+                    <span>I confirm I am 18 or older.</span>
+                  </label>
+                  <button type="button" class="btn btn-primary" :disabled="consentBusy || !consentChecked || !ageChecked" @click="submitConsent()">
+                    <span class="spinner" x-show="consentBusy" x-cloak aria-hidden="true"></span>
+                    Give consent
+                  </button>
+                </div>
+              </template>
+            </section>
+
+            <!-- 5. Your data (REQUIREMENTS.md 4.4) -->
+            <section class="card space-y-3" aria-labelledby="data-heading">
+              <h2 id="data-heading" class="text-lg font-semibold">Your data</h2>
+              <dl class="grid gap-x-4 gap-y-2 text-sm sm:grid-cols-[max-content_1fr]">
+                <dt class="font-medium text-muted">Account</dt>
+                <dd x-text="roleLabels[profile.role]"></dd>
+                <dt class="font-medium text-muted">Email</dt>
+                <dd class="break-words" x-text="email || '—'"></dd>
+                <dt class="font-medium text-muted">Member since</dt>
+                <dd x-text="formatDate(profile.created_at)"></dd>
+                <dt class="font-medium text-muted">Consent</dt>
+                <dd x-text="profile.consented_at ? `Given ${formatDate(profile.consented_at, true)}` : 'Not given'"></dd>
+                <dt class="font-medium text-muted">18 or older</dt>
+                <dd x-text="profile.age_confirmed ? 'Confirmed' : 'Not confirmed'"></dd>
+                <dt class="font-medium text-muted" x-show="isIndividual">AI matching</dt>
+                <dd x-show="isIndividual" x-text="profile.matching_opt_in ? 'On — your availability, interests and skills may be used for suggestions' : 'Off'"></dd>
+              </dl>
+              <p class="text-sm text-muted">Read how we use it in the <a href="/privacy.html" class="font-semibold text-primary underline">Privacy Notice</a>.</p>
+            </section>
+
+            <!-- 6. Delete account (REQUIREMENTS.md 4.4 — not built yet) -->
+            <section class="card space-y-2" aria-labelledby="delete-heading">
+              <h2 id="delete-heading" class="text-lg font-semibold">Delete my account</h2>
+              <p class="text-sm text-muted">This will remove your profile and personal details. Past donations are kept only without your name or contact details.</p>
+              <button type="button" class="btn btn-danger" disabled aria-describedby="delete-soon">Delete my account</button>
+              <p id="delete-soon" class="helper-text mt-0">Coming soon.</p>
+            </section>
+          </div>
+        </template>
       </div>
+
+      <datalist id="sg-areas">
+        <option value="Ang Mo Kio"></option><option value="Bedok"></option><option value="Bishan"></option>
+        <option value="Bukit Batok"></option><option value="Bukit Merah"></option><option value="Bukit Panjang"></option>
+        <option value="Bukit Timah"></option><option value="Choa Chu Kang"></option><option value="Clementi"></option>
+        <option value="Geylang"></option><option value="Hougang"></option><option value="Jurong East"></option>
+        <option value="Jurong West"></option><option value="Kallang"></option><option value="Pasir Ris"></option>
+        <option value="Punggol"></option><option value="Queenstown"></option><option value="Sembawang"></option>
+        <option value="Sengkang"></option><option value="Serangoon"></option><option value="Tampines"></option>
+        <option value="Toa Payoh"></option><option value="Woodlands"></option><option value="Yishun"></option>
+      </datalist>
     </main>
   </body>
 </html>
