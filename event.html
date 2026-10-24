@@ -12,6 +12,7 @@
     <link rel="stylesheet" href="/css/style.css" />
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="https://unpkg.com/lucide@latest"></script>
     <script src="/js/config.js"></script>
     <script src="/js/supabase.js"></script>
     <script src="/js/auth.js"></script>
@@ -19,6 +20,7 @@
     <script src="/js/map.js"></script>
     <script src="/js/events.js"></script>
     <script src="/js/volunteering.js"></script>
+    <script src="/js/share.js"></script>
     <script src="/js/event-page.js"></script>
     <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3/dist/cdn.min.js"></script>
   </head>
@@ -39,8 +41,8 @@
           <a href="/login.html" class="btn btn-ghost px-3">Log in</a>
           <a href="/signup.html" class="btn btn-primary px-4">Sign up</a>
         </nav>
-        <div class="relative" x-show="profile" x-cloak @keydown.escape="open = false" @click.outside="open = false">
-          <button type="button" class="btn btn-secondary px-4" :aria-expanded="open.toString()" aria-controls="account-menu" @click="open = !open">
+        <div class="relative" x-show="profile" x-cloak @keydown.escape="if (open) { open = false; $refs.accountButton.focus() }" @click.outside="open = false">
+          <button type="button" x-ref="accountButton" class="btn btn-secondary px-4" :aria-expanded="open.toString()" aria-controls="account-menu" @click="open = !open">
             Account
           </button>
           <div id="account-menu" class="menu" x-show="open" x-cloak>
@@ -50,6 +52,14 @@
           </div>
         </div>
       </div>
+        <nav class="bottom-nav" aria-label="Main" x-show="ready" x-cloak>
+          <template x-for="link in bottomLinks" :key="link.href">
+            <a :href="link.href" class="bottom-nav-link" :aria-current="isCurrent(link.href) ? 'page' : null">
+              <i :data-lucide="link.icon" class="size-5" aria-hidden="true"></i>
+              <span x-text="link.label"></span>
+            </a>
+          </template>
+        </nav>
     </header>
 
     <main class="container-page py-8" x-data="eventPage">
@@ -181,6 +191,33 @@
             </form>
           </div>
         </div>
+
+        <!-- Share this event (REQUIREMENTS.md 5.3) — this page only ever shows approved events -->
+        <template x-if="event">
+          <section class="card space-y-4" x-data="sharePanel(event, event.organization?.name || 'KampongShare', false)" aria-labelledby="share-heading">
+            <div>
+              <h2 id="share-heading" class="text-lg font-semibold">Share this event</h2>
+              <p class="text-sm text-muted">Help more people give and volunteer. The link opens this page.</p>
+            </div>
+            <div>
+              <label for="share-message" class="label">Message</label>
+              <textarea id="share-message" class="input py-2" rows="4" maxlength="500" x-model="message" aria-describedby="share-message-help"></textarea>
+              <p id="share-message-help" class="helper-text">You can edit it before sharing.</p>
+            </div>
+            <div class="grid grid-cols-2 gap-2 sm:grid-cols-3">
+              <a class="btn btn-primary" :href="whatsapp" target="_blank" rel="noopener">WhatsApp</a>
+              <a class="btn btn-secondary" :href="facebook" target="_blank" rel="noopener">Facebook</a>
+              <button type="button" class="btn btn-secondary" x-show="canNativeShare" @click="nativeShare()">Share…</button>
+              <button type="button" class="btn btn-secondary" @click="copyLink()">Copy link</button>
+              <button type="button" class="btn btn-secondary" :disabled="makingPoster" @click="poster()">
+                <span class="spinner" x-show="makingPoster" x-cloak aria-hidden="true"></span>
+                Download poster
+              </button>
+              <button type="button" class="btn btn-secondary" @click="copyCaption()">Copy caption</button>
+            </div>
+            <p class="helper-text mt-0">Instagram: download the poster, then paste the caption. Instagram captions can't hold clickable links, so the link is printed on the poster.</p>
+          </section>
+        </template>
       </article>
     </main>
   </body>

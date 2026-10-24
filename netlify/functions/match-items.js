@@ -10,11 +10,11 @@
 // Env: NVIDIA_API_KEY (optional — without it, category buttons are used),
 //      SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY (to read open requests and check a login).
 
-/** The NVIDIA Build model. Change it here only.
- *  nemotron-3.5-bolt-e4b answered in about 1 s with correct JSON for this account's key;
- *  google/gemma-4-31b-it timed out (> 25 s) when tested on 24 Oct 2026. */
-const MODEL = "nvidia/nemotron-3.5-bolt-e4b";
-const NVIDIA_URL = "https://integrate.api.nvidia.com/v1/chat/completions";
+// The model and the personal-data filter live in netlify/lib/ai.js (one MODEL constant for all functions).
+import { chat, stripPersonalData } from "../lib/ai.js";
+
+export { stripPersonalData };
+
 const TIMEOUT_MS = 10000;
 const MAX_TEXT = 300;
 const TOP_N = 5;
@@ -53,54 +53,28 @@ function json(status, body) {
 }
 
 /**
- * Removes anything that looks like personal data before the text goes anywhere (REQUIREMENTS.md 4.6).
- * @param {string} text
- * @returns {string}
- */
-export function stripPersonalData(text) {
-  return text
-    .replace(/[^\s@]+@[^\s@]+\.[^\s@]+/g, "[removed]") // emails
-    .replace(/\b[STFGM]\d{7}[A-Z]\b/gi, "[removed]") // NRIC / FIN
-    .replace(/(\+?65[\s-]?)?\b[3689]\d{3}[\s-]?\d{4}\b/g, "[removed]") // Singapore phone numbers
-    .replace(/\d{7,}/g, "[removed]") // any other long number
-    .replace(/\b\d{6}\b/g, "[removed]"); // postal codes
-}
-
-/**
  * Asks NVIDIA Build to turn the (already cleaned) text into items. Returns null if the AI isn't available.
  * @param {string} cleanText
  * @param {Deps} deps
  * @returns {Promise<WantedItem[] | null>}
  */
 async function extractItems(cleanText, deps) {
-  // Tolerate a key pasted with the "Bearer " prefix from NVIDIA's sample code.
-  const apiKey = deps.env.NVIDIA_API_KEY?.trim().replace(/^Bearer\s+/i, "");
-  if (!apiKey) return null;
+  const content = await chat(
+    [
+      {
+        role: "system",
+        content:
+          "You turn a short note about donations into a list of items. " +
+          `Reply with JSON only, no other text: {"items":[{"name":string,"category":one of ${JSON.stringify(ALL_CATEGORIES)},"quantity":integer or null}]}. ` +
+          "Use short item names (e.g. \"rice\", \"baby diapers\"). Ignore anything that isn't an item. " +
+          'If there are no items, reply {"items":[]}.',
+      },
+      { role: "user", content: cleanText },
+    ],
+    { apiKey: deps.env.NVIDIA_API_KEY, maxTokens: 300, fetch: deps.fetch },
+  );
+  if (!content) return null;
   try {
-    const response = await deps.fetch(NVIDIA_URL, {
-      method: "POST",
-      headers: { "Content-Type": "application/json", Authorization: `Bearer ${apiKey}` },
-      body: JSON.stringify({
-        model: MODEL,
-        temperature: 0,
-        max_tokens: 300,
-        messages: [
-          {
-            role: "system",
-            content:
-              "You turn a short note about donations into a list of items. " +
-              `Reply with JSON only, no other text: {"items":[{"name":string,"category":one of ${JSON.stringify(ALL_CATEGORIES)},"quantity":integer or null}]}. ` +
-              "Use short item names (e.g. \"rice\", \"baby diapers\"). Ignore anything that isn't an item. " +
-              'If there are no items, reply {"items":[]}.',
-          },
-          { role: "user", content: cleanText },
-        ],
-      }),
-      signal: AbortSignal.timeout(TIMEOUT_MS),
-    });
-    if (!response.ok) return null;
-    const body = await response.json();
-    const content = String(body?.choices?.[0]?.message?.content ?? "");
     const jsonText = content.slice(content.indexOf("{"), content.lastIndexOf("}") + 1);
     const parsed = JSON.parse(jsonText);
     if (!Array.isArray(parsed?.items)) return null;

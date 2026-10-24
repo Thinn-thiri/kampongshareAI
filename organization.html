@@ -12,6 +12,7 @@
     <link rel="stylesheet" href="/css/style.css" />
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="https://unpkg.com/lucide@latest"></script>
     <script src="/js/config.js"></script>
     <script src="/js/supabase.js"></script>
     <script src="/js/auth.js"></script>
@@ -28,6 +29,8 @@
     <script src="/js/org-events.js"></script>
     <script src="/js/volunteering.js"></script>
     <script src="/js/event-volunteers.js"></script>
+    <script src="/js/share.js"></script>
+    <script src="/js/org-stats.js"></script>
     <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3/dist/cdn.min.js"></script>
   </head>
   <body data-require="organization">
@@ -47,8 +50,8 @@
           <a href="/login.html" class="btn btn-ghost px-3">Log in</a>
           <a href="/signup.html" class="btn btn-primary px-4">Sign up</a>
         </nav>
-        <div class="relative" x-show="profile" x-cloak @keydown.escape="open = false" @click.outside="open = false">
-          <button type="button" class="btn btn-secondary px-4" :aria-expanded="open.toString()" aria-controls="account-menu" @click="open = !open">
+        <div class="relative" x-show="profile" x-cloak @keydown.escape="if (open) { open = false; $refs.accountButton.focus() }" @click.outside="open = false">
+          <button type="button" x-ref="accountButton" class="btn btn-secondary px-4" :aria-expanded="open.toString()" aria-controls="account-menu" @click="open = !open">
             Account
           </button>
           <div id="account-menu" class="menu" x-show="open" x-cloak>
@@ -58,6 +61,14 @@
           </div>
         </div>
       </div>
+        <nav class="bottom-nav" aria-label="Main" x-show="ready" x-cloak>
+          <template x-for="link in bottomLinks" :key="link.href">
+            <a :href="link.href" class="bottom-nav-link" :aria-current="isCurrent(link.href) ? 'page' : null">
+              <i :data-lucide="link.icon" class="size-5" aria-hidden="true"></i>
+              <span x-text="link.label"></span>
+            </a>
+          </template>
+        </nav>
     </header>
 
     <main class="container-page space-y-8 py-8" x-data="orgDashboard">
@@ -200,6 +211,34 @@
       </section>
 
       <!-- Only after approval -->
+      <!-- Summary cards (REQUIREMENTS.md section 3) -->
+      <template x-if="!loading && approved && org">
+        <section x-data="orgStats(org.id)" @requests-changed.window="load()" @offers-changed.window="load()" aria-label="Summary">
+          <div class="grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-4">
+            <div class="card p-4 sm:p-5">
+              <p class="text-sm text-muted">Open requests</p>
+              <p class="mt-1 text-2xl font-bold sm:text-3xl" x-text="stats ? stats.openRequests : '–'">–</p>
+            </div>
+            <div class="card p-4 sm:p-5">
+              <p class="text-sm text-muted">Items still needed</p>
+              <p class="mt-1 text-2xl font-bold sm:text-3xl" x-text="stats ? stats.itemsNeeded.toLocaleString('en-SG') : '–'">–</p>
+            </div>
+            <div class="card p-4 sm:p-5">
+              <p class="text-sm text-muted">Offers waiting</p>
+              <p class="mt-1 text-2xl font-bold sm:text-3xl" x-text="stats ? stats.offersWaiting : '–'">–</p>
+            </div>
+            <div class="card p-4 sm:p-5">
+              <p class="text-sm text-muted">Upcoming events</p>
+              <p class="mt-1 text-2xl font-bold sm:text-3xl" x-text="stats ? stats.upcomingEvents : '–'">–</p>
+            </div>
+          </div>
+          <div class="mt-2 flex flex-wrap items-center gap-3" x-show="error" x-cloak role="alert">
+            <p class="field-error mt-0" x-text="error"></p>
+            <button type="button" class="btn btn-secondary" @click="load()">Try again</button>
+          </div>
+        </section>
+      </template>
+
       <template x-if="!loading && approved && org">
         <section class="space-y-4" x-data="orgRequests(org.id)" @requests-changed.window="load()" aria-labelledby="requests-heading">
           <div class="flex flex-wrap items-center justify-between gap-3">
@@ -336,6 +375,7 @@
             <button type="button" class="btn btn-secondary mt-3" @click="load()">Try again</button>
           </div>
           <div class="card flex flex-col items-center gap-3 py-10 text-center" x-show="!loading && !loadError && requests.length === 0 && !showForm" x-cloak>
+            <i data-lucide="package-open" class="size-10 text-primary" aria-hidden="true"></i>
             <p class="text-muted">No requests yet.</p>
             <button type="button" class="btn btn-primary" @click="newRequest()">Create your first request</button>
           </div>
@@ -348,6 +388,23 @@
                   <span :class="statusInfo(request.status, 'request').className" x-text="statusInfo(request.status, 'request').label"></span>
                   <span class="badge badge-neutral" x-text="`Urgency: ${urgencyLabel(request.urgency)}`"></span>
                 </div>
+                <!-- Why this score? (REQUIREMENTS.md 3 / 4.6) -->
+                <template x-if="scoreDetails(request)">
+                  <div x-data="{ why: false }">
+                    <button type="button" class="btn btn-ghost -ml-3 px-3 text-sm" :aria-expanded="why.toString()" :aria-controls="`why-${request.id}`" @click="why = !why"
+                      x-text="why ? 'Hide why' : 'Why this score?'">Why this score?</button>
+                    <div :id="`why-${request.id}`" class="mt-1 space-y-2 rounded-md bg-canvas p-3 text-sm" x-show="why" x-cloak>
+                      <span class="badge badge-ai">AI-suggested</span>
+                      <p x-text="scoreDetails(request).explanation"></p>
+                      <ul class="space-y-1" x-show="scoreDetails(request).factors.length">
+                        <template x-for="factor in scoreDetails(request).factors" :key="factor.key">
+                          <li class="flex justify-between gap-3"><span x-text="factor.label"></span><span class="shrink-0 font-medium" x-text="`${factor.points} / ${factor.max}`"></span></li>
+                        </template>
+                      </ul>
+                      <p class="text-xs text-muted">The number comes from a fixed formula. People always make the decisions.</p>
+                    </div>
+                  </div>
+                </template>
                 <div class="min-w-0">
                   <h3 class="text-lg font-semibold break-words" x-text="request.title"></h3>
                   <p class="mt-1 text-sm text-muted" x-text="request.deadline ? `Needed by ${formatDate(request.deadline)}` : 'No deadline'"></p>
@@ -414,7 +471,8 @@
             <p class="text-danger" x-text="error"></p>
             <button type="button" class="btn btn-secondary mt-3" @click="load()">Try again</button>
           </div>
-          <div class="card py-10 text-center" x-show="!loading && !error && shown.length === 0" x-cloak>
+          <div class="card flex flex-col items-center gap-3 text-center py-10" x-show="!loading && !error && shown.length === 0" x-cloak>
+            <i data-lucide="inbox" class="size-10 text-primary" aria-hidden="true"></i>
             <p class="text-muted" x-text="offers.length === 0
               ? 'No offers yet. They\'ll appear here when donors respond to your requests.'
               : 'Nothing needs your action right now.'"></p>
@@ -433,7 +491,7 @@
 
                 <dl class="grid gap-x-3 gap-y-1 text-sm grid-cols-[max-content_1fr]">
                   <dt class="text-muted">Donor</dt>
-                  <dd class="break-words" x-text="offer.donor?.full_name || 'Name not given'"></dd>
+                  <dd class="break-words" x-text="offer.donor ? (offer.donor.full_name || 'Name not given') : 'Deleted account'"></dd>
                   <dt class="text-muted">Phone</dt>
                   <dd>
                     <template x-if="offer.donor?.phone">
@@ -608,6 +666,7 @@
             <button type="button" class="btn btn-secondary mt-3" @click="load()">Try again</button>
           </div>
           <div class="card flex flex-col items-center gap-3 py-10 text-center" x-show="!loading && !loadError && events.length === 0 && !showForm" x-cloak>
+            <i data-lucide="calendar" class="size-10 text-primary" aria-hidden="true"></i>
             <p class="text-muted">No events yet.</p>
             <button type="button" class="btn btn-primary" @click="newEvent()">Create your first event</button>
           </div>
@@ -664,6 +723,51 @@
                   <button type="button" class="btn btn-secondary" x-show="event.status !== 'completed' && event.status !== 'cancelled'" @click="edit(event)">Edit</button>
                   <a class="btn btn-ghost" x-show="event.approval === 'approved'" :href="`/event.html?id=${event.id}`">View public page</a>
                   <button type="button" class="btn btn-primary" x-show="canComplete(event)" @click="startComplete(event)">Mark completed</button>
+                </div>
+
+                <!-- Share (REQUIREMENTS.md 5.3): approved events only -->
+                <div class="border-t border-line pt-3" x-data="{ sharing: false }" x-show="event.status !== 'completed' && event.status !== 'cancelled'">
+                  <p class="text-sm text-muted" x-show="event.approval !== 'approved'">Waiting for admin approval — you can share it once it's approved.</p>
+                  <template x-if="event.approval === 'approved'">
+                    <div>
+                      <button type="button" class="btn btn-ghost -ml-3 px-3" :aria-expanded="sharing.toString()" :aria-controls="`share-${event.id}`" @click="sharing = !sharing"
+                        x-text="sharing ? 'Hide sharing' : 'Share'">Share</button>
+                      <template x-if="sharing">
+                        <div :id="`share-${event.id}`" class="mt-3 space-y-4" x-data="sharePanel(event, org?.name || 'KampongShare', true)">
+                          <div>
+                            <label :for="`share-msg-${event.id}`" class="label">Message for WhatsApp</label>
+                            <textarea :id="`share-msg-${event.id}`" class="input py-2" rows="4" maxlength="500" x-model="message"></textarea>
+                            <p class="helper-text">You can edit it before sharing.</p>
+                          </div>
+                          <div class="grid grid-cols-2 gap-2 sm:grid-cols-3">
+                            <a class="btn btn-primary" :href="whatsapp" target="_blank" rel="noopener">WhatsApp</a>
+                            <a class="btn btn-secondary" :href="facebook" target="_blank" rel="noopener">Facebook</a>
+                            <button type="button" class="btn btn-secondary" x-show="canNativeShare" @click="nativeShare()">Share…</button>
+                            <button type="button" class="btn btn-secondary" @click="copyLink()">Copy link</button>
+                            <button type="button" class="btn btn-secondary" :disabled="makingPoster" @click="poster()">
+                              <span class="spinner" x-show="makingPoster" x-cloak aria-hidden="true"></span>
+                              Download poster
+                            </button>
+                          </div>
+                          <div class="space-y-2 rounded-md border border-line bg-canvas p-3">
+                            <div class="flex flex-wrap items-center justify-between gap-2">
+                              <label :for="`share-caption-${event.id}`" class="label mb-0">Instagram caption</label>
+                              <span class="badge badge-ai" x-show="captionIsAi">AI-suggested</span>
+                            </div>
+                            <textarea :id="`share-caption-${event.id}`" class="input py-2" rows="4" maxlength="600" x-model="caption"></textarea>
+                            <div class="flex flex-wrap gap-2">
+                              <button type="button" class="btn btn-secondary" x-show="canUseAi" :disabled="loadingCaption" @click="writeCaption()">
+                                <span class="spinner" x-show="loadingCaption" x-cloak aria-hidden="true"></span>
+                                <span x-text="loadingCaption ? 'Writing…' : captionIsAi ? 'Write another' : 'Write caption with AI'">Write caption with AI</span>
+                              </button>
+                              <button type="button" class="btn btn-secondary" @click="copyCaption()">Copy caption</button>
+                            </div>
+                            <p class="helper-text mt-0">Check and edit the caption before posting. Instagram captions can't hold links, so the link is on the poster.</p>
+                          </div>
+                        </div>
+                      </template>
+                    </div>
+                  </template>
                 </div>
 
                 <!-- Volunteers for this event -->

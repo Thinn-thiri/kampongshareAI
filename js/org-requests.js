@@ -144,6 +144,8 @@ document.addEventListener("alpine:init", () => {
         if (this.editing) {
           await updateRequest(this.editing, this.form);
           toast("Changes saved.");
+          // The database clears the urgency score when an open request changes; work it out again.
+          if (this.editing.status === "open") await scoreRequest(this.editing.id);
         } else {
           await createRequest(orgId, this.form);
           toast("Your request was sent to the admin for approval.");

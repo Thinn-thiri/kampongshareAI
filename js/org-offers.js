@@ -92,6 +92,7 @@ document.addEventListener("alpine:init", () => {
       try {
         await setOfferStatus(offer.id, status);
         toast(dialog.done);
+        await scoreRequest(offer.item.request_id); // how much is still needed changed
       } catch (error) {
         toast(friendlyError(error), "error");
       } finally {

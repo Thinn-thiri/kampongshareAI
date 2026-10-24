@@ -15,6 +15,7 @@ const REQUIRED_COLUMNS = [
   ["donation_offers", "food_safety_confirmed"],
   ["organizations", "postal_code"],
   ["profiles", "volunteer_approval"],
+  ["profile_contacts", "phone"],
 ];
 
 /** Friendly labels for the public_stats() totals. */
@@ -123,6 +124,10 @@ async function describeError(response) {
   return `HTTP ${response.status}${detail ? ` — ${detail}` : ""}`;
 }
 
+/**
+ * Checks the settings, the schema columns and public_stats, then prints a summary.
+ * @returns {Promise<void>}
+ */
 async function main() {
   console.log("\nKampongShare — Supabase check\n");
 
@@ -201,6 +206,10 @@ async function main() {
   summary();
 }
 
+/**
+ * Prints "everything is OK" or the list of missing things, and sets the exit code.
+ * @returns {void}
+ */
 function summary() {
   console.log("");
   if (missing.length === 0) {

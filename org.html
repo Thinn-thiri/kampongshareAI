@@ -12,6 +12,7 @@
     <link rel="stylesheet" href="/css/style.css" />
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="https://unpkg.com/lucide@latest"></script>
     <script src="/js/config.js"></script>
     <script src="/js/supabase.js"></script>
     <script src="/js/auth.js"></script>
@@ -41,8 +42,8 @@
           <a href="/login.html" class="btn btn-ghost px-3">Log in</a>
           <a href="/signup.html" class="btn btn-primary px-4">Sign up</a>
         </nav>
-        <div class="relative" x-show="profile" x-cloak @keydown.escape="open = false" @click.outside="open = false">
-          <button type="button" class="btn btn-secondary px-4" :aria-expanded="open.toString()" aria-controls="account-menu" @click="open = !open">
+        <div class="relative" x-show="profile" x-cloak @keydown.escape="if (open) { open = false; $refs.accountButton.focus() }" @click.outside="open = false">
+          <button type="button" x-ref="accountButton" class="btn btn-secondary px-4" :aria-expanded="open.toString()" aria-controls="account-menu" @click="open = !open">
             Account
           </button>
           <div id="account-menu" class="menu" x-show="open" x-cloak>
@@ -52,6 +53,14 @@
           </div>
         </div>
       </div>
+        <nav class="bottom-nav" aria-label="Main" x-show="ready" x-cloak>
+          <template x-for="link in bottomLinks" :key="link.href">
+            <a :href="link.href" class="bottom-nav-link" :aria-current="isCurrent(link.href) ? 'page' : null">
+              <i :data-lucide="link.icon" class="size-5" aria-hidden="true"></i>
+              <span x-text="link.label"></span>
+            </a>
+          </template>
+        </nav>
     </header>
 
     <main class="container-page py-8" x-data="orgPage">
@@ -85,8 +94,10 @@
         <!-- Open requests -->
         <section class="space-y-4" aria-labelledby="org-requests-heading">
           <h2 id="org-requests-heading" class="text-xl font-semibold">What they need</h2>
-          <div class="card py-8 text-center" x-show="requests.length === 0">
+          <div class="card flex flex-col items-center gap-3 text-center py-8" x-show="requests.length === 0">
+            <i data-lucide="package-open" class="size-10 text-primary" aria-hidden="true"></i>
             <p class="text-muted">No open requests right now.</p>
+            <a href="/needs.html" class="btn btn-secondary">Browse all needs</a>
           </div>
           <div class="grid gap-4 md:grid-cols-2">
             <template x-for="request in requests" :key="request.id">
@@ -95,6 +106,23 @@
                   <span :class="requestUrgency(request).className" x-text="requestUrgency(request).label"></span>
                   <span class="badge badge-ai" x-show="requestUrgency(request).scored">AI-suggested</span>
                 </div>
+                <!-- Why this score? (REQUIREMENTS.md 3 / 4.6) -->
+                <template x-if="scoreDetails(request)">
+                  <div x-data="{ why: false }">
+                    <button type="button" class="btn btn-ghost -ml-3 px-3 text-sm" :aria-expanded="why.toString()" :aria-controls="`why-${request.id}`" @click="why = !why"
+                      x-text="why ? 'Hide why' : 'Why this score?'">Why this score?</button>
+                    <div :id="`why-${request.id}`" class="mt-1 space-y-2 rounded-md bg-canvas p-3 text-sm" x-show="why" x-cloak>
+                      <span class="badge badge-ai">AI-suggested</span>
+                      <p x-text="scoreDetails(request).explanation"></p>
+                      <ul class="space-y-1" x-show="scoreDetails(request).factors.length">
+                        <template x-for="factor in scoreDetails(request).factors" :key="factor.key">
+                          <li class="flex justify-between gap-3"><span x-text="factor.label"></span><span class="shrink-0 font-medium" x-text="`${factor.points} / ${factor.max}`"></span></li>
+                        </template>
+                      </ul>
+                      <p class="text-xs text-muted">The number comes from a fixed formula. People always make the decisions.</p>
+                    </div>
+                  </div>
+                </template>
                 <div class="min-w-0">
                   <h3 class="text-lg font-semibold break-words" x-text="request.title"></h3>
                   <p class="text-sm text-muted" x-text="request.deadline ? `Needed by ${formatDate(request.deadline)}` : 'No deadline'"></p>
@@ -127,7 +155,8 @@
         <!-- Upcoming events -->
         <section class="space-y-4" aria-labelledby="org-events-heading">
           <h2 id="org-events-heading" class="text-xl font-semibold">Upcoming events</h2>
-          <div class="card py-8 text-center" x-show="events.length === 0">
+          <div class="card flex flex-col items-center gap-3 text-center py-8" x-show="events.length === 0">
+            <i data-lucide="calendar" class="size-10 text-primary" aria-hidden="true"></i>
             <p class="text-muted">No upcoming events right now.</p>
           </div>
           <div class="grid gap-4 md:grid-cols-2">

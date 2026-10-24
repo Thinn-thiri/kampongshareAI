@@ -32,7 +32,7 @@
  * @property {string | null} deadline              YYYY-MM-DD
  * @property {string | null} dropoff_instructions
  * @property {RequestStatus} status
- * @property {string | null} admin_note
+ * @property {string | null} [admin_note]   not included for visitors
  * @property {number | null} ai_score
  * @property {string | null} ai_reasons
  * @property {string} created_at
@@ -64,6 +64,10 @@
  */
 
 /** @typedef {Record<string, string>} RequestErrors  keys: "title", "items", "items.<key>.quantity", … */
+
+/** Request columns visitors may read (the database hides admin notes from them). */
+const PUBLIC_REQUEST_COLUMNS =
+  "id, organization_id, title, description, urgency, deadline, dropoff_instructions, status, ai_score, ai_reasons, created_at";
 
 /** The item_category enum. Medicines were removed on purpose (REQUIREMENTS.md 4.7). */
 const ITEM_CATEGORIES = /** @type {{ value: ItemCategory, label: string }[]} */ ([
@@ -98,6 +102,52 @@ function requestUrgency(request) {
   const classes = { critical: "badge badge-danger", high: "badge badge-warning", medium: "badge badge-info", low: "badge badge-neutral" };
   const label = URGENCY_OPTIONS.find((option) => option.value === request.urgency)?.label ?? request.urgency;
   return { className: classes[request.urgency] ?? "badge badge-neutral", label: `${label} urgency`, scored: false };
+}
+
+/**
+ * @typedef {{ key: string, label: string, points: number, max: number }} ScoreFactor
+ * @typedef {{ explanation: string, ai: boolean, factors: ScoreFactor[] }} ScoreDetails
+ */
+
+/**
+ * The "Why this score?" details saved with a request (ai_reasons), or null when not scored yet.
+ * @param {{ ai_score: number | null, ai_reasons: string | null }} request
+ * @returns {ScoreDetails | null}
+ */
+function scoreDetails(request) {
+  if (request.ai_score == null || !request.ai_reasons) return null;
+  try {
+    const parsed = JSON.parse(request.ai_reasons);
+    if (parsed && typeof parsed.explanation === "string" && Array.isArray(parsed.factors)) {
+      return { explanation: parsed.explanation, ai: Boolean(parsed.ai), factors: parsed.factors };
+    }
+  } catch {
+    // older plain-text reasons
+  }
+  return { explanation: String(request.ai_reasons), ai: true, factors: [] };
+}
+
+/**
+ * Asks the server to recalculate a request's urgency score (admin or owning organization only).
+ * Never throws: scoring is a background extra and must not block the user.
+ * @param {string} requestId
+ * @returns {Promise<boolean>} true when a new score was saved
+ */
+async function scoreRequest(requestId) {
+  try {
+    const {
+      data: { session },
+    } = await db().auth.getSession();
+    if (!session) return false;
+    const response = await fetch("/api/score-request", {
+      method: "POST",
+      headers: { "Content-Type": "application/json", Authorization: `Bearer ${session.access_token}` },
+      body: JSON.stringify({ requestId }),
+    });
+    return response.ok;
+  } catch {
+    return false;
+  }
 }
 
 /**
@@ -295,13 +345,35 @@ async function closeRequest(id) {
 async function listOrgOpenRequests(orgId) {
   const { data, error } = await db()
     .from("donation_requests")
-    .select("*, request_items(*)")
+    .select(`${PUBLIC_REQUEST_COLUMNS}, request_items(*)`)
     .eq("organization_id", orgId)
     .eq("status", "open")
     .order("ai_score", { ascending: false, nullsFirst: false })
     .order("deadline", { ascending: true, nullsFirst: false });
   if (error) throw error;
-  return (data ?? []).map(sortItems);
+  return /** @type {DonationRequest[]} */ (/** @type {unknown} */ (data ?? [])).map(sortItems);
+}
+
+/**
+ * Admin edit of an open request's text, urgency and deadline (REQUIREMENTS.md 7.3).
+ * Items stay untouched (admins can't change them — enforced by the database).
+ * @param {string} id
+ * @param {{ title: string, description: string, urgency: Urgency, deadline: string }} changes
+ * @returns {Promise<void>}
+ */
+async function adminUpdateRequest(id, changes) {
+  const { data, error } = await db()
+    .from("donation_requests")
+    .update({
+      title: changes.title.trim(),
+      description: changes.description.trim() || null,
+      urgency: changes.urgency,
+      deadline: changes.deadline || null,
+    })
+    .eq("id", id)
+    .select("id");
+  if (error) throw error;
+  if (!data?.length) throw { code: "42501", message: "No request was updated" };
 }
 
 /**

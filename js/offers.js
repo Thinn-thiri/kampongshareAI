@@ -11,7 +11,7 @@
  * @typedef {Object} DonationOffer
  * @property {string} id
  * @property {string} request_item_id
- * @property {string} donor_id
+ * @property {string | null} donor_id   null once the donor deleted their account (offer kept anonymised)
  * @property {number} quantity
  * @property {string | null} message
  * @property {boolean} food_safety_confirmed
@@ -39,13 +39,13 @@
 async function listOpenRequests() {
   const { data, error } = await db()
     .from("donation_requests")
-    .select("*, organization:organizations(name, address), request_items(*)")
+    .select(`${PUBLIC_REQUEST_COLUMNS}, organization:organizations(name, address), request_items(*)`)
     .eq("status", "open")
     .order("ai_score", { ascending: false, nullsFirst: false })
     .order("deadline", { ascending: true, nullsFirst: false })
     .order("created_at", { ascending: true });
   if (error) throw error;
-  return (data ?? []).map(sortItems);
+  return /** @type {DonationRequest[]} */ (/** @type {unknown} */ (data ?? [])).map(sortItems);
 }
 
 /**
@@ -118,12 +118,42 @@ async function listIncomingOffers(orgId) {
   const { data, error } = await db()
     .from("donation_offers")
     .select(
-      "*, donor:profiles(full_name, phone), item:request_items!inner(name, unit, category, request_id, request:donation_requests!inner(title, status, organization_id))",
+      "*, donor:profile_contacts(full_name, phone), item:request_items!inner(name, unit, category, request_id, request:donation_requests!inner(title, status, organization_id))",
     )
     .eq("item.request.organization_id", orgId)
     .order("created_at", { ascending: false });
   if (error) throw error;
   return data ?? [];
+}
+
+/**
+ * An offer as the admin sees it in the monitoring list (REQUIREMENTS.md 7.3).
+ * @typedef {Object} AdminOffer
+ * @property {string} id
+ * @property {number} quantity
+ * @property {OfferStatus} status
+ * @property {string} created_at
+ * @property {{ full_name: string } | null} donor   null when the donor deleted their account
+ * @property {{ name: string, unit: string, request_id: string,
+ *              request: { title: string, organization: { name: string } | null } | null } | null} item
+ */
+
+/**
+ * Offers for the admin monitor, newest first (max 100). Admins may read donors' names for moderation.
+ * @param {'active' | OfferStatus | 'all'} filter  'active' = pending + accepted
+ * @returns {Promise<AdminOffer[]>}
+ */
+async function listAllOffersForAdmin(filter) {
+  let query = db()
+    .from("donation_offers")
+    .select("id, quantity, status, created_at, donor:profiles(full_name), item:request_items(name, unit, request_id, request:donation_requests(title, organization:organizations(name)))")
+    .order("created_at", { ascending: false })
+    .limit(100);
+  if (filter === "active") query = query.in("status", ["pending", "accepted"]);
+  else if (filter !== "all") query = query.eq("status", filter);
+  const { data, error } = await query;
+  if (error) throw error;
+  return /** @type {AdminOffer[]} */ (/** @type {unknown} */ (data ?? []));
 }
 
 /**

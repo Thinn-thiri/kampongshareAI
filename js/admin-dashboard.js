@@ -11,7 +11,7 @@ const ADMIN_QUEUES = /** @type {{ key: QueueKey, label: string, built: boolean }
   { key: "requests", label: "Requests waiting", built: true },
   { key: "events", label: "Events waiting", built: true },
   { key: "applications", label: "Volunteer applications waiting", built: true },
-  { key: "offers", label: "Offers in progress", built: false },
+  { key: "offers", label: "Offers in progress", built: true },
 ]);
 
 const ORG_TABS = /** @type {{ value: Approval, label: string, empty: string }[]} */ ([
@@ -83,6 +83,38 @@ document.addEventListener("alpine:init", () => {
     evsError: "",
     formatEventTime,
 
+    /** Requests queue tab: waiting for approval, or open (monitoring, 7.3). */
+    /** @type {'waiting' | 'open'} */
+    reqTab: "waiting",
+    /** @type {DonationRequest[]} */
+    openReqs: [],
+    loadingOpenReqs: false,
+    openReqsError: "",
+    /** @type {string | null} open request being edited */
+    editingReqId: null,
+    /** @type {{ title: string, description: string, urgency: Urgency, deadline: string }} */
+    reqForm: { title: "", description: "", urgency: "medium", deadline: "" },
+    /** @type {Record<string, string>} */
+    reqFormErrors: {},
+    savingReq: false,
+    urgencies: URGENCY_OPTIONS,
+
+    /** Offers monitor (7.3) */
+    /** @type {AdminOffer[]} */
+    adminOffers: [],
+    /** @type {'active' | OfferStatus | 'all'} */
+    offerFilter: "active",
+    loadingOffers: false,
+    offersLoaded: false,
+    offersError: "",
+    offerFilters: [
+      { value: "active", label: "In progress" },
+      { value: "delivered", label: "Delivered" },
+      { value: "rejected", label: "Rejected" },
+      { value: "cancelled", label: "Cancelled" },
+      { value: "all", label: "All" },
+    ],
+
     /** @type {VolunteerAccount[]} */
     vols: [],
     loadingVols: false,
@@ -137,6 +169,128 @@ document.addEventListener("alpine:init", () => {
       if (key === "events" && !this.evsLoaded) this.loadEvents();
       if (key === "applications" && !this.appsLoaded) this.loadApplications();
       if (key === "volunteers" && !this.volsLoaded) this.loadVolunteers();
+      if (key === "offers" && !this.offersLoaded) this.loadAdminOffers();
+    },
+
+    // ---- Offers monitor (7.3) ----
+
+    async loadAdminOffers() {
+      this.loadingOffers = true;
+      this.offersError = "";
+      try {
+        this.adminOffers = await listAllOffersForAdmin(this.offerFilter);
+        this.offersLoaded = true;
+      } catch (error) {
+        this.offersError = friendlyError(error);
+      } finally {
+        this.loadingOffers = false;
+      }
+    },
+
+    /** @param {'active' | OfferStatus | 'all'} filter */
+    async showOfferFilter(filter) {
+      this.offerFilter = filter;
+      await this.loadAdminOffers();
+    },
+
+    /** @param {AdminOffer} offer */
+    async cancelSuspiciousOffer(offer) {
+      const what = offer.item ? `${offer.quantity} ${offer.item.unit} of ${offer.item.name}` : `this offer`;
+      const ok = await confirmDialog(
+        `Cancel ${what}${offer.donor ? ` from ${offer.donor.full_name}` : ""}? The donor and the organization will see it as cancelled, and the item is needed again.`,
+        { title: "Cancel this offer?", confirmText: "Cancel offer", cancelText: "Keep it", danger: true },
+      );
+      if (!ok) return;
+      this.busyId = offer.id;
+      try {
+        await cancelOffer(offer.id);
+        toast("The offer was cancelled.");
+        if (offer.item?.request_id) await scoreRequest(offer.item.request_id);
+        await Promise.all([this.loadAdminOffers(), this.loadCounts()]);
+      } catch (error) {
+        toast(friendlyError(error), "error");
+      } finally {
+        this.busyId = null;
+      }
+    },
+
+    // ---- Open requests: close or edit (7.3) ----
+
+    /** @param {'waiting' | 'open'} tab */
+    async showReqTab(tab) {
+      this.reqTab = tab;
+      this.cancelReject();
+      this.editingReqId = null;
+      if (tab === "open") await this.loadOpenRequests();
+      else await this.loadRequests();
+    },
+
+    async loadOpenRequests() {
+      this.loadingOpenReqs = true;
+      this.openReqsError = "";
+      try {
+        this.openReqs = await listOpenRequests();
+      } catch (error) {
+        this.openReqsError = friendlyError(error);
+      } finally {
+        this.loadingOpenReqs = false;
+      }
+    },
+
+    /** @param {DonationRequest} request */
+    startEditRequest(request) {
+      this.editingReqId = request.id;
+      this.reqForm = {
+        title: request.title,
+        description: request.description ?? "",
+        urgency: request.urgency,
+        deadline: request.deadline ?? "",
+      };
+      this.reqFormErrors = {};
+      setTimeout(() => document.getElementById(`admin-req-title-${request.id}`)?.focus(), 0);
+    },
+
+    /** @param {DonationRequest} request */
+    async saveRequestEdit(request) {
+      /** @type {Record<string, string>} */
+      const errors = {};
+      const title = this.reqForm.title.trim();
+      if (!title) errors.title = "Please keep a title.";
+      else if (title.length > 100) errors.title = "Please keep the title under 100 characters.";
+      if (this.reqForm.description.trim().length > 1000) errors.description = "Please keep the description under 1,000 characters.";
+      this.reqFormErrors = errors;
+      if (Object.keys(errors).length) return;
+      this.savingReq = true;
+      try {
+        await adminUpdateRequest(request.id, this.reqForm);
+        toast("The request was updated.");
+        this.editingReqId = null;
+        await scoreRequest(request.id); // the database cleared the score when the text or deadline changed
+        await this.loadOpenRequests();
+      } catch (error) {
+        toast(friendlyError(error), "error");
+      } finally {
+        this.savingReq = false;
+      }
+    },
+
+    /** @param {DonationRequest} request */
+    async closeRequestAsAdmin(request) {
+      const ok = await confirmDialog(
+        `"${request.title}" will stop taking donations. Waiting offers are declined automatically; accepted offers carry on.`,
+        { title: "Close this request?", confirmText: "Close request", danger: true },
+      );
+      if (!ok) return;
+      this.busyId = request.id;
+      try {
+        await closeRequest(request.id);
+        toast("The request was closed.");
+        await Promise.all([this.loadOpenRequests(), this.loadCounts()]);
+      } catch (error) {
+        toast(friendlyError(error), "error");
+      } finally {
+        this.busyId = null;
+      }
     },
 
     async loadVolunteers() {
@@ -317,6 +471,7 @@ document.addEventListener("alpine:init", () => {
       try {
         await setRequestApproval(request.id, "open");
         toast(`"${request.title}" is approved. Donors can see it now.`);
+        await scoreRequest(request.id); // urgency score for sorting and "Why this score?"
         await Promise.all([this.loadRequests(), this.loadCounts()]);
       } catch (error) {
         toast(friendlyError(error), "error");

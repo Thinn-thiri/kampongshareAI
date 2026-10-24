@@ -22,7 +22,7 @@
  * @property {string | null} outcome_summary
  * @property {string | null} donation_request_id
  * @property {Approval} approval
- * @property {string | null} admin_note
+ * @property {string | null} [admin_note]   not included for visitors
  * @property {string} created_at
  * @property {{ name: string } | null} [organization]
  * @property {{ title: string, id?: string, status?: RequestStatus } | null} [request]
@@ -43,6 +43,10 @@
  */
 
 /** @typedef {Record<string, string>} EventErrors */
+
+/** Event columns visitors may read (the database hides admin notes from them). */
+const PUBLIC_EVENT_COLUMNS =
+  "id, organization_id, title, description, location_name, latitude, longitude, starts_at, ends_at, volunteers_needed, status, outcome_summary, donation_request_id, approval, created_at";
 
 /** @type {Record<EventStatus, { className: string, label: string }>} */
 const EVENT_STATUS_BADGE = {
@@ -217,12 +221,12 @@ async function setEventApproval(id, approval, note = "") {
 async function listUpcomingPublicEvents() {
   const { data, error } = await db()
     .from("events")
-    .select("*, organization:organizations(name)")
+    .select(`${PUBLIC_EVENT_COLUMNS}, organization:organizations(name)`)
     .eq("approval", "approved")
     .in("status", ["upcoming", "ongoing"])
     .order("starts_at", { ascending: true });
   if (error) throw error;
-  return (data ?? []).filter(isNotOver);
+  return /** @type {VolunteerEvent[]} */ (/** @type {unknown} */ (data ?? [])).filter(isNotOver);
 }
 
 /**
@@ -233,13 +237,13 @@ async function listUpcomingPublicEvents() {
 async function listOrgUpcomingEvents(orgId) {
   const { data, error } = await db()
     .from("events")
-    .select("*")
+    .select(PUBLIC_EVENT_COLUMNS)
     .eq("organization_id", orgId)
     .eq("approval", "approved")
     .in("status", ["upcoming", "ongoing"])
     .order("starts_at", { ascending: true });
   if (error) throw error;
-  return (data ?? []).filter(isNotOver);
+  return /** @type {VolunteerEvent[]} */ (/** @type {unknown} */ (data ?? [])).filter(isNotOver);
 }
 
 /**
@@ -250,12 +254,12 @@ async function listOrgUpcomingEvents(orgId) {
 async function getPublicEvent(id) {
   const { data, error } = await db()
     .from("events")
-    .select("*, organization:organizations(name), request:donation_requests(id, title, status)")
+    .select(`${PUBLIC_EVENT_COLUMNS}, organization:organizations(name), request:donation_requests(id, title, status)`)
     .eq("id", id)
     .eq("approval", "approved")
     .maybeSingle();
   if (error) throw error;
-  return data;
+  return /** @type {VolunteerEvent | null} */ (/** @type {unknown} */ (data));
 }
 
 /**

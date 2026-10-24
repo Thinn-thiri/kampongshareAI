@@ -12,6 +12,7 @@
     <link rel="stylesheet" href="/css/style.css" />
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="https://unpkg.com/lucide@latest"></script>
     <script src="/js/config.js"></script>
     <script src="/js/supabase.js"></script>
     <script src="/js/auth.js"></script>
@@ -19,6 +20,7 @@
     <script src="/js/map.js"></script>
     <script src="/js/orgs.js"></script>
     <script src="/js/requests.js"></script>
+    <script src="/js/offers.js"></script>
     <script src="/js/events.js"></script>
     <script src="/js/volunteering.js"></script>
     <script src="/js/admin-dashboard.js"></script>
@@ -41,8 +43,8 @@
           <a href="/login.html" class="btn btn-ghost px-3">Log in</a>
           <a href="/signup.html" class="btn btn-primary px-4">Sign up</a>
         </nav>
-        <div class="relative" x-show="profile" x-cloak @keydown.escape="open = false" @click.outside="open = false">
-          <button type="button" class="btn btn-secondary px-4" :aria-expanded="open.toString()" aria-controls="account-menu" @click="open = !open">
+        <div class="relative" x-show="profile" x-cloak @keydown.escape="if (open) { open = false; $refs.accountButton.focus() }" @click.outside="open = false">
+          <button type="button" x-ref="accountButton" class="btn btn-secondary px-4" :aria-expanded="open.toString()" aria-controls="account-menu" @click="open = !open">
             Account
           </button>
           <div id="account-menu" class="menu" x-show="open" x-cloak>
@@ -52,6 +54,14 @@
           </div>
         </div>
       </div>
+        <nav class="bottom-nav" aria-label="Main" x-show="ready" x-cloak>
+          <template x-for="link in bottomLinks" :key="link.href">
+            <a :href="link.href" class="bottom-nav-link" :aria-current="isCurrent(link.href) ? 'page' : null">
+              <i :data-lucide="link.icon" class="size-5" aria-hidden="true"></i>
+              <span x-text="link.label"></span>
+            </a>
+          </template>
+        </nav>
     </header>
 
     <main class="container-page space-y-8 py-8" x-data="adminDashboard">
@@ -73,7 +83,10 @@
             </button>
           </template>
         </div>
-        <p class="field-error" x-show="countsError" x-text="countsError" role="alert"></p>
+        <div class="flex flex-wrap items-center gap-3" x-show="countsError" x-cloak role="alert">
+          <p class="field-error mt-0" x-text="countsError"></p>
+          <button type="button" class="btn btn-secondary" @click="loadCounts()">Try again</button>
+        </div>
       </section>
 
       <!-- Organizations queue (7.2 / 7.3) -->
@@ -102,6 +115,7 @@
         </div>
 
         <div class="card flex flex-col items-center gap-2 py-10 text-center" x-show="!loadingOrgs && !orgsError && orgs.length === 0" x-cloak>
+          <i data-lucide="inbox" class="size-10 text-primary" aria-hidden="true"></i>
           <p class="text-muted" x-text="emptyText"></p>
         </div>
 
@@ -184,7 +198,8 @@
           <p class="text-danger" x-text="volsError"></p>
           <button type="button" class="btn btn-secondary mt-3" @click="loadVolunteers()">Try again</button>
         </div>
-        <div class="card py-10 text-center" x-show="!loadingVols && !volsError && volsLoaded && vols.length === 0" x-cloak>
+        <div class="card flex flex-col items-center gap-3 text-center py-10" x-show="!loadingVols && !volsError && volsLoaded && vols.length === 0" x-cloak>
+          <i data-lucide="inbox" class="size-10 text-primary" aria-hidden="true"></i>
           <p class="text-muted">No volunteer accounts waiting.</p>
         </div>
 
@@ -242,26 +257,33 @@
       <!-- Donation requests queue (7.2) -->
       <section class="space-y-4" x-show="activeQueue === 'requests'" x-cloak aria-labelledby="reqs-heading">
         <div class="flex flex-wrap items-center justify-between gap-3">
-          <h2 id="reqs-heading" class="text-xl font-semibold">Donation requests waiting for approval</h2>
-          <button type="button" class="btn btn-ghost" @click="loadRequests()" :disabled="loadingReqs">Refresh</button>
+          <h2 id="reqs-heading" class="text-xl font-semibold" x-text="reqTab === 'waiting' ? 'Donation requests waiting for approval' : 'Open donation requests'">Donation requests</h2>
+          <div class="flex flex-wrap items-center gap-2">
+            <div class="segmented" role="group" aria-label="Show requests">
+              <button type="button" class="segmented-link" :aria-current="reqTab === 'waiting' ? 'page' : null" @click="showReqTab('waiting')">Waiting</button>
+              <button type="button" class="segmented-link" :aria-current="reqTab === 'open' ? 'page' : null" @click="showReqTab('open')">Open</button>
+            </div>
+            <button type="button" class="btn btn-ghost" @click="reqTab === 'waiting' ? loadRequests() : loadOpenRequests()" :disabled="loadingReqs || loadingOpenReqs">Refresh</button>
+          </div>
         </div>
 
-        <div class="card space-y-3" x-show="loadingReqs" aria-busy="true" aria-label="Loading requests">
+        <div class="card space-y-3" x-show="reqTab === 'waiting' && loadingReqs" aria-busy="true" aria-label="Loading requests">
           <div class="skeleton h-6 w-1/3"></div>
           <div class="skeleton h-4 w-2/3"></div>
           <div class="skeleton h-4 w-1/2"></div>
         </div>
 
-        <div class="card text-center" x-show="!loadingReqs && reqsError" x-cloak role="alert">
+        <div class="card text-center" x-show="reqTab === 'waiting' && !loadingReqs && reqsError" x-cloak role="alert">
           <p class="text-danger" x-text="reqsError"></p>
           <button type="button" class="btn btn-secondary mt-3" @click="loadRequests()">Try again</button>
         </div>
 
-        <div class="card flex flex-col items-center gap-2 py-10 text-center" x-show="!loadingReqs && !reqsError && reqsLoaded && reqs.length === 0" x-cloak>
+        <div class="card flex flex-col items-center gap-2 py-10 text-center" x-show="reqTab === 'waiting' && !loadingReqs && !reqsError && reqsLoaded && reqs.length === 0" x-cloak>
+          <i data-lucide="inbox" class="size-10 text-primary" aria-hidden="true"></i>
           <p class="text-muted">No requests waiting for review.</p>
         </div>
 
-        <div class="space-y-4" x-show="!loadingReqs && !reqsError">
+        <div class="space-y-4" x-show="reqTab === 'waiting' && !loadingReqs && !reqsError">
           <template x-for="request in reqs" :key="request.id">
             <article class="card space-y-4">
               <div>
@@ -329,6 +351,132 @@
             </article>
           </template>
         </div>
+
+        <!-- Open requests: close or edit (7.3) -->
+        <div class="card space-y-3" x-show="reqTab === 'open' && loadingOpenReqs" aria-busy="true" aria-label="Loading open requests">
+          <div class="skeleton h-6 w-1/3"></div><div class="skeleton h-4 w-2/3"></div>
+        </div>
+        <div class="card text-center" x-show="reqTab === 'open' && !loadingOpenReqs && openReqsError" x-cloak role="alert">
+          <p class="text-danger" x-text="openReqsError"></p>
+          <button type="button" class="btn btn-secondary mt-3" @click="loadOpenRequests()">Try again</button>
+        </div>
+        <div class="card flex flex-col items-center gap-3 text-center py-10" x-show="reqTab === 'open' && !loadingOpenReqs && !openReqsError && openReqs.length === 0" x-cloak>
+          <i data-lucide="inbox" class="size-10 text-primary" aria-hidden="true"></i>
+          <p class="text-muted">No open requests right now.</p>
+        </div>
+        <div class="space-y-4" x-show="reqTab === 'open' && !loadingOpenReqs && !openReqsError" x-cloak>
+          <template x-for="request in openReqs" :key="request.id">
+            <article class="card space-y-3">
+              <div class="flex flex-wrap items-center gap-2">
+                <span :class="requestUrgency(request).className" x-text="requestUrgency(request).label"></span>
+                <span class="badge badge-ai" x-show="requestUrgency(request).scored">AI-suggested</span>
+              </div>
+              <div x-show="editingReqId !== request.id">
+                <p class="text-sm font-medium text-primary" x-text="request.organization?.name || 'Unknown organization'"></p>
+                <h3 class="text-lg font-semibold break-words" x-text="request.title"></h3>
+                <p class="text-sm text-muted" x-text="request.deadline ? `Needed by ${formatDate(request.deadline)}` : 'No deadline'"></p>
+                <p class="mt-1 text-sm whitespace-pre-line break-words" x-show="request.description" x-text="request.description"></p>
+                <p class="mt-1 text-sm text-muted" x-text="request.request_items.map((i) => `${i.name}: ${i.quantity_remaining} of ${i.quantity_needed} ${i.unit} still needed`).join(' · ')"></p>
+              </div>
+
+              <!-- Admin edit (title, description, urgency, deadline) -->
+              <form class="space-y-3 rounded-md border border-line bg-canvas p-4" novalidate x-show="editingReqId === request.id" x-cloak @submit.prevent="saveRequestEdit(request)">
+                <div>
+                  <label :for="`admin-req-title-${request.id}`" class="label">Title <span class="text-danger" aria-hidden="true">*</span></label>
+                  <input :id="`admin-req-title-${request.id}`" class="input" type="text" maxlength="100" x-model="reqForm.title"
+                    :aria-invalid="reqFormErrors.title ? 'true' : null" :aria-describedby="`admin-req-title-err-${request.id}`" />
+                  <p :id="`admin-req-title-err-${request.id}`" class="field-error" x-show="reqFormErrors.title" x-text="reqFormErrors.title"></p>
+                </div>
+                <div>
+                  <label :for="`admin-req-desc-${request.id}`" class="label">Description</label>
+                  <textarea :id="`admin-req-desc-${request.id}`" class="input py-2" rows="3" maxlength="1000" x-model="reqForm.description"
+                    :aria-invalid="reqFormErrors.description ? 'true' : null" :aria-describedby="`admin-req-desc-err-${request.id}`"></textarea>
+                  <p :id="`admin-req-desc-err-${request.id}`" class="field-error" x-show="reqFormErrors.description" x-text="reqFormErrors.description"></p>
+                </div>
+                <div class="grid gap-3 sm:grid-cols-2">
+                  <div>
+                    <label :for="`admin-req-urgency-${request.id}`" class="label">Urgency</label>
+                    <select :id="`admin-req-urgency-${request.id}`" class="input" x-model="reqForm.urgency">
+                      <template x-for="option in urgencies" :key="option.value">
+                        <option :value="option.value" x-text="option.label" :selected="option.value === reqForm.urgency"></option>
+                      </template>
+                    </select>
+                  </div>
+                  <div>
+                    <label :for="`admin-req-deadline-${request.id}`" class="label">Deadline</label>
+                    <input :id="`admin-req-deadline-${request.id}`" class="input" type="date" x-model="reqForm.deadline" />
+                  </div>
+                </div>
+                <p class="helper-text mt-0">Items can't be changed here. Saving recalculates the urgency score.</p>
+                <div class="flex flex-wrap gap-3">
+                  <button type="submit" class="btn btn-primary" :disabled="savingReq">
+                    <span class="spinner" x-show="savingReq" x-cloak aria-hidden="true"></span>
+                    Save changes
+                  </button>
+                  <button type="button" class="btn btn-ghost" @click="editingReqId = null">Cancel</button>
+                </div>
+              </form>
+
+              <div class="flex flex-wrap gap-3" x-show="editingReqId !== request.id">
+                <button type="button" class="btn btn-secondary" @click="startEditRequest(request)">Edit</button>
+                <button type="button" class="btn btn-danger" :disabled="busyId === request.id" @click="closeRequestAsAdmin(request)">
+                  <span class="spinner" x-show="busyId === request.id" x-cloak aria-hidden="true"></span>
+                  Close
+                </button>
+              </div>
+            </article>
+          </template>
+        </div>
+      </section>
+
+      <!-- Offers monitor (7.3) -->
+      <section class="space-y-4" x-show="activeQueue === 'offers'" x-cloak aria-labelledby="offers-heading">
+        <div class="flex flex-wrap items-center justify-between gap-3">
+          <div>
+            <h2 id="offers-heading" class="text-xl font-semibold">Offers</h2>
+            <p class="text-sm text-muted">Cancel an offer only if something looks wrong. Donor names are shown for moderation only.</p>
+          </div>
+          <button type="button" class="btn btn-ghost" @click="loadAdminOffers()" :disabled="loadingOffers">Refresh</button>
+        </div>
+        <div class="flex flex-wrap gap-2" role="group" aria-label="Filter offers">
+          <template x-for="filter in offerFilters" :key="filter.value">
+            <button type="button" class="btn btn-secondary px-4" :aria-pressed="(offerFilter === filter.value).toString()"
+              :class="offerFilter === filter.value ? 'border-primary bg-primary-soft text-primary' : ''"
+              @click="showOfferFilter(filter.value)" x-text="filter.label"></button>
+          </template>
+        </div>
+
+        <div class="card space-y-3" x-show="loadingOffers" aria-busy="true" aria-label="Loading offers">
+          <div class="skeleton h-5 w-1/3"></div><div class="skeleton h-4 w-2/3"></div>
+        </div>
+        <div class="card text-center" x-show="!loadingOffers && offersError" x-cloak role="alert">
+          <p class="text-danger" x-text="offersError"></p>
+          <button type="button" class="btn btn-secondary mt-3" @click="loadAdminOffers()">Try again</button>
+        </div>
+        <div class="card flex flex-col items-center gap-3 text-center py-10" x-show="!loadingOffers && !offersError && offersLoaded && adminOffers.length === 0" x-cloak>
+          <i data-lucide="inbox" class="size-10 text-primary" aria-hidden="true"></i>
+          <p class="text-muted">No offers here.</p>
+        </div>
+
+        <ul class="grid gap-4 md:grid-cols-2" x-show="!loadingOffers && !offersError">
+          <template x-for="offer in adminOffers" :key="offer.id">
+            <li class="card flex flex-col gap-2">
+              <div class="flex flex-wrap items-start justify-between gap-2">
+                <p class="font-semibold break-words" x-text="offer.item ? `${offer.quantity} ${offer.item.unit} · ${offer.item.name}` : `${offer.quantity} (item removed)`"></p>
+                <span :class="statusInfo(offer.status, 'offer').className" x-text="statusInfo(offer.status, 'offer').label"></span>
+              </div>
+              <p class="text-sm break-words" x-text="offer.item?.request?.title ?? '—'"></p>
+              <p class="text-sm text-primary" x-text="offer.item?.request?.organization?.name ?? ''"></p>
+              <p class="text-sm text-muted" x-text="`${offer.donor ? 'Donor: ' + offer.donor.full_name : 'Deleted account'} · ${formatDate(offer.created_at)}`"></p>
+              <div class="mt-auto pt-1" x-show="offer.status === 'pending' || offer.status === 'accepted'">
+                <button type="button" class="btn btn-danger" :disabled="busyId === offer.id" @click="cancelSuspiciousOffer(offer)">
+                  <span class="spinner" x-show="busyId === offer.id" x-cloak aria-hidden="true"></span>
+                  Cancel offer
+                </button>
+              </div>
+            </li>
+          </template>
+        </ul>
       </section>
 
       <!-- Events queue (7.2) -->
@@ -345,7 +493,8 @@
           <p class="text-danger" x-text="evsError"></p>
           <button type="button" class="btn btn-secondary mt-3" @click="loadEvents()">Try again</button>
         </div>
-        <div class="card py-10 text-center" x-show="!loadingEvs && !evsError && evsLoaded && evs.length === 0" x-cloak>
+        <div class="card flex flex-col items-center gap-3 text-center py-10" x-show="!loadingEvs && !evsError && evsLoaded && evs.length === 0" x-cloak>
+          <i data-lucide="inbox" class="size-10 text-primary" aria-hidden="true"></i>
           <p class="text-muted">No events waiting for review.</p>
         </div>
 
@@ -415,7 +564,8 @@
           <p class="text-danger" x-text="appsError"></p>
           <button type="button" class="btn btn-secondary mt-3" @click="loadApplications()">Try again</button>
         </div>
-        <div class="card py-10 text-center" x-show="!loadingApps && !appsError && appsLoaded && apps.length === 0" x-cloak>
+        <div class="card flex flex-col items-center gap-3 text-center py-10" x-show="!loadingApps && !appsError && appsLoaded && apps.length === 0" x-cloak>
+          <i data-lucide="inbox" class="size-10 text-primary" aria-hidden="true"></i>
           <p class="text-muted">No volunteer applications waiting.</p>
         </div>
 
@@ -452,7 +602,7 @@
       </section>
 
       <!-- Queues not built yet -->
-      <section class="card flex flex-col items-center gap-2 py-10 text-center" x-show="!['organizations', 'volunteers', 'requests', 'events', 'applications'].includes(activeQueue)" x-cloak aria-live="polite">
+      <section class="card flex flex-col items-center gap-2 py-10 text-center" x-show="!['organizations', 'volunteers', 'requests', 'events', 'applications', 'offers'].includes(activeQueue)" x-cloak aria-live="polite">
         <h2 class="text-lg font-semibold" x-text="activeLabel"></h2>
         <p class="text-muted">This review queue is coming soon.</p>
       </section>

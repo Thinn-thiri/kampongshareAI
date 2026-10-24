@@ -223,6 +223,10 @@ function check(result, what) {
 // Seed
 // ---------------------------------------------------------------------------
 
+/**
+ * Creates the demo accounts and data once, then prints the demo logins.
+ * @returns {Promise<void>}
+ */
 async function main() {
   const env = readEnv();
   if (!env.SUPABASE_URL || !env.SUPABASE_SERVICE_ROLE_KEY) {

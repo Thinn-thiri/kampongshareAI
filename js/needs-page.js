@@ -1,9 +1,12 @@
 // @ts-check
 // Browse needs (needs.html): all open requests with filters, and Offer per item (REQUIREMENTS.md 6.3).
 // Works without logging in. Visitors who press Offer log in and come back to that item with the
-// offer form open (?item=<id>). Filters live in the URL query (no personal data).
+// offer form open (?item=<id>). Category, area and urgency filters live in the URL query;
+// the free-text search stays on the page only, so nothing a visitor types ends up in a URL.
 
 const NEEDS_FILTER_KEYS = /** @type {const} */ (["q", "category", "area", "urgency"]);
+/** Filters that are safe to keep in the address bar (fixed choices, never typed text). */
+const NEEDS_URL_KEYS = /** @type {const} */ (["category", "area", "urgency"]);
 
 document.addEventListener("alpine:init", () => {
   const Alpine = /** @type {any} */ (window).Alpine;
@@ -41,7 +44,7 @@ document.addEventListener("alpine:init", () => {
 
     async init() {
       const params = new URLSearchParams(location.search);
-      for (const key of NEEDS_FILTER_KEYS) this.filters[key] = params.get(key) ?? "";
+      for (const key of NEEDS_URL_KEYS) this.filters[key] = params.get(key) ?? "";
       this.focusItemId = params.get("item");
 
       try {
@@ -89,10 +92,10 @@ document.addEventListener("alpine:init", () => {
       return NEEDS_FILTER_KEYS.some((key) => this.filters[key]);
     },
 
-    /** Keeps the filters in the address bar so the view can be shared or reloaded. */
+    /** Keeps the chosen filters (not the typed search) in the address bar so the view can be shared or reloaded. */
     syncUrl() {
       const params = new URLSearchParams();
-      for (const key of NEEDS_FILTER_KEYS) if (this.filters[key].trim()) params.set(key, this.filters[key].trim());
+      for (const key of NEEDS_URL_KEYS) if (this.filters[key].trim()) params.set(key, this.filters[key].trim());
       const query = params.toString();
       history.replaceState(null, "", query ? `${location.pathname}?${query}` : location.pathname);
     },

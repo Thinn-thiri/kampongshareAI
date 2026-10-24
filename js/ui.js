@@ -222,6 +222,7 @@ function friendlyError(error) {
     return "The quantity can't be lower than what donors have already promised.";
   }
   if (lower.includes("quantity_needed")) return "Each item needs a quantity of at least 1.";
+  if (/_length\b/.test(lower)) return "Some text is too long. Please shorten it and try again.";
   if (err.code === "23514") return "Some details aren't in the right format. Please check the form.";
   if (err.code === "23505") return "That already exists, so nothing was changed.";
   if (err.code === "42501" || lower.includes("row-level security")) {
@@ -233,6 +234,31 @@ function friendlyError(error) {
   if (err.code === "P0001" && message) return message;
   return "Something went wrong. Please try again.";
 }
+
+/**
+ * Turns <i data-lucide="name"> placeholders into Lucide icons, now and whenever Alpine adds more.
+ * Icons are decorative (aria-hidden), so if Lucide fails to load the page still works.
+ * @returns {void}
+ */
+function startIcons() {
+  const lucide = /** @type {any} */ (window).lucide;
+  if (!lucide?.createIcons) return;
+  const draw = () => lucide.createIcons({ attrs: { "aria-hidden": "true", focusable: "false" } });
+  draw();
+  let queued = false;
+  new MutationObserver((mutations) => {
+    if (queued) return;
+    const added = mutations.some((m) => [...m.addedNodes].some((n) => n instanceof Element && (n.matches("[data-lucide]") || n.querySelector("[data-lucide]"))));
+    if (!added) return;
+    queued = true;
+    requestAnimationFrame(() => {
+      queued = false;
+      draw();
+    });
+  }).observe(document.body, { childList: true, subtree: true });
+}
+
+document.addEventListener("DOMContentLoaded", startIcons);
 
 // Create the toast area early so screen readers already know about it when the first toast appears.
 document.addEventListener("DOMContentLoaded", getToastRegion);

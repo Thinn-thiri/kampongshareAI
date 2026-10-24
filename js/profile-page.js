@@ -202,6 +202,32 @@ document.addEventListener("alpine:init", () => {
       }
     },
 
+    deleteUnderstood: false,
+    deleting: false,
+    deleteError: "",
+
+    /** "Delete my account" (REQUIREMENTS.md 4.4): checkbox, then a confirm dialog, then the server does it. */
+    async deleteAccount() {
+      this.deleteError = "";
+      if (!this.deleteUnderstood) {
+        this.deleteError = "Please tick the box to confirm you understand this can't be undone.";
+        return;
+      }
+      const ok = await confirmDialog(
+        "Your profile, contact details and volunteer applications will be removed, and you'll be logged out. Waiting offers are cancelled. Past donations stay with the organizations without your name or contact details.",
+        { title: "Delete your account for good?", confirmText: "Delete my account", cancelText: "Keep my account", danger: true },
+      );
+      if (!ok) return;
+      this.deleting = true;
+      try {
+        await deleteMyAccount();
+        location.href = "/";
+      } catch (error) {
+        this.deleteError = error instanceof Error ? error.message : "We couldn't delete your account just now. Please try again.";
+        this.deleting = false;
+      }
+    },
+
     get hasConsent() {
       return Boolean(this.profile?.consented_at && this.profile?.age_confirmed);
     },

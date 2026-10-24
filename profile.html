@@ -10,6 +10,7 @@
     <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" />
     <link rel="stylesheet" href="/css/style.css" />
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="https://unpkg.com/lucide@latest"></script>
     <script src="/js/config.js"></script>
     <script src="/js/supabase.js"></script>
     <script src="/js/auth.js"></script>
@@ -35,8 +36,8 @@
           <a href="/login.html" class="btn btn-ghost px-3">Log in</a>
           <a href="/signup.html" class="btn btn-primary px-4">Sign up</a>
         </nav>
-        <div class="relative" x-show="profile" x-cloak @keydown.escape="open = false" @click.outside="open = false">
-          <button type="button" class="btn btn-secondary px-4" :aria-expanded="open.toString()" aria-controls="account-menu" @click="open = !open">
+        <div class="relative" x-show="profile" x-cloak @keydown.escape="if (open) { open = false; $refs.accountButton.focus() }" @click.outside="open = false">
+          <button type="button" x-ref="accountButton" class="btn btn-secondary px-4" :aria-expanded="open.toString()" aria-controls="account-menu" @click="open = !open">
             Account
           </button>
           <div id="account-menu" class="menu" x-show="open" x-cloak>
@@ -46,6 +47,14 @@
           </div>
         </div>
       </div>
+        <nav class="bottom-nav" aria-label="Main" x-show="ready" x-cloak>
+          <template x-for="link in bottomLinks" :key="link.href">
+            <a :href="link.href" class="bottom-nav-link" :aria-current="isCurrent(link.href) ? 'page' : null">
+              <i :data-lucide="link.icon" class="size-5" aria-hidden="true"></i>
+              <span x-text="link.label"></span>
+            </a>
+          </template>
+        </nav>
     </header>
 
     <main class="container-page py-8" x-data="profilePage">
@@ -280,12 +289,30 @@
               <p class="text-sm text-muted">Read how we use it in the <a href="/privacy.html" class="font-semibold text-primary underline">Privacy Notice</a>.</p>
             </section>
 
-            <!-- 6. Delete account (REQUIREMENTS.md 4.4 — not built yet) -->
-            <section class="card space-y-2" aria-labelledby="delete-heading">
+            <!-- 6. Delete account (REQUIREMENTS.md 4.4) -->
+            <section class="card space-y-3" aria-labelledby="delete-heading">
               <h2 id="delete-heading" class="text-lg font-semibold">Delete my account</h2>
-              <p class="text-sm text-muted">This will remove your profile and personal details. Past donations are kept only without your name or contact details.</p>
-              <button type="button" class="btn btn-danger" disabled aria-describedby="delete-soon">Delete my account</button>
-              <p id="delete-soon" class="helper-text mt-0">Coming soon.</p>
+              <template x-if="isIndividual">
+                <div class="space-y-3">
+                  <p class="text-sm text-muted">
+                    This removes your login, profile, contact details and volunteer applications. Waiting offers are cancelled.
+                    Past donations stay with the organizations for their records, but without your name or contact details.
+                  </p>
+                  <label class="flex items-start gap-3 text-sm">
+                    <input id="delete-understood" type="checkbox" class="mt-0.5 size-5 shrink-0 accent-primary" x-model="deleteUnderstood"
+                      :aria-invalid="deleteError && !deleteUnderstood ? 'true' : null" aria-describedby="delete-error" />
+                    <span>I understand this can't be undone.</span>
+                  </label>
+                  <p id="delete-error" class="field-error" x-show="deleteError" x-text="deleteError" role="alert"></p>
+                  <button type="button" class="btn btn-danger" :disabled="deleting" @click="deleteAccount()">
+                    <span class="spinner" x-show="deleting" x-cloak aria-hidden="true"></span>
+                    <span x-text="deleting ? 'Deleting…' : 'Delete my account'">Delete my account</span>
+                  </button>
+                </div>
+              </template>
+              <p class="text-sm text-muted" x-show="!isIndividual">
+                Organization and admin accounts own public records, so they can't be deleted here. Please contact the KampongShare team.
+              </p>
             </section>
           </div>
         </template>

@@ -46,7 +46,7 @@ Community donation and volunteer platform for Singapore. Hackathon prototype.
 | Database & auth  | Supabase. Client: `https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2`                                                                                                                                                                                                                                                                  |
 | Schema           | `supabase/migrations/` — read every file in order before any database code (the first, `…_initial_schema.sql`, is the full schema). Never rename tables or columns in code.                                                                                                                                                               |
 | Database changes | Add a **new** file in `supabase/migrations/` (name: `<UTC timestamp>_short_description.sql`), then tell me to paste it into the Supabase SQL Editor and Run (or run `npx supabase db push` if the Supabase CLI has been linked). Never edit a migration that has already been applied. Never print `.env`, keys or the database password. |
-| AI               | NVIDIA Build API (OpenAI-compatible chat completions), called **only** from Netlify Functions (`netlify/functions/`). The model is set in one constant, `MODEL`, in `netlify/functions/match-items.js` (currently `nvidia/nemotron-3.5-bolt-e4b`).                                                                                      |
+| AI               | NVIDIA Build API (OpenAI-compatible chat completions), called **only** from Netlify Functions (`netlify/functions/`). The model is set in one constant, `MODEL`, in `netlify/lib/ai.js` (currently `nvidia/nemotron-3.5-bolt-e4b`); the urgency formula is in `netlify/lib/urgency.js`.                                                                                      |
 | Hosting          | Netlify (`npx netlify dev` for local testing)                                                                                                                                                                                                                                                                                             |
 | Map              | Leaflet + OpenStreetMap tiles (show the required attribution)                                                                                                                                                                                                                                                                             |
 | Geocoding        | **OneMap Search API** (Singapore Land Authority): 6-digit postal code → address + latitude/longitude, to place map pins automatically. Called **only** from the Netlify Function `geocode-postal` (logged-in users), never from the browser. Only the postal code is sent. OneMap's Search API now requires a token: set `ONEMAP_EMAIL` / `ONEMAP_PASSWORD` in `.env` and Netlify env (free account at onemap.gov.sg/apidocs/register); the function fetches and caches the 3-day token. OneMap's terms don't require attribution for API data, but show "Address lookup by OneMap (Singapore Land Authority)" next to the field. In the browser, always use `lookupPostalCode()` from `js/geocode.js` — **reuse it for event locations in step 9**. |
@@ -70,9 +70,10 @@ js/share.js            → share links, poster image, copy caption (section 5)
 js/geocode.js          → lookupPostalCode(): postal code → { address, latitude, longitude } via geocode-postal
 jsconfig.json          → turns on type checking for all .js files
 img/og-default.png     → 1200×630 default preview image for shared links
-netlify/functions/     → server code: AI scoring, match-items, event-caption, share-event, geocode-postal
+netlify/functions/     → server code: score-request (AI urgency), match-items, event-caption, share-event, geocode-postal, delete-account
+netlify/lib/           → shared server code: ai.js (NVIDIA model + personal-data filter), urgency.js (score formula), score.js
 supabase/migrations/   → database schema and changes (Supabase CLI)
-scripts/               → setup-supabase.js, check-supabase.js, seed.js (run with node)
+scripts/               → check-supabase.js, seed.js, score-requests.js (run with node)
 ```
 
 ### 2.1 Tailwind setup
@@ -119,7 +120,7 @@ scripts/               → setup-supabase.js, check-supabase.js, seed.js (run wi
 
 - First line of every `.js` file: `// @ts-check`
 - Add JSDoc comments for function parameters and return values, e.g. `/** @param {number} score @returns {string} */`
-- `jsconfig.json`: `{ "compilerOptions": { "checkJs": true, "target": "ES2022" }, "exclude": ["node_modules", "css"] }`
+- `jsconfig.json`: `{ "compilerOptions": { "checkJs": true, "target": "ES2022", "module": "esnext", "moduleResolution": "bundler", "maxNodeModuleJsDepth": 0, "skipLibCheck": true }, "exclude": ["node_modules", "css"] }` — the module settings let `npx tsc -p jsconfig.json --noEmit` find the Supabase types exactly like VS Code does, without checking library code.
 - Fix the editor's red underlines before calling a task done. Netlify Functions are JavaScript too, so the whole project uses one language.
 
 ---
@@ -388,7 +389,7 @@ WhatsApp and Facebook don't run JavaScript when they read a link, so previews ne
 
 - Shared links use the format `https://<site>/e/<event id>`.
 - `netlify.toml` redirect: `/e/:id` → `/.netlify/functions/share-event?id=:id` (status 200).
-- The function reads the event using the **anon key** (so only approved events are returned), and replies with a small HTML page containing Open Graph tags: `og:title`, `og:description` (date, place, short description), `og:image` (`/img/og-default.png`), `og:url`, plus `twitter:card`. It then sends the visitor on to `/event.html?id=<id>`.
+- The function reads the event using the **anon key** (env `SUPABASE_ANON_KEY`, the same public key as in `js/config.js`, so only approved events are returned), and replies with a small HTML page containing Open Graph tags: `og:title`, `og:description` (date, place, short description), `og:image` (`/img/og-default.png`), `og:url`, plus `twitter:card`. It then sends the visitor on to `/event.html?id=<id>`.
 - **Escape every value** placed into the HTML. Unknown or unapproved IDs return the generic site preview.
 
 ### 5.3 Share panel

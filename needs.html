@@ -10,6 +10,7 @@
     <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" />
     <link rel="stylesheet" href="/css/style.css" />
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="https://unpkg.com/lucide@latest"></script>
     <script src="/js/config.js"></script>
     <script src="/js/supabase.js"></script>
     <script src="/js/auth.js"></script>
@@ -36,8 +37,8 @@
           <a href="/login.html" class="btn btn-ghost px-3">Log in</a>
           <a href="/signup.html" class="btn btn-primary px-4">Sign up</a>
         </nav>
-        <div class="relative" x-show="profile" x-cloak @keydown.escape="open = false" @click.outside="open = false">
-          <button type="button" class="btn btn-secondary px-4" :aria-expanded="open.toString()" aria-controls="account-menu" @click="open = !open">
+        <div class="relative" x-show="profile" x-cloak @keydown.escape="if (open) { open = false; $refs.accountButton.focus() }" @click.outside="open = false">
+          <button type="button" x-ref="accountButton" class="btn btn-secondary px-4" :aria-expanded="open.toString()" aria-controls="account-menu" @click="open = !open">
             Account
           </button>
           <div id="account-menu" class="menu" x-show="open" x-cloak>
@@ -47,6 +48,14 @@
           </div>
         </div>
       </div>
+        <nav class="bottom-nav" aria-label="Main" x-show="ready" x-cloak>
+          <template x-for="link in bottomLinks" :key="link.href">
+            <a :href="link.href" class="bottom-nav-link" :aria-current="isCurrent(link.href) ? 'page' : null">
+              <i :data-lucide="link.icon" class="size-5" aria-hidden="true"></i>
+              <span x-text="link.label"></span>
+            </a>
+          </template>
+        </nav>
     </header>
 
     <main class="container-page space-y-6 py-8" x-data="needsPage">
@@ -60,7 +69,7 @@
         <div class="sm:col-span-2 lg:col-span-1">
           <label for="f-q" class="label">Search</label>
           <input id="f-q" class="input" type="search" placeholder="e.g. rice, diapers" maxlength="60"
-            x-model.debounce.300ms="filters.q" @input.debounce.300ms="syncUrl()" />
+            x-model.debounce.300ms="filters.q" />
         </div>
         <div>
           <label for="f-category" class="label">Category</label>
@@ -122,6 +131,7 @@
         <button type="button" class="btn btn-secondary mt-3" @click="reload()">Try again</button>
       </div>
       <div class="card flex flex-col items-center gap-3 py-10 text-center" x-show="!loading && !error && filtered.length === 0" x-cloak>
+        <i data-lucide="package-open" class="size-10 text-primary" aria-hidden="true"></i>
         <p class="text-muted" x-text="hasFilters ? 'No requests match these filters.' : 'No open requests right now — check back soon.'"></p>
         <button type="button" class="btn btn-secondary" x-show="hasFilters" @click="clearFilters()">Clear filters</button>
       </div>
@@ -134,6 +144,23 @@
               <span :class="requestUrgency(request).className" x-text="requestUrgency(request).label"></span>
               <span class="badge badge-ai" x-show="requestUrgency(request).scored">AI-suggested</span>
             </div>
+            <!-- Why this score? (REQUIREMENTS.md 3 / 4.6) -->
+            <template x-if="scoreDetails(request)">
+              <div x-data="{ why: false }">
+                <button type="button" class="btn btn-ghost -ml-3 px-3 text-sm" :aria-expanded="why.toString()" :aria-controls="`why-${request.id}`" @click="why = !why"
+                  x-text="why ? 'Hide why' : 'Why this score?'">Why this score?</button>
+                <div :id="`why-${request.id}`" class="mt-1 space-y-2 rounded-md bg-canvas p-3 text-sm" x-show="why" x-cloak>
+                  <span class="badge badge-ai">AI-suggested</span>
+                  <p x-text="scoreDetails(request).explanation"></p>
+                  <ul class="space-y-1" x-show="scoreDetails(request).factors.length">
+                    <template x-for="factor in scoreDetails(request).factors" :key="factor.key">
+                      <li class="flex justify-between gap-3"><span x-text="factor.label"></span><span class="shrink-0 font-medium" x-text="`${factor.points} / ${factor.max}`"></span></li>
+                    </template>
+                  </ul>
+                  <p class="text-xs text-muted">The number comes from a fixed formula. People always make the decisions.</p>
+                </div>
+              </div>
+            </template>
             <div class="min-w-0">
               <h2 class="text-lg font-semibold break-words" x-text="request.title"></h2>
               <a class="text-sm font-medium text-primary underline-offset-2 hover:underline" :href="`/org.html?id=${request.organization_id}`"

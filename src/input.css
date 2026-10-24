@@ -44,6 +44,12 @@
     display: none !important;
   }
   /* pages with data-require stay hidden until js/auth.js confirms access */
+  /* phones: leave room so the bottom navigation never covers the end of the page */
+  @media (max-width: 639px) {
+    body {
+      padding-bottom: 4.5rem;
+    }
+  }
   body[data-require]:not([data-access-ok]) main {
     visibility: hidden;
   }
@@ -121,14 +127,14 @@
     @apply fixed inset-x-0 bottom-0 z-30 flex border-t border-line bg-surface sm:hidden;
   }
   .bottom-nav-link {
-    @apply flex min-h-14 flex-1 flex-col items-center justify-center gap-0.5 text-xs font-medium text-muted hover:text-primary focus-visible:outline-2 focus-visible:outline-primary;
+    @apply flex min-h-14 flex-1 flex-col items-center justify-center gap-0.5 text-xs font-medium text-muted hover:text-primary focus-visible:outline-2 focus-visible:outline-primary aria-[current=page]:text-primary aria-[current=page]:font-semibold;
   }
   /* Donating / Volunteering switch */
   .segmented {
-    @apply flex rounded-md border border-line bg-canvas p-0.5;
+    @apply flex rounded-md border border-line bg-canvas p-1;
   }
   .segmented-link {
-    @apply flex min-h-10 flex-1 items-center justify-center rounded-sm px-3 text-sm font-semibold text-muted hover:text-ink focus-visible:outline-2 focus-visible:outline-primary aria-[current=page]:bg-surface aria-[current=page]:text-primary aria-[current=page]:shadow-sm;
+    @apply flex min-h-11 flex-1 items-center justify-center rounded-sm px-3 text-sm font-semibold text-muted hover:text-ink focus-visible:outline-2 focus-visible:outline-primary aria-[current=page]:bg-surface aria-[current=page]:text-primary aria-[current=page]:shadow-sm;
   }
 
   /* selectable cards (account type, donate / volunteer) and pills (days, interests…) */

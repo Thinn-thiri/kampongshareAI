@@ -311,6 +311,33 @@ async function getMyEmail() {
 }
 
 /**
+ * Deletes the logged-in individual account and its personal data (REQUIREMENTS.md 4.4),
+ * via the delete-account Netlify Function (it needs the service role key). Then logs out locally.
+ * @returns {Promise<void>}
+ * @throws {Error} with a friendly message when it can't be done
+ */
+async function deleteMyAccount() {
+  if (!sb) throw new Error("Supabase not configured");
+  const {
+    data: { session },
+  } = await sb.auth.getSession();
+  if (!session) throw new Error("Please log in again first.");
+  /** @type {Response} */
+  let response;
+  try {
+    response = await fetch("/api/delete-account", { method: "POST", headers: { Authorization: `Bearer ${session.access_token}` } });
+  } catch {
+    throw new Error("We couldn't reach the server. Check your internet connection and try again.");
+  }
+  const body = await response.json().catch(() => ({}));
+  if (!response.ok) {
+    throw new Error(typeof body.message === "string" ? body.message : "We couldn't delete your account just now. Please try again.");
+  }
+  await sb.auth.signOut({ scope: "local" });
+  profileRequest = null;
+}
+
+/**
  * Logs out and returns to the home page.
  * @returns {Promise<void>}
  */
@@ -360,6 +387,45 @@ document.addEventListener("alpine:init", () => {
 
     get canSwitch() {
       return Boolean(this.profile?.is_donor && this.profile?.is_volunteer);
+    },
+
+    /**
+     * The 3–4 main sections for this person, for the mobile bottom navigation (REQUIREMENTS.md section 3).
+     * @returns {{ href: string, label: string, icon: string }[]}
+     */
+    get bottomLinks() {
+      const profile = this.profile;
+      const needs = { href: "/needs.html", label: "Needs", icon: "package-open" };
+      const profileLink = { href: "/profile.html", label: "Profile", icon: "user-round" };
+      if (!profile) {
+        return [{ href: "/", label: "Home", icon: "house" }, needs, { href: "/login.html", label: "Log in", icon: "log-in" }];
+      }
+      if (profile.role === "organization") {
+        return [
+          { href: "/organization.html", label: "Dashboard", icon: "layout-dashboard" },
+          { href: "/organization.html#requests-heading", label: "Requests", icon: "package-open" },
+          { href: "/organization.html#events-heading", label: "Events", icon: "calendar" },
+          profileLink,
+        ];
+      }
+      if (profile.role === "admin") {
+        return [{ href: "/admin.html", label: "Admin", icon: "shield-check" }, needs, profileLink];
+      }
+      const donating = { href: "/donor.html", label: "Donating", icon: "hand-heart" };
+      const volunteering = { href: "/volunteer.html", label: "Volunteering", icon: "users" };
+      if (profile.is_donor && profile.is_volunteer) return [donating, volunteering, needs, profileLink];
+      if (profile.is_volunteer) return [volunteering, { href: "/#events-heading", label: "Events", icon: "calendar" }, profileLink];
+      return [donating, needs, profileLink];
+    },
+
+    /**
+     * True when the link points at the page being shown (for aria-current).
+     * @param {string} href
+     * @returns {boolean}
+     */
+    isCurrent(href) {
+      if (href.includes("#")) return false; // shortcuts into a page section aren't "the current page"
+      return href === location.pathname || (href === "/" && location.pathname === "/index.html");
     },
 
     get dashboard() {

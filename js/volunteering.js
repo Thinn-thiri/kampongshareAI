@@ -193,7 +193,7 @@ async function updateTaskStatus(id, status) {
 async function listEventApplications(eventId) {
   const { data, error } = await db()
     .from("volunteer_applications")
-    .select("*, volunteer:profiles(full_name, phone, available_days, available_times, interests, skills)")
+    .select("*, volunteer:profile_contacts(full_name, phone, available_days, available_times, interests, skills)")
     .eq("event_id", eventId)
     .order("created_at", { ascending: true });
   if (error) throw error;
@@ -218,7 +218,7 @@ async function setApplicationStatus(id, status) {
 async function listEventTasks(eventId) {
   const { data, error } = await db()
     .from("volunteer_tasks")
-    .select("*, volunteer:profiles(full_name)")
+    .select("*, volunteer:profile_contacts(full_name)")
     .eq("event_id", eventId)
     .order("created_at", { ascending: true });
   if (error) throw error;
