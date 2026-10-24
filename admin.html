@@ -20,6 +20,7 @@
     <script src="/js/orgs.js"></script>
     <script src="/js/requests.js"></script>
     <script src="/js/events.js"></script>
+    <script src="/js/volunteering.js"></script>
     <script src="/js/admin-dashboard.js"></script>
     <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3/dist/cdn.min.js"></script>
   </head>
@@ -328,8 +329,58 @@
         </div>
       </section>
 
+      <!-- Volunteer applications queue (7.2) -->
+      <section class="space-y-4" x-show="activeQueue === 'applications'" x-cloak aria-labelledby="apps-heading">
+        <div class="flex flex-wrap items-center justify-between gap-3">
+          <h2 id="apps-heading" class="text-xl font-semibold">Volunteer applications waiting</h2>
+          <button type="button" class="btn btn-ghost" @click="loadApplications()" :disabled="loadingApps">Refresh</button>
+        </div>
+
+        <div class="card space-y-3" x-show="loadingApps" aria-busy="true" aria-label="Loading applications">
+          <div class="skeleton h-6 w-1/3"></div><div class="skeleton h-4 w-2/3"></div>
+        </div>
+        <div class="card text-center" x-show="!loadingApps && appsError" x-cloak role="alert">
+          <p class="text-danger" x-text="appsError"></p>
+          <button type="button" class="btn btn-secondary mt-3" @click="loadApplications()">Try again</button>
+        </div>
+        <div class="card py-10 text-center" x-show="!loadingApps && !appsError && appsLoaded && apps.length === 0" x-cloak>
+          <p class="text-muted">No volunteer applications waiting.</p>
+        </div>
+
+        <div class="grid gap-4 md:grid-cols-2" x-show="!loadingApps && !appsError">
+          <template x-for="application in apps" :key="application.id">
+            <article class="card space-y-3">
+              <div>
+                <p class="font-semibold break-words" x-text="application.volunteer?.full_name || 'Name not given'"></p>
+                <p class="text-sm text-muted" x-text="`Applied ${formatDate(application.created_at)}`"></p>
+              </div>
+              <dl class="grid grid-cols-[max-content_1fr] gap-x-3 gap-y-1 text-sm">
+                <dt class="text-muted">Event</dt>
+                <dd class="break-words" x-text="application.event?.title ?? '—'"></dd>
+                <dt class="text-muted">Organization</dt>
+                <dd class="break-words" x-text="application.event?.organization?.name ?? '—'"></dd>
+                <dt class="text-muted">When</dt>
+                <dd x-text="application.event ? formatEventTime(application.event.starts_at, null) : '—'"></dd>
+                <dt class="text-muted">Available</dt>
+                <dd x-text="formatAvailability(application.volunteer?.available_days, application.volunteer?.available_times)"></dd>
+                <dt class="text-muted">Interests</dt>
+                <dd class="break-words" x-text="application.volunteer?.interests?.join(', ') || 'Not given'"></dd>
+              </dl>
+              <p class="rounded-md bg-canvas p-3 text-sm whitespace-pre-line break-words" x-show="application.message" x-text="application.message"></p>
+              <div class="flex flex-wrap gap-3">
+                <button type="button" class="btn btn-primary" :disabled="busyId === application.id" @click="decideApplication(application, 'approved')">
+                  <span class="spinner" x-show="busyId === application.id" x-cloak aria-hidden="true"></span>
+                  Approve
+                </button>
+                <button type="button" class="btn btn-danger" :disabled="busyId === application.id" @click="decideApplication(application, 'rejected')">Reject</button>
+              </div>
+            </article>
+          </template>
+        </div>
+      </section>
+
       <!-- Queues not built yet -->
-      <section class="card flex flex-col items-center gap-2 py-10 text-center" x-show="!['organizations', 'requests', 'events'].includes(activeQueue)" x-cloak aria-live="polite">
+      <section class="card flex flex-col items-center gap-2 py-10 text-center" x-show="!['organizations', 'requests', 'events', 'applications'].includes(activeQueue)" x-cloak aria-live="polite">
         <h2 class="text-lg font-semibold" x-text="activeLabel"></h2>
         <p class="text-muted">This review queue is coming soon.</p>
       </section>

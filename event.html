@@ -18,6 +18,7 @@
     <script src="/js/ui.js"></script>
     <script src="/js/map.js"></script>
     <script src="/js/events.js"></script>
+    <script src="/js/volunteering.js"></script>
     <script src="/js/event-page.js"></script>
     <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3/dist/cdn.min.js"></script>
   </head>
@@ -79,8 +80,8 @@
           <dd x-text="event ? formatEventTime(event.starts_at, event.ends_at) : ''"></dd>
           <dt class="font-medium text-muted">Where</dt>
           <dd class="break-words" x-text="event?.location_name"></dd>
-          <dt class="font-medium text-muted">Volunteers needed</dt>
-          <dd x-text="event?.volunteers_needed || 'Everyone welcome'"></dd>
+          <dt class="font-medium text-muted">Volunteers</dt>
+          <dd x-text="!event ? '' : !event.volunteers_needed ? 'Everyone welcome' : isFull ? `Event full (${event.volunteers_needed} needed)` : `${spots} of ${event.volunteers_needed} spots left`"></dd>
         </dl>
 
         <div class="isolate overflow-hidden rounded-lg border border-line">
@@ -92,14 +93,80 @@
           <p class="whitespace-pre-line break-words" x-text="event?.description"></p>
         </section>
 
-        <div class="grid gap-3 sm:grid-cols-2">
-          <a href="/donor.html" class="btn btn-primary min-h-14 text-base">Donate</a>
-          <div>
-            <button type="button" class="btn btn-secondary min-h-14 w-full text-base" disabled aria-describedby="volunteer-soon">Volunteer</button>
-            <p id="volunteer-soon" class="helper-text text-center">Volunteer sign-up opens soon.</p>
+        <div class="grid gap-4 sm:grid-cols-2 sm:items-start">
+          <!-- Donate -->
+          <div class="space-y-1">
+            <a :href="donateHref" href="/donor.html" class="btn btn-primary min-h-14 w-full text-base">Donate</a>
+            <p class="helper-text text-center" x-text="event?.request?.status === 'open' ? `Give to: ${event.request.title}` : 'See what this organization needs'"></p>
+          </div>
+
+          <!-- Volunteer -->
+          <div class="space-y-2" aria-live="polite">
+            <template x-if="volunteerState === 'can_apply' && !showApply">
+              <button type="button" class="btn btn-secondary min-h-14 w-full text-base" :disabled="busy"
+                @click="myApplication?.status === 'withdrawn' ? apply() : openApply()"
+                x-text="myApplication?.status === 'withdrawn' ? 'Volunteer again' : 'Volunteer'"></button>
+            </template>
+            <template x-if="volunteerState === 'visitor'">
+              <div class="space-y-1">
+                <a :href="loginHref" class="btn btn-secondary min-h-14 w-full text-base">Volunteer</a>
+                <p class="helper-text text-center">Log in or sign up to volunteer — we'll bring you back here.</p>
+              </div>
+            </template>
+            <template x-if="volunteerState === 'ended'">
+              <button type="button" class="btn btn-secondary min-h-14 w-full text-base" disabled>Event ended</button>
+            </template>
+            <template x-if="volunteerState === 'full'">
+              <button type="button" class="btn btn-secondary min-h-14 w-full text-base" disabled>Event full</button>
+            </template>
+            <template x-if="volunteerState === 'not_individual'">
+              <p class="rounded-md bg-canvas p-3 text-center text-sm text-muted">Organization and admin accounts can't volunteer.</p>
+            </template>
+            <template x-if="volunteerState === 'turn_on'">
+              <div class="space-y-2 rounded-md border border-line bg-canvas p-3 text-center text-sm">
+                <p>Turn on volunteering in your profile to do this.</p>
+                <button type="button" class="btn btn-secondary w-full" :disabled="busy" @click="turnOnVolunteering()">
+                  <span class="spinner" x-show="busy" x-cloak aria-hidden="true"></span>
+                  Turn on volunteering
+                </button>
+              </div>
+            </template>
+            <template x-if="volunteerState === 'consent'">
+              <div class="space-y-2 rounded-md border border-warning bg-warning-soft p-3 text-center text-sm text-warning">
+                <p>Please confirm the privacy consent and that you're 18 or older first.</p>
+                <a href="/profile.html" class="btn btn-secondary w-full">Go to my profile</a>
+              </div>
+            </template>
+            <template x-if="volunteerState === 'applied' && myApplication">
+              <div class="space-y-2 rounded-md border border-line bg-canvas p-3 text-center text-sm">
+                <p>Your application: <span :class="badges[myApplication.status].className" x-text="badges[myApplication.status].label"></span></p>
+                <button type="button" class="btn btn-ghost w-full" x-show="myApplication.status === 'pending' || myApplication.status === 'approved'"
+                  :disabled="busy || myApplication.status === 'approved'"
+                  :aria-describedby="myApplication.status === 'approved' ? 'confirmed-note' : null" @click="withdraw()">Withdraw</button>
+                <p id="confirmed-note" class="helper-text mt-0" x-show="myApplication.status === 'approved'" x-text="confirmedNote"></p>
+              </div>
+            </template>
+
+            <!-- Apply form -->
+            <form class="space-y-3 rounded-md border border-primary-soft bg-canvas p-4" novalidate x-show="showApply && volunteerState === 'can_apply'" x-cloak @submit.prevent="apply">
+              <div>
+                <label for="apply-message" class="label">Message to the organization <span class="font-normal text-muted">(optional)</span></label>
+                <textarea id="apply-message" class="input py-2" rows="2" maxlength="500" x-model="applyMessage" aria-describedby="apply-help"></textarea>
+                <p id="apply-help" class="helper-text" x-text="`${applyMessage.length} / 500`"></p>
+              </div>
+              <div role="alert">
+                <p class="rounded-md bg-danger-soft p-3 text-sm font-medium text-danger" x-show="applyError" x-text="applyError"></p>
+              </div>
+              <div class="flex flex-wrap gap-3">
+                <button type="submit" class="btn btn-primary" :disabled="busy">
+                  <span class="spinner" x-show="busy" x-cloak aria-hidden="true"></span>
+                  Send application
+                </button>
+                <button type="button" class="btn btn-ghost" @click="showApply = false">Cancel</button>
+              </div>
+            </form>
           </div>
         </div>
-        <p class="text-sm text-muted" x-show="event?.request?.title" x-text="`Donations for: ${event?.request?.title}`"></p>
       </article>
     </main>
   </body>

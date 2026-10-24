@@ -25,7 +25,7 @@
  * @property {string | null} admin_note
  * @property {string} created_at
  * @property {{ name: string } | null} [organization]
- * @property {{ title: string } | null} [request]
+ * @property {{ title: string, id?: string, status?: RequestStatus } | null} [request]
  */
 
 /**
@@ -233,7 +233,7 @@ async function listUpcomingPublicEvents() {
 async function getPublicEvent(id) {
   const { data, error } = await db()
     .from("events")
-    .select("*, organization:organizations(name), request:donation_requests(title)")
+    .select("*, organization:organizations(name), request:donation_requests(id, title, status)")
     .eq("id", id)
     .eq("approval", "approved")
     .maybeSingle();

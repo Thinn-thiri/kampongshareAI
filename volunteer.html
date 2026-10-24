@@ -14,6 +14,9 @@
     <script src="/js/supabase.js"></script>
     <script src="/js/auth.js"></script>
     <script src="/js/ui.js"></script>
+    <script src="/js/events.js"></script>
+    <script src="/js/volunteering.js"></script>
+    <script src="/js/volunteer-dashboard.js"></script>
     <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3/dist/cdn.min.js"></script>
   </head>
   <body data-require="volunteer">
@@ -46,11 +49,193 @@
       </div>
     </header>
 
-    <main class="container-page py-8">
-      <h1 class="text-2xl font-bold sm:text-3xl">Volunteer dashboard</h1>
-      <div class="card mt-6 text-center">
-        <p class="text-muted">This page is coming soon.</p>
+    <main class="container-page space-y-10 py-8" x-data="volunteerDashboard">
+      <div>
+        <h1 class="text-2xl font-bold sm:text-3xl">Volunteer dashboard</h1>
+        <p class="mt-1 text-muted">Find an event near you, apply, and the organization will confirm your place.</p>
       </div>
+
+      <!-- Summary -->
+      <section aria-label="Summary" class="grid grid-cols-3 gap-3 sm:gap-4">
+        <div class="card p-4 sm:p-5">
+          <p class="text-sm text-muted">Upcoming events</p>
+          <p class="mt-1 text-2xl font-bold sm:text-3xl" x-text="loadingEvents ? '–' : events.length">–</p>
+        </div>
+        <div class="card p-4 sm:p-5">
+          <p class="text-sm text-muted">My active applications</p>
+          <p class="mt-1 text-2xl font-bold sm:text-3xl" x-text="loadingApplications ? '–' : activeApplicationCount">–</p>
+        </div>
+        <div class="card p-4 sm:p-5">
+          <p class="text-sm text-muted">My open tasks</p>
+          <p class="mt-1 text-2xl font-bold sm:text-3xl" x-text="loadingTasks ? '–' : openTaskCount">–</p>
+        </div>
+      </section>
+
+      <!-- Consent missing (REQUIREMENTS.md 4.2) -->
+      <div class="rounded-md border border-warning bg-warning-soft p-4 text-warning" x-show="needsConsent" x-cloak role="status">
+        <p class="font-semibold">One more step before you can volunteer</p>
+        <p class="mt-1 text-sm">Please confirm the privacy consent and that you're 18 or older on your profile page.</p>
+        <a href="/profile.html" class="btn btn-secondary mt-3">Go to my profile</a>
+      </div>
+
+      <!-- Upcoming events -->
+      <section class="space-y-4" aria-labelledby="events-heading">
+        <h2 id="events-heading" class="text-xl font-semibold">Upcoming events</h2>
+
+        <div class="grid gap-4 md:grid-cols-2" x-show="loadingEvents" aria-busy="true" aria-label="Loading events">
+          <div class="card space-y-3"><div class="skeleton h-6 w-3/4"></div><div class="skeleton h-4 w-1/2"></div><div class="skeleton h-11 w-32"></div></div>
+          <div class="card space-y-3"><div class="skeleton h-6 w-2/3"></div><div class="skeleton h-4 w-1/2"></div><div class="skeleton h-11 w-32"></div></div>
+        </div>
+        <div class="card text-center" x-show="!loadingEvents && eventsError" x-cloak role="alert">
+          <p class="text-danger" x-text="eventsError"></p>
+          <button type="button" class="btn btn-secondary mt-3" @click="loadEvents()">Try again</button>
+        </div>
+        <div class="card py-10 text-center" x-show="!loadingEvents && !eventsError && events.length === 0" x-cloak>
+          <p class="text-muted">No upcoming events right now. Please check back soon.</p>
+        </div>
+
+        <div class="grid gap-4 md:grid-cols-2" x-show="!loadingEvents && !eventsError">
+          <template x-for="event in events" :key="event.id">
+            <article class="card flex flex-col gap-3">
+              <div class="flex flex-wrap items-center gap-2">
+                <span class="badge" :class="spots(event) === 0 ? 'badge-danger' : 'badge-info'" x-text="spotsText(event)"></span>
+                <template x-if="applicationFor(event.id)">
+                  <span :class="badges[applicationFor(event.id).status].className" x-text="`You: ${badges[applicationFor(event.id).status].label}`"></span>
+                </template>
+              </div>
+              <div class="min-w-0">
+                <h3 class="text-lg font-semibold break-words" x-text="event.title"></h3>
+                <p class="text-sm font-medium text-primary" x-text="event.organization?.name"></p>
+                <p class="mt-1 text-sm text-muted" x-text="formatEventTime(event.starts_at, event.ends_at)"></p>
+                <p class="text-sm text-muted break-words" x-text="event.location_name"></p>
+                <p class="mt-2 line-clamp-3 text-sm whitespace-pre-line break-words" x-show="event.description" x-text="event.description"></p>
+              </div>
+
+              <!-- Apply form -->
+              <form class="space-y-3 rounded-md border border-primary-soft bg-canvas p-4" novalidate x-show="applyEventId === event.id" x-cloak
+                @submit.prevent="sendApplication(event.id)" :aria-label="`Apply to ${event.title}`">
+                <div>
+                  <label :for="`apply-msg-${event.id}`" class="label">Message to the organization <span class="font-normal text-muted">(optional)</span></label>
+                  <textarea :id="`apply-msg-${event.id}`" class="input py-2" rows="2" maxlength="500" x-model="applyMessage"
+                    :aria-describedby="`apply-help-${event.id}`"></textarea>
+                  <p :id="`apply-help-${event.id}`" class="helper-text" x-text="`e.g. any experience or when you can arrive. ${applyMessage.length} / 500`"></p>
+                </div>
+                <div role="alert">
+                  <p class="rounded-md bg-danger-soft p-3 text-sm font-medium text-danger" x-show="applyError" x-text="applyError"></p>
+                </div>
+                <div class="flex flex-wrap gap-3">
+                  <button type="submit" class="btn btn-primary" :disabled="busyId === event.id">
+                    <span class="spinner" x-show="busyId === event.id" x-cloak aria-hidden="true"></span>
+                    <span x-text="busyId === event.id ? 'Sending…' : 'Send application'">Send application</span>
+                  </button>
+                  <button type="button" class="btn btn-ghost" @click="closeApply()">Cancel</button>
+                </div>
+              </form>
+
+              <div class="mt-auto flex flex-wrap gap-3 pt-1" x-show="applyEventId !== event.id">
+                <button type="button" class="btn btn-primary"
+                  x-show="!applicationFor(event.id) || applicationFor(event.id).status === 'withdrawn'"
+                  :disabled="needsConsent || spots(event) === 0 || busyId === applicationFor(event.id)?.id"
+                  @click="applicationFor(event.id) ? applyAgain(applicationFor(event.id)) : openApply(event.id)"
+                  x-text="spots(event) === 0 ? 'Event full' : applicationFor(event.id) ? 'Apply again' : 'Apply'">Apply</button>
+                <template x-if="applicationFor(event.id) && ['pending', 'approved'].includes(applicationFor(event.id).status)">
+                  <button type="button" class="btn btn-danger" :disabled="busyId === applicationFor(event.id).id || applicationFor(event.id).status === 'approved'"
+                    :aria-describedby="applicationFor(event.id).status === 'approved' ? `confirmed-${event.id}` : null"
+                    @click="withdraw(applicationFor(event.id))">
+                    <span class="spinner" x-show="busyId === applicationFor(event.id).id" x-cloak aria-hidden="true"></span>
+                    Withdraw
+                  </button>
+                </template>
+                <a class="btn btn-ghost" :href="`/event.html?id=${event.id}`">View event</a>
+                <p :id="`confirmed-${event.id}`" class="helper-text mt-0 w-full" x-show="applicationFor(event.id)?.status === 'approved'" x-text="confirmedNote"></p>
+              </div>
+            </article>
+          </template>
+        </div>
+      </section>
+
+      <!-- My applications -->
+      <section class="space-y-4" aria-labelledby="apps-heading">
+        <h2 id="apps-heading" class="text-xl font-semibold">My applications</h2>
+
+        <div class="card space-y-3" x-show="loadingApplications" aria-busy="true" aria-label="Loading your applications">
+          <div class="skeleton h-5 w-2/3"></div><div class="skeleton h-4 w-1/2"></div>
+        </div>
+        <div class="card text-center" x-show="!loadingApplications && applicationsError" x-cloak role="alert">
+          <p class="text-danger" x-text="applicationsError"></p>
+          <button type="button" class="btn btn-secondary mt-3" @click="loadApplications()">Try again</button>
+        </div>
+        <div class="card py-10 text-center" x-show="!loadingApplications && !applicationsError && applications.length === 0" x-cloak>
+          <p class="text-muted">You haven't applied to any events yet — choose one above.</p>
+        </div>
+
+        <ul class="space-y-3" x-show="!loadingApplications && !applicationsError">
+          <template x-for="application in applications" :key="application.id">
+            <li class="card flex flex-wrap items-start justify-between gap-3">
+              <div class="min-w-0">
+                <p class="font-semibold break-words" x-text="application.event?.title ?? 'Event no longer available'"></p>
+                <p class="text-sm text-muted" x-show="application.event"
+                  x-text="application.event ? `${formatEventTime(application.event.starts_at, application.event.ends_at)} · ${application.event.location_name ?? ''}` : ''"></p>
+                <p class="text-sm text-primary" x-text="application.event?.organization?.name"></p>
+              </div>
+              <div class="flex flex-wrap items-center gap-3">
+                <span :class="badges[application.status].className" x-text="badges[application.status].label"></span>
+                <button type="button" class="btn btn-danger" x-show="application.status === 'pending' || application.status === 'approved'"
+                  :disabled="busyId === application.id || application.status === 'approved'"
+                  :aria-describedby="application.status === 'approved' ? `app-confirmed-${application.id}` : null"
+                  @click="withdraw(application)">
+                  <span class="spinner" x-show="busyId === application.id" x-cloak aria-hidden="true"></span>
+                  Withdraw
+                </button>
+                <button type="button" class="btn btn-secondary" x-show="application.status === 'withdrawn' && application.event"
+                  :disabled="busyId === application.id || needsConsent || (application.event && spots({ id: application.event_id, volunteers_needed: application.event.volunteers_needed }) === 0)"
+                  @click="applyAgain(application)">
+                  <span class="spinner" x-show="busyId === application.id" x-cloak aria-hidden="true"></span>
+                  Apply again
+                </button>
+              </div>
+              <p :id="`app-confirmed-${application.id}`" class="helper-text mt-0 w-full" x-show="application.status === 'approved'" x-text="confirmedNote"></p>
+            </li>
+          </template>
+        </ul>
+      </section>
+
+      <!-- My tasks -->
+      <section class="space-y-4" aria-labelledby="tasks-heading">
+        <h2 id="tasks-heading" class="text-xl font-semibold">My tasks</h2>
+
+        <div class="card space-y-3" x-show="loadingTasks" aria-busy="true" aria-label="Loading your tasks">
+          <div class="skeleton h-5 w-2/3"></div><div class="skeleton h-4 w-1/2"></div>
+        </div>
+        <div class="card text-center" x-show="!loadingTasks && tasksError" x-cloak role="alert">
+          <p class="text-danger" x-text="tasksError"></p>
+          <button type="button" class="btn btn-secondary mt-3" @click="loadTasks()">Try again</button>
+        </div>
+        <div class="card py-10 text-center" x-show="!loadingTasks && !tasksError && tasks.length === 0" x-cloak>
+          <p class="text-muted">No tasks yet. Once you're approved for an event, the organization may assign you tasks here.</p>
+        </div>
+
+        <ul class="space-y-3" x-show="!loadingTasks && !tasksError">
+          <template x-for="task in tasks" :key="task.id">
+            <li class="card flex flex-wrap items-start justify-between gap-3">
+              <div class="min-w-0">
+                <p class="font-semibold break-words" x-text="task.title"></p>
+                <p class="text-sm text-primary" x-text="task.event?.title"></p>
+                <p class="mt-1 text-sm whitespace-pre-line break-words" x-show="task.description" x-text="task.description"></p>
+                <p class="text-sm text-muted" x-show="task.due_at" x-text="task.due_at ? `Due ${formatDate(task.due_at, true)}` : ''"></p>
+              </div>
+              <div class="w-full sm:w-44">
+                <label :for="`task-status-${task.id}`" class="label">Status</label>
+                <select :id="`task-status-${task.id}`" class="input" :value="task.status" @change="changeTaskStatus(task, $event.target.value)">
+                  <template x-for="option in taskOptions" :key="option.value">
+                    <option :value="option.value" x-text="option.label" :selected="option.value === task.status"></option>
+                  </template>
+                </select>
+              </div>
+            </li>
+          </template>
+        </ul>
+      </section>
     </main>
   </body>
 </html>

@@ -26,6 +26,8 @@
     <script src="/js/org-offers.js"></script>
     <script src="/js/events.js"></script>
     <script src="/js/org-events.js"></script>
+    <script src="/js/volunteering.js"></script>
+    <script src="/js/event-volunteers.js"></script>
     <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3/dist/cdn.min.js"></script>
   </head>
   <body data-require="organization">
@@ -662,6 +664,111 @@
                   <button type="button" class="btn btn-secondary" x-show="event.status !== 'completed' && event.status !== 'cancelled'" @click="edit(event)">Edit</button>
                   <a class="btn btn-ghost" x-show="event.approval === 'approved'" :href="`/event.html?id=${event.id}`">View public page</a>
                   <button type="button" class="btn btn-primary" x-show="canComplete(event)" @click="startComplete(event)">Mark completed</button>
+                </div>
+
+                <!-- Volunteers for this event -->
+                <div class="border-t border-line pt-3" x-data="eventVolunteers(event)" x-show="event.approval === 'approved' || event.status === 'completed'">
+                  <button type="button" class="btn btn-ghost -ml-3 px-3" :aria-expanded="open.toString()" :aria-controls="`volunteers-${event.id}`" @click="toggle()">
+                    <span x-text="open ? 'Hide volunteers' : 'Volunteers'"></span>
+                    <span class="badge badge-warning" x-show="loaded && pendingCount > 0" x-text="`${pendingCount} waiting`"></span>
+                  </button>
+
+                  <div :id="`volunteers-${event.id}`" class="mt-3 space-y-3" x-show="open" x-cloak>
+                    <p class="text-sm font-medium" :class="isFull ? 'text-danger' : 'text-muted'" x-show="loaded" x-text="summary"></p>
+                    <div class="space-y-2" x-show="loading" aria-busy="true" aria-label="Loading volunteers">
+                      <div class="skeleton h-5 w-2/3"></div><div class="skeleton h-4 w-1/2"></div>
+                    </div>
+                    <p class="text-sm text-danger" x-show="!loading && error" x-text="error" role="alert"></p>
+                    <p class="text-sm text-muted" x-show="!loading && !error && loaded && shown.length === 0">No applications yet.</p>
+
+                    <ul class="space-y-3" x-show="!loading && !error">
+                      <template x-for="application in shown" :key="application.id">
+                        <li class="space-y-2 rounded-md border border-line bg-canvas p-3 text-sm">
+                          <div class="flex flex-wrap items-center justify-between gap-2">
+                            <p class="font-semibold break-words" x-text="application.volunteer?.full_name || 'Name not given'"></p>
+                            <span :class="badges[application.status].className" x-text="badges[application.status].label"></span>
+                          </div>
+                          <dl class="grid grid-cols-[max-content_1fr] gap-x-3 gap-y-1">
+                            <dt class="text-muted">Phone</dt>
+                            <dd>
+                              <template x-if="application.volunteer?.phone">
+                                <a :href="`tel:${application.volunteer.phone}`" class="font-medium text-primary underline" x-text="application.volunteer.phone"></a>
+                              </template>
+                              <span class="text-muted" x-show="!application.volunteer?.phone">Not given</span>
+                            </dd>
+                            <dt class="text-muted">Available</dt>
+                            <dd x-text="formatAvailability(application.volunteer?.available_days, application.volunteer?.available_times)"></dd>
+                            <dt class="text-muted">Interests</dt>
+                            <dd class="break-words" x-text="application.volunteer?.interests?.join(', ') || 'Not given'"></dd>
+                            <dt class="text-muted">Skills</dt>
+                            <dd class="break-words" x-text="application.volunteer?.skills?.join(', ') || 'Not given'"></dd>
+                            <dt class="text-muted">Applied</dt>
+                            <dd x-text="formatDate(application.created_at)"></dd>
+                          </dl>
+                          <p class="rounded-md bg-surface p-2 whitespace-pre-line break-words" x-show="application.message" x-text="application.message"></p>
+
+                          <div class="flex flex-wrap gap-2">
+                            <template x-if="application.status === 'pending'">
+                              <div class="flex flex-wrap gap-2">
+                                <button type="button" class="btn btn-primary" :disabled="busyId === application.id || isFull" @click="decide(application, 'approve')"
+                                  x-text="isFull ? 'Event full' : 'Approve'"></button>
+                                <button type="button" class="btn btn-danger" :disabled="busyId === application.id" @click="decide(application, 'reject')">Reject</button>
+                              </div>
+                            </template>
+                            <template x-if="application.status === 'approved'">
+                              <div class="flex flex-wrap gap-2">
+                                <button type="button" class="btn btn-secondary" x-show="taskFor !== application.volunteer_id" @click="openTask(application.volunteer_id)">Assign task</button>
+                                <button type="button" class="btn btn-danger" :disabled="busyId === application.id" @click="decide(application, 'remove')">Remove volunteer</button>
+                              </div>
+                            </template>
+                          </div>
+
+                          <!-- Tasks for this volunteer -->
+                          <ul class="space-y-1" x-show="tasksOf(application.volunteer_id).length">
+                            <template x-for="task in tasksOf(application.volunteer_id)" :key="task.id">
+                              <li class="flex flex-wrap items-center justify-between gap-2 rounded-md bg-surface p-2">
+                                <span class="min-w-0 break-words">
+                                  <span class="font-medium" x-text="task.title"></span>
+                                  <span class="text-muted" x-show="task.due_at" x-text="task.due_at ? ` · due ${formatDate(task.due_at, true)}` : ''"></span>
+                                </span>
+                                <span :class="taskBadge(task.status).className" x-text="taskBadge(task.status).label"></span>
+                              </li>
+                            </template>
+                          </ul>
+
+                          <!-- Assign task form -->
+                          <form class="space-y-3 rounded-md border border-line bg-surface p-3" novalidate x-show="taskFor === application.volunteer_id" x-cloak
+                            @submit.prevent="saveTask(application.volunteer_id)">
+                            <div>
+                              <label :for="`task-title-${event.id}-${application.volunteer_id}`" class="label">Task <span class="text-danger" aria-hidden="true">*</span></label>
+                              <input :id="`task-title-${event.id}-${application.volunteer_id}`" class="input" type="text" maxlength="100"
+                                placeholder="e.g. Pack food bags at station 2" x-model="taskForm.title" :aria-invalid="taskErrors.title ? 'true' : null"
+                                :aria-describedby="`task-title-err-${event.id}-${application.volunteer_id}`" />
+                              <p :id="`task-title-err-${event.id}-${application.volunteer_id}`" class="field-error" x-show="taskErrors.title" x-text="taskErrors.title"></p>
+                            </div>
+                            <div>
+                              <label :for="`task-desc-${event.id}-${application.volunteer_id}`" class="label">Details <span class="font-normal text-muted">(optional)</span></label>
+                              <textarea :id="`task-desc-${event.id}-${application.volunteer_id}`" class="input py-2" rows="2" maxlength="500" x-model="taskForm.description"></textarea>
+                              <p class="field-error" x-show="taskErrors.description" x-text="taskErrors.description"></p>
+                            </div>
+                            <div>
+                              <label :for="`task-due-${event.id}-${application.volunteer_id}`" class="label">Due <span class="font-normal text-muted">(optional)</span></label>
+                              <input :id="`task-due-${event.id}-${application.volunteer_id}`" class="input" type="datetime-local" x-model="taskForm.dueAt" />
+                            </div>
+                            <p class="rounded-md bg-danger-soft p-2 text-danger" x-show="taskError" x-text="taskError" role="alert"></p>
+                            <div class="flex flex-wrap gap-2">
+                              <button type="submit" class="btn btn-primary" :disabled="savingTask">
+                                <span class="spinner" x-show="savingTask" x-cloak aria-hidden="true"></span>
+                                Assign task
+                              </button>
+                              <button type="button" class="btn btn-ghost" @click="taskFor = null">Cancel</button>
+                            </div>
+                          </form>
+                        </li>
+                      </template>
+                    </ul>
+                    <button type="button" class="btn btn-ghost -ml-3 px-3" x-show="loaded && !loading" @click="load()">Refresh</button>
+                  </div>
                 </div>
               </li>
             </template>

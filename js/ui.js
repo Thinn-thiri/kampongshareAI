@@ -219,6 +219,9 @@ function friendlyError(error) {
   if (err.code === "42501" || lower.includes("row-level security")) {
     return "You don't have permission to do that.";
   }
+  if (err.code === "PGRST202") {
+    return "The database needs an update: run the newest file in supabase/migrations/ in the Supabase SQL Editor.";
+  }
   if (err.code === "P0001" && message) return message;
   return "Something went wrong. Please try again.";
 }

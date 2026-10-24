@@ -21,7 +21,7 @@ Community donation and volunteer platform for Singapore. Hackathon prototype.
 **Volunteer rules (enforced by the database):**
 
 - `events.volunteers_needed` is the limit (0 = no limit; the event form should ask for at least 1). Once that many are approved, new applications and approvals are refused: show **"Event full"**.
-- Volunteers can **withdraw** a pending or approved application (status `withdrawn`, confirm dialog first), which frees the spot. They can **apply again** later (`withdrawn` → `pending`) if the event still has room.
+- Volunteers can **withdraw** a **pending** application (status `withdrawn`, confirm dialog first). Once **approved**, the Withdraw button is shown disabled with the note "Your place is confirmed — please contact the organization if you can't make it"; only the organization can then remove them, which frees the spot. They can **apply again** later (`withdrawn` → `pending`) if the event still has room.
 - Organizations can approve or reject pending applications, and remove an approved volunteer (`approved` → `rejected`).
 
 **Core flow:** approved organization posts a request with items → admin approves → AI scores urgency with reasons → donor browses (sorted by urgency) or gets AI recommendations → donor offers against one specific item (never more than remaining) → organization accepts / rejects → marks delivered → request becomes fulfilled automatically.

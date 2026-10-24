@@ -227,6 +227,26 @@ async function requireLogin() {
 }
 
 /**
+ * Turns donating or volunteering on for the logged-in individual account.
+ * The database refuses this for organization and admin accounts.
+ * @param {'donor' | 'volunteer'} role
+ * @returns {Promise<Profile>} the updated profile
+ */
+async function enableRole(role) {
+  const profile = await getProfile();
+  if (!profile) throw new Error("Not logged in");
+  const { data, error } = await db()
+    .from("profiles")
+    .update(role === "donor" ? { is_donor: true } : { is_volunteer: true })
+    .eq("id", profile.id)
+    .select("*")
+    .single();
+  if (error) throw error;
+  profileRequest = Promise.resolve(data);
+  return data;
+}
+
+/**
  * Logs out and returns to the home page.
  * @returns {Promise<void>}
  */

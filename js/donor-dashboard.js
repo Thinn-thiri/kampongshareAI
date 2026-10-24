@@ -29,6 +29,31 @@ document.addEventListener("alpine:init", () => {
     offerError: "",
     sending: false,
 
+    /** Filters from event.html's Donate button: ?request=<id> or ?org=<id> */
+    filterRequestId: new URLSearchParams(location.search).get("request"),
+    filterOrgId: new URLSearchParams(location.search).get("org"),
+
+    get shownRequests() {
+      if (this.filterRequestId) return this.requests.filter((r) => r.id === this.filterRequestId);
+      if (this.filterOrgId) return this.requests.filter((r) => r.organization_id === this.filterOrgId);
+      return this.requests;
+    },
+
+    get filterText() {
+      if (this.filterRequestId) return "Showing the request linked to this event.";
+      if (this.filterOrgId) {
+        const name = this.requests.find((r) => r.organization_id === this.filterOrgId)?.organization?.name;
+        return name ? `Showing open requests from ${name}.` : "Showing this organization's open requests.";
+      }
+      return "";
+    },
+
+    clearFilter() {
+      this.filterRequestId = null;
+      this.filterOrgId = null;
+      history.replaceState(null, "", location.pathname);
+    },
+
     async init() {
       try {
         this.profile = await getProfile();

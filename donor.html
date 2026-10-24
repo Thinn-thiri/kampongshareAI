@@ -81,6 +81,10 @@
       <!-- Open requests -->
       <section class="space-y-4" aria-labelledby="open-heading">
         <h2 id="open-heading" class="text-xl font-semibold">Open requests</h2>
+        <div class="flex flex-wrap items-center justify-between gap-3 rounded-md bg-info-soft p-3 text-sm text-info" x-show="filterText" x-cloak role="status">
+          <p x-text="filterText"></p>
+          <button type="button" class="btn btn-secondary min-h-9 px-3" @click="clearFilter()">Show all requests</button>
+        </div>
 
         <div class="grid gap-4 md:grid-cols-2" x-show="loadingRequests" aria-busy="true" aria-label="Loading requests">
           <div class="card space-y-3"><div class="skeleton h-5 w-24"></div><div class="skeleton h-6 w-3/4"></div><div class="skeleton h-4 w-1/2"></div><div class="skeleton h-2.5 w-full"></div></div>
@@ -90,12 +94,12 @@
           <p class="text-danger" x-text="requestsError"></p>
           <button type="button" class="btn btn-secondary mt-3" @click="loadRequests()">Try again</button>
         </div>
-        <div class="card py-10 text-center" x-show="!loadingRequests && !requestsError && requests.length === 0" x-cloak>
-          <p class="text-muted">No open requests right now. Please check back soon.</p>
+        <div class="card py-10 text-center" x-show="!loadingRequests && !requestsError && shownRequests.length === 0" x-cloak>
+          <p class="text-muted" x-text="filterText ? 'This request isn\'t open for donations right now.' : 'No open requests right now. Please check back soon.'"></p>
         </div>
 
         <div class="grid gap-4 md:grid-cols-2" x-show="!loadingRequests && !requestsError">
-          <template x-for="request in requests" :key="request.id">
+          <template x-for="request in shownRequests" :key="request.id">
             <article class="card flex flex-col gap-4">
               <div class="flex flex-wrap items-center gap-2">
                 <template x-if="request.ai_score != null">

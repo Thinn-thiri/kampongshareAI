@@ -421,7 +421,9 @@ admin.html: the Volunteer applications review queue.
 - [ ] As **org@**: approve → as **volunteer@**, shows approved
 - [ ] As **both@**: apply; as **org@**, approve → the event (2 spots) is now full
 - [ ] Sign up another volunteer → "Event full", and applying is refused
-- [ ] As **volunteer@**: withdraw → the spot frees up; apply again → pending
+- [ ] As **volunteer@** (approved): Withdraw is disabled with "Your place is confirmed — please contact the organization…"
+- [ ] As **org@**: remove volunteer@ → the spot frees up and the other volunteer can apply
+- [ ] With a **pending** application: withdraw → withdrawn; apply again → pending
 - [ ] As **org@**: assign a task to both@ → as **both@**, mark it done → **org@** sees "done"
 - [ ] As **donor@** (donate only): pressing Volunteer shows the "turn on volunteering" message
 

@@ -9,7 +9,7 @@ const ADMIN_QUEUES = /** @type {{ key: QueueKey, label: string, built: boolean }
   { key: "organizations", label: "Organizations waiting", built: true },
   { key: "requests", label: "Requests waiting", built: true },
   { key: "events", label: "Events waiting", built: true },
-  { key: "applications", label: "Volunteer applications waiting", built: false },
+  { key: "applications", label: "Volunteer applications waiting", built: true },
   { key: "offers", label: "Offers in progress", built: false },
 ]);
 
@@ -81,6 +81,13 @@ document.addEventListener("alpine:init", () => {
     evsError: "",
     formatEventTime,
 
+    /** @type {Application[]} */
+    apps: [],
+    loadingApps: false,
+    appsLoaded: false,
+    appsError: "",
+    formatAvailability,
+
     async init() {
       await Promise.all([this.loadCounts(), this.loadOrgs()]);
     },
@@ -120,6 +127,48 @@ document.addEventListener("alpine:init", () => {
       this.cancelReject();
       if (key === "requests" && !this.reqsLoaded) this.loadRequests();
       if (key === "events" && !this.evsLoaded) this.loadEvents();
+      if (key === "applications" && !this.appsLoaded) this.loadApplications();
+    },
+
+    async loadApplications() {
+      this.loadingApps = true;
+      this.appsError = "";
+      try {
+        this.apps = await listApplicationsForReview();
+        this.appsLoaded = true;
+      } catch (error) {
+        this.appsError = friendlyError(error);
+      } finally {
+        this.loadingApps = false;
+      }
+    },
+
+    /**
+     * @param {Application} application
+     * @param {'approved' | 'rejected'} status
+     */
+    async decideApplication(application, status) {
+      const name = application.volunteer?.full_name || "This volunteer";
+      const title = application.event?.title ?? "the event";
+      const ok = await confirmDialog(
+        status === "approved" ? `${name} will be confirmed for "${title}".` : `${name} will see they weren't selected for "${title}".`,
+        {
+          title: status === "approved" ? "Approve this application?" : "Reject this application?",
+          confirmText: status === "approved" ? "Approve" : "Reject",
+          danger: status === "rejected",
+        },
+      );
+      if (!ok) return;
+      this.busyId = application.id;
+      try {
+        await setApplicationStatus(application.id, status);
+        toast(status === "approved" ? "Application approved." : "Application rejected.");
+        await Promise.all([this.loadApplications(), this.loadCounts()]);
+      } catch (error) {
+        toast(friendlyError(error), "error");
+      } finally {
+        this.busyId = null;
+      }
     },
 
     async loadEvents() {
