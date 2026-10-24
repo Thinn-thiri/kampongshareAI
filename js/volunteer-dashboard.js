@@ -52,6 +52,34 @@ document.addEventListener("alpine:init", () => {
       return Boolean(this.profile && (!this.profile.consented_at || !this.profile.age_confirmed));
     },
 
+    /** The admin must approve the volunteer account before applying (read-only until then). */
+    get accountApproved() {
+      return isApprovedVolunteer(this.profile);
+    },
+
+    get accountStatus() {
+      return this.profile?.volunteer_approval ?? "pending";
+    },
+
+    /** Applying is blocked until consent is given and the account is approved. */
+    get cannotApply() {
+      return this.needsConsent || !this.accountApproved;
+    },
+
+    askingReview: false,
+
+    async askForReview() {
+      this.askingReview = true;
+      try {
+        this.profile = await requestVolunteerReview();
+        toast("Thanks — your volunteer account was sent to the admin for review again.");
+      } catch (error) {
+        toast(friendlyError(error), "error");
+      } finally {
+        this.askingReview = false;
+      }
+    },
+
     get activeApplicationCount() {
       return this.applications.filter((a) => a.status === "pending" || a.status === "approved").length;
     },

@@ -260,6 +260,53 @@ async function listApplicationsForReview() {
 }
 
 /**
+ * A volunteer account waiting for (or reviewed by) the admin.
+ * @typedef {Object} VolunteerAccount
+ * @property {string} id
+ * @property {string} full_name
+ * @property {string | null} phone
+ * @property {string | null} area
+ * @property {string[]} available_days
+ * @property {string[]} available_times
+ * @property {string[]} interests
+ * @property {string[]} skills
+ * @property {Approval | null} volunteer_approval
+ * @property {string | null} volunteer_note
+ * @property {string} created_at
+ */
+
+/**
+ * Volunteer accounts waiting for admin approval, oldest first (admins only).
+ * @returns {Promise<VolunteerAccount[]>}
+ */
+async function listVolunteerAccountsForReview() {
+  const { data, error } = await db()
+    .from("profiles")
+    .select("id, full_name, phone, area, available_days, available_times, interests, skills, volunteer_approval, volunteer_note, created_at")
+    .eq("is_volunteer", true)
+    .eq("volunteer_approval", "pending")
+    .order("created_at", { ascending: true });
+  if (error) throw error;
+  return data ?? [];
+}
+
+/**
+ * The admin approves or rejects a volunteer account. Rejecting needs a note the volunteer will see.
+ * @param {string} profileId
+ * @param {'approved' | 'rejected'} approval
+ * @param {string} [note]
+ * @returns {Promise<void>}
+ */
+async function setVolunteerApproval(profileId, approval, note = "") {
+  const result = await db()
+    .from("profiles")
+    .update({ volunteer_approval: approval, volunteer_note: approval === "rejected" ? note.trim() : null })
+    .eq("id", profileId)
+    .select("id");
+  expectUpdated(result, "volunteer account");
+}
+
+/**
  * @param {string} message
  * @returns {string} an error message, or "" when fine
  */

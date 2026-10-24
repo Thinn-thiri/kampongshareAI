@@ -2,11 +2,12 @@
 // Admin dashboard (admin.html): summary counts and the Organizations review queue.
 // Admins review and moderate; the database refuses anything else.
 
-/** @typedef {'organizations' | 'requests' | 'events' | 'applications' | 'offers'} QueueKey */
+/** @typedef {'organizations' | 'volunteers' | 'requests' | 'events' | 'applications' | 'offers'} QueueKey */
 
 /** Summary cards (REQUIREMENTS.md 7.1). `built` queues have a review list below. */
 const ADMIN_QUEUES = /** @type {{ key: QueueKey, label: string, built: boolean }[]} */ ([
   { key: "organizations", label: "Organizations waiting", built: true },
+  { key: "volunteers", label: "Volunteer accounts waiting", built: true },
   { key: "requests", label: "Requests waiting", built: true },
   { key: "events", label: "Events waiting", built: true },
   { key: "applications", label: "Volunteer applications waiting", built: true },
@@ -29,6 +30,7 @@ async function getAdminCounts() {
   /** @type {[QueueKey, PromiseLike<{ count: number | null, error: unknown }>][]} */
   const queries = [
     ["organizations", client.from("organizations").select("*", count).eq("approval", "pending")],
+    ["volunteers", client.from("profiles").select("*", count).eq("is_volunteer", true).eq("volunteer_approval", "pending")],
     ["requests", client.from("donation_requests").select("*", count).eq("status", "pending_approval")],
     ["events", client.from("events").select("*", count).eq("approval", "pending")],
     ["applications", client.from("volunteer_applications").select("*", count).eq("status", "pending")],
@@ -81,6 +83,12 @@ document.addEventListener("alpine:init", () => {
     evsError: "",
     formatEventTime,
 
+    /** @type {VolunteerAccount[]} */
+    vols: [],
+    loadingVols: false,
+    volsLoaded: false,
+    volsError: "",
+
     /** @type {Application[]} */
     apps: [],
     loadingApps: false,
@@ -128,6 +136,66 @@ document.addEventListener("alpine:init", () => {
       if (key === "requests" && !this.reqsLoaded) this.loadRequests();
       if (key === "events" && !this.evsLoaded) this.loadEvents();
       if (key === "applications" && !this.appsLoaded) this.loadApplications();
+      if (key === "volunteers" && !this.volsLoaded) this.loadVolunteers();
+    },
+
+    async loadVolunteers() {
+      this.loadingVols = true;
+      this.volsError = "";
+      try {
+        this.vols = await listVolunteerAccountsForReview();
+        this.volsLoaded = true;
+      } catch (error) {
+        this.volsError = friendlyError(error);
+      } finally {
+        this.loadingVols = false;
+      }
+    },
+
+    /** @param {VolunteerAccount} account */
+    async approveVolunteer(account) {
+      this.busyId = account.id;
+      try {
+        await setVolunteerApproval(account.id, "approved");
+        toast(`${account.full_name || "The volunteer"} can now apply to events.`);
+        await Promise.all([this.loadVolunteers(), this.loadCounts()]);
+      } catch (error) {
+        toast(friendlyError(error), "error");
+      } finally {
+        this.busyId = null;
+      }
+    },
+
+    /** @param {VolunteerAccount} account */
+    async confirmRejectVolunteer(account) {
+      const note = this.rejectNote.trim();
+      if (!note) {
+        this.rejectError = "Please write a short note so the volunteer knows why.";
+        document.getElementById(`reject-note-${account.id}`)?.focus();
+        return;
+      }
+      if (note.length > 500) {
+        this.rejectError = "Please keep the note under 500 characters.";
+        return;
+      }
+      const name = account.full_name || "This volunteer";
+      const ok = await confirmDialog(`${name} won't be able to apply to events. They'll see your note and can ask for another review.`, {
+        title: "Reject this volunteer account?",
+        confirmText: "Reject",
+        danger: true,
+      });
+      if (!ok) return;
+      this.busyId = account.id;
+      try {
+        await setVolunteerApproval(account.id, "rejected", note);
+        toast(`${name} was not approved. They can see your note.`);
+        this.cancelReject();
+        await Promise.all([this.loadVolunteers(), this.loadCounts()]);
+      } catch (error) {
+        toast(friendlyError(error), "error");
+      } finally {
+        this.busyId = null;
+      }
     },
 
     async loadApplications() {

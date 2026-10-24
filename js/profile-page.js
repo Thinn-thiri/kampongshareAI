@@ -161,12 +161,44 @@ document.addEventListener("alpine:init", () => {
         this.form.isVolunteer = profile.is_volunteer;
         this.justAdded = role;
         window.dispatchEvent(new CustomEvent("profile-changed"));
-        toast(role === "volunteer" ? "Volunteering added to your account." : "Donating added to your account.");
+        toast(
+          role === "donor"
+            ? "Donating added to your account."
+            : isApprovedVolunteer(profile)
+              ? "Volunteering added to your account."
+              : "Volunteering added. An admin will approve your volunteer account before you can apply to events.",
+        );
         if (role === "volunteer") this.onVolunteerToggle();
       } catch (error) {
         toast(friendlyError(error), "error");
       } finally {
         this.addingRole = false;
+      }
+    },
+
+    /** Volunteer account status shown on the page (admin approval). */
+    get volunteerStatus() {
+      if (!this.profile?.is_volunteer) return null;
+      /** @type {Record<string, { className: string, label: string }>} */
+      const badges = {
+        approved: { className: "badge badge-success", label: "Approved by admin" },
+        pending: { className: "badge badge-warning", label: "Waiting for admin approval" },
+        rejected: { className: "badge badge-danger", label: "Not approved" },
+      };
+      return badges[this.profile.volunteer_approval ?? "pending"];
+    },
+
+    reviewBusy: false,
+
+    async askForReview() {
+      this.reviewBusy = true;
+      try {
+        this.profile = await requestVolunteerReview();
+        toast("Thanks — your volunteer account was sent to the admin for review again.");
+      } catch (error) {
+        toast(friendlyError(error), "error");
+      } finally {
+        this.reviewBusy = false;
       }
     },
 

@@ -22,6 +22,8 @@
  * @property {string | null} consented_at
  * @property {boolean} age_confirmed
  * @property {boolean} matching_opt_in
+ * @property {Approval | null} volunteer_approval   admin approval of the volunteer account (null = not a volunteer)
+ * @property {string | null} volunteer_note        the admin's reason when rejected
  * @property {string} created_at
  */
 
@@ -250,7 +252,8 @@ async function enableRole(role) {
  * Saves changes to the logged-in user's own profile and returns the updated row.
  * Only these columns can be changed from the browser (the database refuses others).
  * @param {Partial<Pick<Profile, 'full_name' | 'phone' | 'postal_code' | 'area' | 'is_donor' | 'is_volunteer'
- *   | 'available_days' | 'available_times' | 'interests' | 'skills' | 'consented_at' | 'age_confirmed' | 'matching_opt_in'>>} changes
+ *   | 'available_days' | 'available_times' | 'interests' | 'skills' | 'consented_at' | 'age_confirmed' | 'matching_opt_in'
+ *   | 'volunteer_approval'>>} changes
  * @returns {Promise<Profile>}
  */
 async function updateMyProfile(changes) {
@@ -276,6 +279,23 @@ function giveConsent() {
  */
 function withdrawConsent() {
   return updateMyProfile({ consented_at: null });
+}
+
+/**
+ * After a rejection, asks the admin to review the volunteer account again (rejected → pending).
+ * @returns {Promise<Profile>}
+ */
+function requestVolunteerReview() {
+  return updateMyProfile({ volunteer_approval: "pending" });
+}
+
+/**
+ * True when this account may apply to volunteer events (admin-approved volunteer account).
+ * @param {Profile | null} profile
+ * @returns {boolean}
+ */
+function isApprovedVolunteer(profile) {
+  return Boolean(profile?.is_volunteer && profile.volunteer_approval === "approved");
 }
 
 /**

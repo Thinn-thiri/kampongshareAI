@@ -83,7 +83,7 @@
             <!-- Just added: what to do next -->
             <div class="rounded-md border border-success bg-success-soft p-4 text-sm text-success" x-show="justAdded" x-cloak role="status">
               <p class="font-semibold" x-text="justAdded === 'volunteer' ? 'Volunteering is on.' : 'Donating is on.'"></p>
-              <p class="mt-1 text-ink" x-show="justAdded === 'volunteer'">Add when you're free and what you enjoy below, then press Save changes. You can switch between donating and volunteering in the top bar.</p>
+              <p class="mt-1 text-ink" x-show="justAdded === 'volunteer'">Add when you're free and what you enjoy below, then press Save changes. An admin will approve your volunteer account before you can apply to events — you can already browse them. You can switch between donating and volunteering in the top bar.</p>
               <p class="mt-1 text-ink" x-show="justAdded === 'donor'">You can switch between donating and volunteering in the top bar.</p>
               <a class="btn btn-secondary mt-3" :href="justAdded === 'volunteer' ? '/volunteer.html' : '/donor.html'"
                 x-text="justAdded === 'volunteer' ? 'Go to the volunteer dashboard' : 'Go to the donor dashboard'"></a>
@@ -156,8 +156,22 @@
               <!-- 3. Volunteering -->
               <section id="volunteer-section" class="card scroll-mt-24 space-y-5" x-show="isIndividual && form.isVolunteer" aria-labelledby="vol-heading">
                 <div>
-                  <h2 id="vol-heading" class="text-lg font-semibold">Volunteering</h2>
+                  <div class="flex flex-wrap items-center gap-2">
+                    <h2 id="vol-heading" class="text-lg font-semibold">Volunteering</h2>
+                    <span :class="volunteerStatus?.className" x-show="volunteerStatus" x-text="volunteerStatus?.label"></span>
+                  </div>
                   <p class="helper-text">Tell organizations when you're free and what you enjoy. All optional.</p>
+                </div>
+                <p class="rounded-md bg-warning-soft p-3 text-sm text-warning" x-show="profile.is_volunteer && profile.volunteer_approval !== 'approved' && profile.volunteer_approval !== 'rejected'">
+                  An admin checks every volunteer account first. You can browse events now and apply once you're approved.
+                </p>
+                <div class="space-y-2 rounded-md border border-danger bg-danger-soft p-3 text-sm text-danger" x-show="profile.volunteer_approval === 'rejected'">
+                  <p class="font-semibold">Note from the admin</p>
+                  <p class="whitespace-pre-line text-ink" x-text="profile.volunteer_note || 'No reason was given.'"></p>
+                  <button type="button" class="btn btn-secondary" :disabled="reviewBusy" @click="askForReview()">
+                    <span class="spinner" x-show="reviewBusy" x-cloak aria-hidden="true"></span>
+                    Ask for review again
+                  </button>
                 </div>
                 <fieldset>
                   <legend class="label">Days you're usually free</legend>
@@ -258,6 +272,8 @@
                 <dd x-text="profile.consented_at ? `Given ${formatDate(profile.consented_at, true)}` : 'Not given'"></dd>
                 <dt class="font-medium text-muted">18 or older</dt>
                 <dd x-text="profile.age_confirmed ? 'Confirmed' : 'Not confirmed'"></dd>
+                <dt class="font-medium text-muted" x-show="volunteerStatus">Volunteer account</dt>
+                <dd x-show="volunteerStatus" x-text="volunteerStatus?.label"></dd>
                 <dt class="font-medium text-muted" x-show="isIndividual">AI matching</dt>
                 <dd x-show="isIndividual" x-text="profile.matching_opt_in ? 'On — your availability, interests and skills may be used for suggestions' : 'Off'"></dd>
               </dl>

@@ -78,13 +78,16 @@ document.addEventListener("alpine:init", () => {
 
     /**
      * Which volunteer message / button to show (REQUIREMENTS.md 5.1 and 6.6a).
-     * @returns {'ended' | 'visitor' | 'not_individual' | 'turn_on' | 'consent' | 'applied' | 'full' | 'can_apply'}
+     * @returns {'ended' | 'visitor' | 'not_individual' | 'turn_on' | 'account_pending' | 'account_rejected'
+     *   | 'consent' | 'applied' | 'full' | 'can_apply'}
      */
     get volunteerState() {
       if (this.isOver) return "ended";
       if (!this.profile) return "visitor";
       if (this.profile.role === "organization" || this.profile.role === "admin") return "not_individual";
       if (!this.profile.is_volunteer) return "turn_on";
+      if (this.profile.volunteer_approval === "rejected") return "account_rejected";
+      if (!isApprovedVolunteer(this.profile)) return "account_pending";
       if (this.myApplication && this.myApplication.status !== "withdrawn") return "applied";
       if (this.isFull) return "full";
       if (!this.profile.consented_at || !this.profile.age_confirmed) return "consent";
@@ -108,8 +111,25 @@ document.addEventListener("alpine:init", () => {
       this.busy = true;
       try {
         this.profile = await enableRole("volunteer");
-        toast("Volunteering is turned on. You can apply now.");
+        window.dispatchEvent(new CustomEvent("profile-changed"));
+        toast(
+          isApprovedVolunteer(this.profile)
+            ? "Volunteering is turned on. You can apply now."
+            : "Volunteering is turned on. An admin will approve your volunteer account before you can apply.",
+        );
         await this.loadVolunteering();
+      } catch (error) {
+        toast(friendlyError(error), "error");
+      } finally {
+        this.busy = false;
+      }
+    },
+
+    async askForReview() {
+      this.busy = true;
+      try {
+        this.profile = await requestVolunteerReview();
+        toast("Thanks — your volunteer account was sent to the admin for review again.");
       } catch (error) {
         toast(friendlyError(error), "error");
       } finally {

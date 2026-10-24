@@ -132,6 +132,19 @@
                 </button>
               </div>
             </template>
+            <template x-if="volunteerState === 'account_pending'">
+              <div class="space-y-1">
+                <button type="button" class="btn btn-secondary min-h-14 w-full text-base" disabled aria-describedby="account-pending-note">Volunteer</button>
+                <p id="account-pending-note" class="helper-text text-center">Your volunteer account is waiting for admin approval. You can apply once it's approved.</p>
+              </div>
+            </template>
+            <template x-if="volunteerState === 'account_rejected'">
+              <div class="space-y-2 rounded-md border border-danger bg-danger-soft p-3 text-center text-sm text-danger">
+                <p>Your volunteer account wasn't approved.</p>
+                <p class="whitespace-pre-line text-ink" x-text="profile?.volunteer_note || ''"></p>
+                <button type="button" class="btn btn-secondary w-full" :disabled="busy" @click="askForReview()">Ask for review again</button>
+              </div>
+            </template>
             <template x-if="volunteerState === 'consent'">
               <div class="space-y-2 rounded-md border border-warning bg-warning-soft p-3 text-center text-sm text-warning">
                 <p>Please confirm the privacy consent and that you're 18 or older first.</p>

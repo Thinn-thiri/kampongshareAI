@@ -20,6 +20,8 @@ Community donation and volunteer platform for Singapore. Hackathon prototype.
 
 **Volunteer rules (enforced by the database):**
 
+- **Volunteer accounts need admin approval first** (`profiles.volunteer_approval`: pending / approved / rejected). New volunteers — and anyone who turns volunteering on later — start as **pending**: they can browse events (read only) but can't apply. The admin approves or rejects them in the "Volunteer accounts waiting" queue; rejecting needs a note (`profiles.volunteer_note`) that the volunteer sees, and they can press "Ask for review again". Volunteers who existed before this rule were approved automatically. After approval, organizations still approve each event application.
+
 - `events.volunteers_needed` is the limit (0 = no limit; the event form should ask for at least 1). Once that many are approved, new applications and approvals are refused: show **"Event full"**.
 - Volunteers can **withdraw** a **pending** application (status `withdrawn`, confirm dialog first). Once **approved**, the Withdraw button is shown disabled with the note "Your place is confirmed — please contact the organization if you can't make it"; only the organization can then remove them, which frees the spot. They can **apply again** later (`withdrawn` → `pending`) if the event still has room.
 - Organizations can approve or reject pending applications, and remove an approved volunteer (`approved` → `rejected`).
@@ -498,7 +500,7 @@ Admins **review and moderate**; they do not create content. Admins cannot create
 
 ### 7.1 Overview
 
-- Summary cards: organizations waiting, requests waiting, events waiting, volunteer applications waiting, offers in progress.
+- Summary cards: organizations waiting, volunteer accounts waiting, requests waiting, events waiting, volunteer applications waiting, offers in progress.
 - Each card opens its review queue below. Show the oldest items first.
 
 ### 7.2 Review queues (Approve / Reject, reject always asks for an `admin_note`)

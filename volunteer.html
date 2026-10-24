@@ -71,6 +71,25 @@
         </div>
       </section>
 
+      <!-- Volunteer account not approved yet: read-only -->
+      <div class="rounded-md border border-warning bg-warning-soft p-4 text-warning" x-show="profile && !accountApproved && accountStatus !== 'rejected'" x-cloak role="status">
+        <p class="font-semibold">Your volunteer account is waiting for admin approval</p>
+        <p class="mt-1 text-sm">You can look around and read about events, but you can't apply yet. We'll let you in as soon as an admin approves your account.</p>
+      </div>
+      <div class="rounded-md border border-danger bg-danger-soft p-4 text-danger" x-show="profile && accountStatus === 'rejected'" x-cloak role="status">
+        <p class="font-semibold">Your volunteer account wasn't approved</p>
+        <p class="mt-1 text-sm">Note from the admin:</p>
+        <p class="mt-1 text-sm whitespace-pre-line text-ink" x-text="profile?.volunteer_note || 'No reason was given.'"></p>
+        <p class="mt-2 text-sm">You can update your details on your profile page, then ask for another review.</p>
+        <div class="mt-3 flex flex-wrap gap-3">
+          <button type="button" class="btn btn-secondary" :disabled="askingReview" @click="askForReview()">
+            <span class="spinner" x-show="askingReview" x-cloak aria-hidden="true"></span>
+            Ask for review again
+          </button>
+          <a href="/profile.html" class="btn btn-ghost">Go to my profile</a>
+        </div>
+      </div>
+
       <!-- Consent missing (REQUIREMENTS.md 4.2) -->
       <div class="rounded-md border border-warning bg-warning-soft p-4 text-warning" x-show="needsConsent" x-cloak role="status">
         <p class="font-semibold">One more step before you can volunteer</p>
@@ -135,7 +154,7 @@
               <div class="mt-auto flex flex-wrap gap-3 pt-1" x-show="applyEventId !== event.id">
                 <button type="button" class="btn btn-primary"
                   x-show="!applicationFor(event.id) || applicationFor(event.id).status === 'withdrawn'"
-                  :disabled="needsConsent || spots(event) === 0 || busyId === applicationFor(event.id)?.id"
+                  :disabled="cannotApply || spots(event) === 0 || busyId === applicationFor(event.id)?.id"
                   @click="applicationFor(event.id) ? applyAgain(applicationFor(event.id)) : openApply(event.id)"
                   x-text="spots(event) === 0 ? 'Event full' : applicationFor(event.id) ? 'Apply again' : 'Apply'">Apply</button>
                 <template x-if="applicationFor(event.id) && ['pending', 'approved'].includes(applicationFor(event.id).status)">
@@ -188,7 +207,7 @@
                   Withdraw
                 </button>
                 <button type="button" class="btn btn-secondary" x-show="application.status === 'withdrawn' && application.event"
-                  :disabled="busyId === application.id || needsConsent || (application.event && spots({ id: application.event_id, volunteers_needed: application.event.volunteers_needed }) === 0)"
+                  :disabled="busyId === application.id || cannotApply || (application.event && spots({ id: application.event_id, volunteers_needed: application.event.volunteers_needed }) === 0)"
                   @click="applyAgain(application)">
                   <span class="spinner" x-show="busyId === application.id" x-cloak aria-hidden="true"></span>
                   Apply again

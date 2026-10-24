@@ -34,6 +34,8 @@ You need [Node.js](https://nodejs.org) (LTS) and Git.
 
 To see every shared component, open http://localhost:8888/styleguide.html.
 
+**Demo data:** `node scripts/seed.js` fills the database with fictional demo accounts, organizations, requests, events and offers, then prints the demo logins. It runs only once: it stops if the demo accounts already exist.
+
 `npm run build` makes the minified CSS. Netlify runs it automatically when deploying.
 
 ## Folder layout
