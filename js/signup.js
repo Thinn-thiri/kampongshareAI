@@ -51,16 +51,6 @@ const SIGNUP_FIELD_IDS = {
 };
 
 /**
- * Removes spaces, dashes and a leading +65 / 65 from a Singapore phone number.
- * @param {string} phone
- * @returns {string}
- */
-function normalisePhone(phone) {
-  const digits = phone.replace(/[\s-]/g, "");
-  return digits.replace(/^(\+65|65)(?=\d{8}$)/, "");
-}
-
-/**
  * Checks the sign-up form. Returns an error message per field (empty when everything is fine).
  * @param {{ accountType: string, wantDonate: boolean, wantVolunteer: boolean, fullName: string, email: string,
  *           password: string, phone: string, postalCode: string, privacyConsent: boolean, ageConfirmed: boolean }} form
@@ -79,7 +69,7 @@ function validateSignup(form) {
     errors.email = "Please enter a valid email address, like name@example.com.";
   }
   if (form.password.length < 8) errors.password = "Your password needs at least 8 characters.";
-  if (form.phone.trim() && !/^[3689]\d{7}$/.test(normalisePhone(form.phone))) {
+  if (form.phone.trim() && !isValidSgPhone(form.phone)) {
     errors.phone = "Please enter an 8-digit Singapore number, like 9123 4567.";
   }
   if (form.accountType === "individual" && form.postalCode.trim() && !/^\d{6}$/.test(form.postalCode.trim())) {

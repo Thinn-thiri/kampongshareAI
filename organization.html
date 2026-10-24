@@ -8,12 +8,17 @@
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" />
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="" />
     <link rel="stylesheet" href="/css/style.css" />
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="/js/config.js"></script>
     <script src="/js/supabase.js"></script>
     <script src="/js/auth.js"></script>
     <script src="/js/ui.js"></script>
+    <script src="/js/map.js"></script>
+    <script src="/js/orgs.js"></script>
+    <script src="/js/organization-dashboard.js"></script>
     <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3/dist/cdn.min.js"></script>
   </head>
   <body data-require="organization">
@@ -46,10 +51,134 @@
       </div>
     </header>
 
-    <main class="container-page py-8">
-      <h1 class="text-2xl font-bold sm:text-3xl">Organization dashboard</h1>
-      <div class="card mt-6 text-center">
-        <p class="text-muted">This page is coming soon.</p>
+    <main class="container-page space-y-8 py-8" x-data="orgDashboard">
+      <div>
+        <h1 class="text-2xl font-bold sm:text-3xl">Organization dashboard</h1>
+        <p class="mt-1 text-muted" x-show="org" x-text="org?.name"></p>
+      </div>
+
+      <!-- Loading -->
+      <div class="card space-y-3" x-show="loading" aria-busy="true" aria-label="Loading your organization">
+        <div class="skeleton h-5 w-40"></div>
+        <div class="skeleton h-4 w-3/4"></div>
+        <div class="skeleton h-11 w-full"></div>
+        <div class="skeleton h-11 w-full"></div>
+      </div>
+
+      <!-- Couldn't load -->
+      <div class="card space-y-3 text-center" x-show="!loading && loadError" x-cloak role="alert">
+        <p class="text-danger" x-text="loadError"></p>
+        <button type="button" class="btn btn-secondary" @click="load()">Try again</button>
+      </div>
+
+      <!-- Approval status -->
+      <section class="card space-y-3" x-show="!loading && org" x-cloak aria-labelledby="status-heading">
+        <div class="flex flex-wrap items-center gap-3">
+          <h2 id="status-heading" class="text-lg font-semibold">Approval status</h2>
+          <span class="badge badge-warning" x-show="org?.approval === 'pending'">Waiting for admin approval</span>
+          <span class="badge badge-success" x-show="org?.approval === 'approved'">Approved</span>
+          <span class="badge badge-danger" x-show="org?.approval === 'rejected'">Rejected</span>
+        </div>
+        <p class="text-muted" x-show="org?.approval === 'pending'">
+          We'll review your organization soon. You can still update your details below while you wait.
+        </p>
+        <p class="text-muted" x-show="org?.approval === 'approved'">You can now post donation requests and events.</p>
+        <template x-if="org?.approval === 'rejected'">
+          <div class="space-y-2">
+            <div class="rounded-md border border-danger bg-danger-soft p-3 text-sm text-danger">
+              <p class="font-semibold">Note from the admin</p>
+              <p class="mt-1 whitespace-pre-line" x-text="org?.admin_note || 'No reason was given.'"></p>
+            </div>
+            <p class="text-sm text-muted">Please update your details below, then contact the admin to review your organization again.</p>
+          </div>
+        </template>
+      </section>
+
+      <!-- Create / edit form -->
+      <section class="card" x-show="!loading && !loadError" x-cloak aria-labelledby="form-heading">
+        <h2 id="form-heading" class="text-lg font-semibold" x-text="org ? 'Organization details' : 'Tell us about your organization'"></h2>
+        <p class="mt-1 text-sm text-muted" x-show="!org">
+          An admin checks every organization before it can post requests or events. Fields marked <span class="text-danger">*</span> are required.
+        </p>
+
+        <form class="mt-5 space-y-5" novalidate @submit.prevent="save">
+          <div>
+            <label for="org-name" class="label">Organization name <span class="text-danger" aria-hidden="true">*</span></label>
+            <input id="org-name" class="input read-only:bg-canvas read-only:text-muted" type="text" maxlength="100" required
+              x-model="form.name" :readonly="approved" :aria-invalid="errors.name ? 'true' : null"
+              :aria-describedby="approved ? 'help-org-name err-org-name' : 'err-org-name'" />
+            <p id="help-org-name" class="helper-text" x-show="approved">The name can't be changed after approval. Please contact the admin.</p>
+            <p id="err-org-name" class="field-error" x-show="errors.name" x-text="errors.name"></p>
+          </div>
+
+          <div>
+            <label for="org-description" class="label">Description</label>
+            <textarea id="org-description" class="input py-2" rows="4" maxlength="1000"
+              x-model="form.description" :aria-invalid="errors.description ? 'true' : null"
+              aria-describedby="help-org-description err-org-description"></textarea>
+            <p id="help-org-description" class="helper-text">
+              What you do and who you help. <span x-text="`${form.description.length} / 1,000`"></span>
+            </p>
+            <p id="err-org-description" class="field-error" x-show="errors.description" x-text="errors.description"></p>
+          </div>
+
+          <div class="grid gap-5 sm:grid-cols-2">
+            <div>
+              <label for="org-address" class="label">Address <span class="text-danger" aria-hidden="true">*</span></label>
+              <input id="org-address" class="input" type="text" maxlength="200" autocomplete="street-address" required
+                x-model="form.address" :aria-invalid="errors.address ? 'true' : null"
+                aria-describedby="help-org-address err-org-address" />
+              <p id="help-org-address" class="helper-text">Shown publicly so donors know where to go.</p>
+              <p id="err-org-address" class="field-error" x-show="errors.address" x-text="errors.address"></p>
+            </div>
+            <div>
+              <label for="org-phone" class="label">Phone <span class="font-normal text-muted">(optional)</span></label>
+              <input id="org-phone" class="input" type="tel" inputmode="tel" autocomplete="tel-national"
+                x-model="form.phone" :aria-invalid="errors.phone ? 'true' : null" aria-describedby="err-org-phone" />
+              <p id="err-org-phone" class="field-error" x-show="errors.phone" x-text="errors.phone"></p>
+            </div>
+          </div>
+
+          <fieldset aria-describedby="help-org-pin err-org-pin">
+            <legend class="label">Location on the map <span class="text-danger" aria-hidden="true">*</span></legend>
+            <p id="help-org-pin" class="helper-text mt-0 mb-2">
+              Click the map to drop a pin where your organization is. You can drag the pin to adjust it.
+              Using a keyboard? Move the map with the arrow keys, then press "Put pin at map centre".
+            </p>
+            <div class="isolate overflow-hidden rounded-md border border-line">
+              <div id="org-map" class="h-72 w-full" aria-label="Map to choose your organization's location"></div>
+            </div>
+            <div class="mt-2 flex flex-wrap items-center gap-3">
+              <button id="org-pin-centre" type="button" class="btn btn-secondary" @click="pinAtCentre()">Put pin at map centre</button>
+              <p class="text-sm text-muted" x-show="form.latitude != null"
+                x-text="`Pin: ${form.latitude?.toFixed(5)}, ${form.longitude?.toFixed(5)}`"></p>
+            </div>
+            <p id="err-org-pin" class="field-error" x-show="errors.pin" x-text="errors.pin"></p>
+          </fieldset>
+
+          <div role="alert">
+            <p class="rounded-md bg-danger-soft p-3 text-sm font-medium text-danger" x-show="formError" x-text="formError"></p>
+          </div>
+
+          <button type="submit" class="btn btn-primary w-full sm:w-auto" :disabled="saving">
+            <span class="spinner" x-show="saving" x-cloak aria-hidden="true"></span>
+            <span x-text="saving ? 'Saving…' : org ? 'Save changes' : 'Submit for approval'">Submit for approval</span>
+          </button>
+        </form>
+      </section>
+
+      <!-- Only after approval -->
+      <div class="grid gap-6 md:grid-cols-2" x-show="!loading && approved" x-cloak>
+        <section class="card flex flex-col items-center gap-3 py-10 text-center" aria-labelledby="requests-heading">
+          <h2 id="requests-heading" class="text-lg font-semibold">Donation requests</h2>
+          <p class="text-muted">No requests yet. Posting requests is coming in the next step.</p>
+          <button type="button" class="btn btn-primary" disabled>Create your first request</button>
+        </section>
+        <section class="card flex flex-col items-center gap-3 py-10 text-center" aria-labelledby="events-heading">
+          <h2 id="events-heading" class="text-lg font-semibold">Events</h2>
+          <p class="text-muted">No events yet. Creating events is coming soon.</p>
+          <button type="button" class="btn btn-primary" disabled>Create your first event</button>
+        </section>
       </div>
     </main>
   </body>

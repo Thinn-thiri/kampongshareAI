@@ -7,6 +7,15 @@
 const sb = createSupabaseClient();
 
 /**
+ * The Supabase client for database calls; throws if js/config.js isn't filled in yet.
+ * @returns {SupabaseClient}
+ */
+function db() {
+  if (!sb) throw new Error("Supabase not configured");
+  return sb;
+}
+
+/**
  * Returns a client, or null (with a console warning) while js/config.js still has placeholders.
  * @returns {SupabaseClient | null}
  */

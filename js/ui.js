@@ -30,6 +30,25 @@ function formatDate(value, withTime = false) {
   return date.toLocaleString("en-SG", options);
 }
 
+/**
+ * Removes spaces, dashes and a leading +65 / 65 from a Singapore phone number.
+ * @param {string} phone
+ * @returns {string}
+ */
+function normalisePhone(phone) {
+  const digits = phone.replace(/[\s-]/g, "");
+  return digits.replace(/^(\+65|65)(?=\d{8}$)/, "");
+}
+
+/**
+ * True for an 8-digit Singapore phone number (spaces and +65 allowed).
+ * @param {string} phone
+ * @returns {boolean}
+ */
+function isValidSgPhone(phone) {
+  return /^[3689]\d{7}$/.test(normalisePhone(phone));
+}
+
 /** @type {Record<'success' | 'error', string>} */
 const TOAST_CLASS = {
   success: "toast toast-success",

@@ -8,12 +8,17 @@
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" />
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="" />
     <link rel="stylesheet" href="/css/style.css" />
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="/js/config.js"></script>
     <script src="/js/supabase.js"></script>
     <script src="/js/auth.js"></script>
     <script src="/js/ui.js"></script>
+    <script src="/js/map.js"></script>
+    <script src="/js/orgs.js"></script>
+    <script src="/js/admin-dashboard.js"></script>
     <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3/dist/cdn.min.js"></script>
   </head>
   <body data-require="admin">
@@ -46,11 +51,124 @@
       </div>
     </header>
 
-    <main class="container-page py-8">
-      <h1 class="text-2xl font-bold sm:text-3xl">Admin dashboard</h1>
-      <div class="card mt-6 text-center">
-        <p class="text-muted">This page is coming soon.</p>
+    <main class="container-page space-y-8 py-8" x-data="adminDashboard">
+      <div>
+        <h1 class="text-2xl font-bold sm:text-3xl">Admin dashboard</h1>
+        <p class="mt-1 text-muted">Review what's waiting. Choose a card to open its queue.</p>
       </div>
+
+      <!-- Summary cards (7.1) -->
+      <section aria-label="Summary">
+        <div class="grid grid-cols-2 gap-4 lg:grid-cols-5">
+          <template x-for="queue in queues" :key="queue.key">
+            <button type="button" class="card text-left focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
+              :class="activeQueue === queue.key ? 'border-primary ring-2 ring-primary-soft' : ''"
+              :aria-pressed="(activeQueue === queue.key).toString()" @click="openQueue(queue.key)">
+              <span class="block text-sm text-muted" x-text="queue.label"></span>
+              <span class="mt-1 block text-3xl font-bold" x-text="counts ? counts[queue.key] : '–'">–</span>
+              <span class="mt-1 block text-xs text-muted" x-show="!queue.built">Queue coming soon</span>
+            </button>
+          </template>
+        </div>
+        <p class="field-error" x-show="countsError" x-text="countsError" role="alert"></p>
+      </section>
+
+      <!-- Organizations queue (7.2 / 7.3) -->
+      <section class="space-y-4" x-show="activeQueue === 'organizations'" aria-labelledby="orgs-heading">
+        <div class="flex flex-wrap items-center justify-between gap-3">
+          <h2 id="orgs-heading" class="text-xl font-semibold">Organizations</h2>
+          <div class="segmented w-full sm:w-auto" role="group" aria-label="Show organizations">
+            <template x-for="tab in orgTabs" :key="tab.value">
+              <button type="button" class="segmented-link" :aria-current="orgTab === tab.value ? 'page' : null"
+                @click="showTab(tab.value)" x-text="tab.label"></button>
+            </template>
+          </div>
+        </div>
+
+        <div class="space-y-4" x-show="loadingOrgs" aria-busy="true" aria-label="Loading organizations">
+          <div class="card space-y-3">
+            <div class="skeleton h-6 w-1/3"></div>
+            <div class="skeleton h-4 w-2/3"></div>
+            <div class="skeleton h-4 w-1/2"></div>
+          </div>
+        </div>
+
+        <div class="card text-center" x-show="!loadingOrgs && orgsError" x-cloak role="alert">
+          <p class="text-danger" x-text="orgsError"></p>
+          <button type="button" class="btn btn-secondary mt-3" @click="loadOrgs()">Try again</button>
+        </div>
+
+        <div class="card flex flex-col items-center gap-2 py-10 text-center" x-show="!loadingOrgs && !orgsError && orgs.length === 0" x-cloak>
+          <p class="text-muted" x-text="emptyText"></p>
+        </div>
+
+        <div class="space-y-4" x-show="!loadingOrgs && !orgsError">
+          <template x-for="org in orgs" :key="org.id">
+            <article class="card grid gap-5 md:grid-cols-[1fr_280px]">
+              <div class="min-w-0 space-y-3">
+                <div>
+                  <h3 class="text-lg font-semibold break-words" x-text="org.name"></h3>
+                  <p class="text-sm text-muted" x-text="`Submitted ${formatDate(org.created_at)}`"></p>
+                </div>
+                <p class="whitespace-pre-line break-words" x-show="org.description" x-text="org.description"></p>
+                <dl class="grid gap-x-4 gap-y-2 text-sm sm:grid-cols-[max-content_1fr]">
+                  <dt class="font-medium text-muted">Address</dt>
+                  <dd class="break-words" x-text="org.address || '—'"></dd>
+                  <dt class="font-medium text-muted">Organization phone</dt>
+                  <dd x-text="org.phone || '—'"></dd>
+                  <dt class="font-medium text-muted">Owner <span class="font-normal">(for review only)</span></dt>
+                  <dd x-text="org.owner ? `${org.owner.full_name || 'No name'}${org.owner.phone ? ' · ' + org.owner.phone : ''}` : '—'"></dd>
+                </dl>
+                <div class="rounded-md border border-danger bg-danger-soft p-3 text-sm text-danger" x-show="org.approval === 'rejected' && org.admin_note">
+                  <p class="font-semibold">Your rejection note</p>
+                  <p class="mt-1 whitespace-pre-line" x-text="org.admin_note"></p>
+                </div>
+
+                <!-- Actions -->
+                <div class="flex flex-wrap gap-3 pt-1" x-show="rejectingId !== org.id">
+                  <button type="button" class="btn btn-primary" x-show="org.approval !== 'approved'" :disabled="busyId === org.id" @click="approve(org)">
+                    <span class="spinner" x-show="busyId === org.id" x-cloak aria-hidden="true"></span>
+                    Approve
+                  </button>
+                  <button type="button" class="btn btn-danger" x-show="org.approval !== 'rejected'" :disabled="busyId === org.id" @click="startReject(org)">
+                    Reject
+                  </button>
+                </div>
+
+                <!-- Reject note -->
+                <div class="space-y-3 rounded-md border border-line bg-canvas p-4" x-show="rejectingId === org.id" x-cloak>
+                  <div>
+                    <label :for="`reject-note-${org.id}`" class="label">Reason for rejecting <span class="text-danger" aria-hidden="true">*</span></label>
+                    <textarea :id="`reject-note-${org.id}`" class="input py-2" rows="3" maxlength="500" x-model="rejectNote"
+                      :aria-invalid="rejectError ? 'true' : null" :aria-describedby="`reject-help-${org.id} reject-error-${org.id}`"></textarea>
+                    <p :id="`reject-help-${org.id}`" class="helper-text">The organization will see this note. Explain what to fix.</p>
+                    <p :id="`reject-error-${org.id}`" class="field-error" x-show="rejectError" x-text="rejectError"></p>
+                  </div>
+                  <div class="flex flex-wrap gap-3">
+                    <button type="button" class="btn btn-danger" :disabled="busyId === org.id" @click="confirmReject(org)">
+                      <span class="spinner" x-show="busyId === org.id" x-cloak aria-hidden="true"></span>
+                      Reject organization
+                    </button>
+                    <button type="button" class="btn btn-ghost" @click="cancelReject()">Cancel</button>
+                  </div>
+                </div>
+              </div>
+
+              <div>
+                <div class="isolate h-48 overflow-hidden rounded-md border border-line md:h-full md:min-h-48"
+                  x-show="org.latitude != null" x-init="showPin($el, org)"></div>
+                <p class="rounded-md border border-line bg-canvas p-4 text-sm text-muted" x-show="org.latitude == null">No map pin was added.</p>
+              </div>
+            </article>
+          </template>
+        </div>
+      </section>
+
+      <!-- Queues not built yet -->
+      <section class="card flex flex-col items-center gap-2 py-10 text-center" x-show="activeQueue !== 'organizations'" x-cloak aria-live="polite">
+        <h2 class="text-lg font-semibold" x-text="activeLabel"></h2>
+        <p class="text-muted">This review queue is coming soon.</p>
+      </section>
     </main>
   </body>
 </html>
