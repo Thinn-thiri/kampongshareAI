@@ -24,6 +24,8 @@
     <script src="/js/org-requests.js"></script>
     <script src="/js/offers.js"></script>
     <script src="/js/org-offers.js"></script>
+    <script src="/js/events.js"></script>
+    <script src="/js/org-events.js"></script>
     <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3/dist/cdn.min.js"></script>
   </head>
   <body data-require="organization">
@@ -470,13 +472,202 @@
         </section>
       </template>
 
-      <div x-show="!loading && approved" x-cloak>
-        <section class="card flex flex-col items-center gap-3 py-10 text-center" aria-labelledby="events-heading">
-          <h2 id="events-heading" class="text-lg font-semibold">Events</h2>
-          <p class="text-muted">No events yet. Creating events is coming soon.</p>
-          <button type="button" class="btn btn-primary" disabled>Create your first event</button>
+      <!-- Events -->
+      <template x-if="!loading && approved && org">
+        <section class="space-y-4" x-data="orgEvents(org.id, org.latitude, org.longitude)" aria-labelledby="events-heading">
+          <div class="flex flex-wrap items-center justify-between gap-3">
+            <h2 id="events-heading" class="text-xl font-semibold">Events</h2>
+            <button type="button" class="btn btn-primary" x-show="!showForm" @click="newEvent()">New event</button>
+          </div>
+
+          <!-- New / edit form -->
+          <form id="event-form" class="card scroll-mt-24 space-y-5" novalidate x-show="showForm" x-cloak @submit.prevent="save">
+            <div>
+              <h3 class="text-lg font-semibold" x-text="editing ? 'Edit event' : 'New event'"></h3>
+              <p class="mt-1 text-sm text-muted" x-show="!editing">An admin checks each event before it appears on the map. Fields marked <span class="text-danger">*</span> are required.</p>
+            </div>
+
+            <p class="rounded-md border border-warning bg-warning-soft p-3 text-sm text-warning" x-show="editingApproved" role="note">
+              Changing the title, description, place, time or linked donation request sends this event back to the admin for approval.
+              It won't be on the map until it's approved again.
+            </p>
+
+            <div>
+              <label for="ev-title" class="label">Title <span class="text-danger" aria-hidden="true">*</span></label>
+              <input id="ev-title" class="input" type="text" maxlength="100" required x-model="form.title"
+                :aria-invalid="errors.title ? 'true' : null" aria-describedby="err-ev-title" />
+              <p id="err-ev-title" class="field-error" x-show="errors.title" x-text="errors.title"></p>
+            </div>
+
+            <div>
+              <label for="ev-description" class="label">Description</label>
+              <textarea id="ev-description" class="input py-2" rows="3" maxlength="1000" x-model="form.description"
+                :aria-invalid="errors.description ? 'true' : null" aria-describedby="help-ev-description err-ev-description"></textarea>
+              <p id="help-ev-description" class="helper-text">What volunteers will do and what to bring. <span x-text="`${form.description.length} / 1,000`"></span></p>
+              <p id="err-ev-description" class="field-error" x-show="errors.description" x-text="errors.description"></p>
+            </div>
+
+            <div class="grid gap-5 sm:grid-cols-2">
+              <div>
+                <label for="ev-starts" class="label">Starts <span class="text-danger" aria-hidden="true">*</span></label>
+                <input id="ev-starts" class="input" type="datetime-local" required x-model="form.startsAt"
+                  :aria-invalid="errors.startsAt ? 'true' : null" aria-describedby="err-ev-starts" />
+                <p id="err-ev-starts" class="field-error" x-show="errors.startsAt" x-text="errors.startsAt"></p>
+              </div>
+              <div>
+                <label for="ev-ends" class="label">Ends <span class="font-normal text-muted">(optional)</span></label>
+                <input id="ev-ends" class="input" type="datetime-local" x-model="form.endsAt" :min="form.startsAt || null"
+                  :aria-invalid="errors.endsAt ? 'true' : null" aria-describedby="err-ev-ends" />
+                <p id="err-ev-ends" class="field-error" x-show="errors.endsAt" x-text="errors.endsAt"></p>
+              </div>
+            </div>
+
+            <div class="grid gap-5 sm:grid-cols-2">
+              <div>
+                <label for="ev-volunteers" class="label">Volunteers needed <span class="text-danger" aria-hidden="true">*</span></label>
+                <input id="ev-volunteers" class="input" type="number" inputmode="numeric" min="1" max="1000" step="1" required
+                  x-model.number="form.volunteersNeeded" :aria-invalid="errors.volunteersNeeded ? 'true' : null"
+                  aria-describedby="help-ev-volunteers err-ev-volunteers" />
+                <p id="help-ev-volunteers" class="helper-text">When this many are approved, the event shows "Event full".</p>
+                <p id="err-ev-volunteers" class="field-error" x-show="errors.volunteersNeeded" x-text="errors.volunteersNeeded"></p>
+              </div>
+              <div>
+                <label for="ev-request" class="label">Linked donation request <span class="font-normal text-muted">(optional)</span></label>
+                <select id="ev-request" class="input" x-model="form.donationRequestId" aria-describedby="help-ev-request">
+                  <option value="">None</option>
+                  <template x-for="request in linkableRequests" :key="request.id">
+                    <option :value="request.id" x-text="request.title" :selected="request.id === form.donationRequestId"></option>
+                  </template>
+                </select>
+                <p id="help-ev-request" class="helper-text">The event's "Donate" button will open this request.</p>
+              </div>
+            </div>
+
+            <!-- Place -->
+            <fieldset class="space-y-3" aria-describedby="help-ev-pin err-ev-pin">
+              <legend class="label">Place <span class="text-danger" aria-hidden="true">*</span></legend>
+              <div class="grid gap-5 sm:grid-cols-[1fr_12rem]">
+                <div>
+                  <label for="ev-place" class="label">Place name</label>
+                  <input id="ev-place" class="input" type="text" maxlength="150" required x-model="form.locationName"
+                    placeholder="e.g. Tampines Hub, Level 1" :aria-invalid="errors.locationName ? 'true' : null" aria-describedby="err-ev-place" />
+                  <p id="err-ev-place" class="field-error" x-show="errors.locationName" x-text="errors.locationName"></p>
+                </div>
+                <div>
+                  <label for="ev-postal" class="label">Postal code</label>
+                  <input id="ev-postal" class="input" type="text" inputmode="numeric" maxlength="6" autocomplete="off"
+                    x-model="postalCode" @input="onPostalInput()" :aria-invalid="errors.postal ? 'true' : null"
+                    aria-describedby="help-ev-postal err-ev-postal ev-lookup" />
+                  <p id="help-ev-postal" class="helper-text">Places the pin. Lookup by OneMap (SLA).</p>
+                  <p id="err-ev-postal" class="field-error" x-show="errors.postal" x-text="errors.postal"></p>
+                </div>
+              </div>
+
+              <div id="ev-lookup" class="text-sm" aria-live="polite">
+                <p class="flex items-center gap-2 text-muted" x-show="lookupStatus === 'loading'"><span class="spinner" aria-hidden="true"></span> Looking up…</p>
+                <div class="flex flex-wrap items-center gap-3 rounded-md bg-success-soft p-3 text-success" x-show="lookupStatus === 'found'">
+                  <p class="min-w-0 break-words"><span class="font-semibold">Found:</span> <span x-text="foundAddress"></span></p>
+                  <button type="button" class="btn btn-secondary min-h-9 px-3" x-show="canUseFoundAddress" @click="useFoundAddress()">Use this address</button>
+                </div>
+                <p class="rounded-md bg-warning-soft p-3 text-warning" x-show="lookupStatus === 'not_found'">
+                  We couldn't find that postal code — check it, or tap the map to place the pin.
+                </p>
+              </div>
+
+              <p id="help-ev-pin" class="helper-text mt-0">Click the map or drag the pin to the exact spot. Keyboard: move the map with the arrow keys, then "Put pin at map centre".</p>
+              <div class="isolate overflow-hidden rounded-md border border-line">
+                <div id="ev-map" class="h-64 w-full"></div>
+              </div>
+              <div class="flex flex-wrap items-center gap-3">
+                <button id="ev-pin-centre" type="button" class="btn btn-secondary" @click="pinAtCentre()">Put pin at map centre</button>
+                <p class="text-sm text-muted" x-show="form.latitude != null" x-text="`Pin: ${form.latitude?.toFixed(5)}, ${form.longitude?.toFixed(5)}`"></p>
+              </div>
+              <p id="err-ev-pin" class="field-error" x-show="errors.pin" x-text="errors.pin"></p>
+            </fieldset>
+
+            <div role="alert">
+              <p class="rounded-md bg-danger-soft p-3 text-sm font-medium text-danger" x-show="formError" x-text="formError"></p>
+            </div>
+            <div class="flex flex-wrap gap-3">
+              <button type="submit" class="btn btn-primary" :disabled="saving">
+                <span class="spinner" x-show="saving" x-cloak aria-hidden="true"></span>
+                <span x-text="saving ? 'Saving…' : editing ? 'Save changes' : 'Send for approval'">Send for approval</span>
+              </button>
+              <button type="button" class="btn btn-ghost" @click="cancelForm()" :disabled="saving">Cancel</button>
+            </div>
+          </form>
+
+          <!-- Loading / error / empty -->
+          <div class="card space-y-3" x-show="loading" aria-busy="true" aria-label="Loading events">
+            <div class="skeleton h-5 w-24"></div><div class="skeleton h-6 w-2/3"></div><div class="skeleton h-4 w-1/2"></div>
+          </div>
+          <div class="card text-center" x-show="!loading && loadError" x-cloak role="alert">
+            <p class="text-danger" x-text="loadError"></p>
+            <button type="button" class="btn btn-secondary mt-3" @click="load()">Try again</button>
+          </div>
+          <div class="card flex flex-col items-center gap-3 py-10 text-center" x-show="!loading && !loadError && events.length === 0 && !showForm" x-cloak>
+            <p class="text-muted">No events yet.</p>
+            <button type="button" class="btn btn-primary" @click="newEvent()">Create your first event</button>
+          </div>
+
+          <!-- List -->
+          <ul class="grid gap-4 md:grid-cols-2" x-show="!loading && !loadError">
+            <template x-for="event in events" :key="event.id">
+              <li class="card flex flex-col gap-3">
+                <div class="flex flex-wrap items-center gap-2">
+                  <span :class="badges.approval[event.approval].className" x-text="badges.approval[event.approval].label"></span>
+                  <span :class="badges.status[event.status].className" x-text="badges.status[event.status].label"></span>
+                </div>
+                <div class="min-w-0">
+                  <h3 class="text-lg font-semibold break-words" x-text="event.title"></h3>
+                  <p class="text-sm text-muted" x-text="formatEventTime(event.starts_at, event.ends_at)"></p>
+                  <p class="text-sm text-muted break-words" x-text="event.location_name"></p>
+                </div>
+                <dl class="grid grid-cols-[max-content_1fr] gap-x-3 gap-y-1 text-sm">
+                  <dt class="text-muted">Volunteers needed</dt>
+                  <dd x-text="event.volunteers_needed || 'No limit'"></dd>
+                  <dt class="text-muted">Linked request</dt>
+                  <dd class="break-words" x-text="event.request?.title || 'None'"></dd>
+                </dl>
+
+                <div class="rounded-md border border-danger bg-danger-soft p-3 text-sm text-danger" x-show="event.approval === 'rejected'">
+                  <p class="font-semibold">Note from the admin</p>
+                  <p class="mt-1 whitespace-pre-line" x-text="event.admin_note || 'No reason was given.'"></p>
+                  <p class="mt-2">Edit the event to send it for approval again.</p>
+                </div>
+                <div class="rounded-md bg-success-soft p-3 text-sm text-success" x-show="event.status === 'completed' && event.outcome_summary">
+                  <p class="font-semibold">Outcome</p>
+                  <p class="mt-1 whitespace-pre-line text-ink" x-text="event.outcome_summary"></p>
+                </div>
+
+                <!-- Outcome form -->
+                <div class="space-y-3 rounded-md border border-line bg-canvas p-4" x-show="completingId === event.id" x-cloak>
+                  <div>
+                    <label :for="`outcome-${event.id}`" class="label">Outcome summary <span class="text-danger" aria-hidden="true">*</span></label>
+                    <textarea :id="`outcome-${event.id}`" class="input py-2" rows="3" maxlength="1000" x-model="outcome"
+                      placeholder="e.g. 35 volunteers packed 400 food bags for 120 families."
+                      :aria-invalid="outcomeError ? 'true' : null" :aria-describedby="`outcome-err-${event.id}`"></textarea>
+                    <p :id="`outcome-err-${event.id}`" class="field-error" x-show="outcomeError" x-text="outcomeError"></p>
+                  </div>
+                  <div class="flex flex-wrap gap-3">
+                    <button type="button" class="btn btn-primary" :disabled="busyId === event.id" @click="confirmComplete(event)">
+                      <span class="spinner" x-show="busyId === event.id" x-cloak aria-hidden="true"></span>
+                      Mark completed
+                    </button>
+                    <button type="button" class="btn btn-ghost" @click="cancelComplete()">Cancel</button>
+                  </div>
+                </div>
+
+                <div class="mt-auto flex flex-wrap gap-3 pt-1" x-show="completingId !== event.id">
+                  <button type="button" class="btn btn-secondary" x-show="event.status !== 'completed' && event.status !== 'cancelled'" @click="edit(event)">Edit</button>
+                  <a class="btn btn-ghost" x-show="event.approval === 'approved'" :href="`/event.html?id=${event.id}`">View public page</a>
+                  <button type="button" class="btn btn-primary" x-show="canComplete(event)" @click="startComplete(event)">Mark completed</button>
+                </div>
+              </li>
+            </template>
+          </ul>
         </section>
-      </div>
+      </template>
     </main>
   </body>
 </html>

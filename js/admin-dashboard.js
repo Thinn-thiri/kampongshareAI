@@ -8,7 +8,7 @@
 const ADMIN_QUEUES = /** @type {{ key: QueueKey, label: string, built: boolean }[]} */ ([
   { key: "organizations", label: "Organizations waiting", built: true },
   { key: "requests", label: "Requests waiting", built: true },
-  { key: "events", label: "Events waiting", built: false },
+  { key: "events", label: "Events waiting", built: true },
   { key: "applications", label: "Volunteer applications waiting", built: false },
   { key: "offers", label: "Offers in progress", built: false },
 ]);
@@ -74,6 +74,13 @@ document.addEventListener("alpine:init", () => {
     reqsLoaded: false,
     reqsError: "",
 
+    /** @type {VolunteerEvent[]} */
+    evs: [],
+    loadingEvs: false,
+    evsLoaded: false,
+    evsError: "",
+    formatEventTime,
+
     async init() {
       await Promise.all([this.loadCounts(), this.loadOrgs()]);
     },
@@ -112,6 +119,66 @@ document.addEventListener("alpine:init", () => {
       this.activeQueue = key;
       this.cancelReject();
       if (key === "requests" && !this.reqsLoaded) this.loadRequests();
+      if (key === "events" && !this.evsLoaded) this.loadEvents();
+    },
+
+    async loadEvents() {
+      this.loadingEvs = true;
+      this.evsError = "";
+      try {
+        this.evs = await listEventsForReview();
+        this.evsLoaded = true;
+      } catch (error) {
+        this.evsError = friendlyError(error);
+      } finally {
+        this.loadingEvs = false;
+      }
+    },
+
+    /** @param {VolunteerEvent} event */
+    async approveEvent(event) {
+      this.busyId = event.id;
+      try {
+        await setEventApproval(event.id, "approved");
+        toast(`"${event.title}" is approved. It's now on the map and can be shared.`);
+        await Promise.all([this.loadEvents(), this.loadCounts()]);
+      } catch (error) {
+        toast(friendlyError(error), "error");
+      } finally {
+        this.busyId = null;
+      }
+    },
+
+    /** @param {VolunteerEvent} event */
+    async confirmRejectEvent(event) {
+      const note = this.rejectNote.trim();
+      if (!note) {
+        this.rejectError = "Please write a short note so the organization knows what to change.";
+        document.getElementById(`reject-note-${event.id}`)?.focus();
+        return;
+      }
+      if (note.length > 500) {
+        this.rejectError = "Please keep the note under 500 characters.";
+        return;
+      }
+      const ok = await confirmDialog(`"${event.title}" won't appear on the map. The organization will see your note.`, {
+        title: "Reject this event?",
+        confirmText: "Reject event",
+        danger: true,
+      });
+      if (!ok) return;
+
+      this.busyId = event.id;
+      try {
+        await setEventApproval(event.id, "rejected", note);
+        toast(`"${event.title}" was rejected. The organization can see your note.`);
+        this.cancelReject();
+        await Promise.all([this.loadEvents(), this.loadCounts()]);
+      } catch (error) {
+        toast(friendlyError(error), "error");
+      } finally {
+        this.busyId = null;
+      }
     },
 
     async loadRequests() {
@@ -197,13 +264,13 @@ document.addEventListener("alpine:init", () => {
     },
 
     /**
-     * Draws a small read-only map for one organization (called from x-init).
+     * Draws a small read-only map for one organization or event (called from x-init).
      * @param {HTMLElement} element
-     * @param {Organization} org
+     * @param {{ latitude: number | null, longitude: number | null, name?: string, title?: string }} place
      */
-    showPin(element, org) {
-      if (org.latitude == null || org.longitude == null) return;
-      createPinMap(element, { lat: org.latitude, lng: org.longitude, label: org.name });
+    showPin(element, place) {
+      if (place.latitude == null || place.longitude == null) return;
+      createPinMap(element, { lat: place.latitude, lng: place.longitude, label: place.name ?? place.title ?? "Location" });
     },
 
     /** @param {Organization} org */

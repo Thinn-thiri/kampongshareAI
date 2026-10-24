@@ -8,12 +8,17 @@
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" />
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="" />
     <link rel="stylesheet" href="/css/style.css" />
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="/js/config.js"></script>
     <script src="/js/supabase.js"></script>
     <script src="/js/auth.js"></script>
     <script src="/js/ui.js"></script>
+    <script src="/js/map.js"></script>
+    <script src="/js/events.js"></script>
+    <script src="/js/event-page.js"></script>
     <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3/dist/cdn.min.js"></script>
   </head>
   <body>
@@ -46,11 +51,56 @@
       </div>
     </header>
 
-    <main class="container-page py-8">
-      <h1 class="text-2xl font-bold sm:text-3xl">Event</h1>
-      <div class="card mt-6 text-center">
-        <p class="text-muted">This page is coming soon.</p>
+    <main class="container-page py-8" x-data="eventPage">
+      <!-- Loading -->
+      <div class="mx-auto max-w-3xl space-y-4" x-show="loading" aria-busy="true" aria-label="Loading event">
+        <div class="skeleton h-9 w-2/3"></div>
+        <div class="skeleton h-5 w-1/2"></div>
+        <div class="skeleton h-64 w-full"></div>
       </div>
+
+      <!-- Not available -->
+      <div class="mx-auto max-w-xl card space-y-3 py-10 text-center" x-show="!loading && (notFound || error)" x-cloak>
+        <h1 class="text-2xl font-bold">This event isn't available</h1>
+        <p class="text-muted" x-text="error || 'It may have ended, been removed, or still be waiting for approval.'"></p>
+        <a href="/" class="btn btn-primary">See upcoming events</a>
+      </div>
+
+      <!-- Event -->
+      <article class="mx-auto max-w-3xl space-y-6" x-show="!loading && event" x-cloak>
+        <div>
+          <p class="font-medium text-primary" x-text="event?.organization?.name"></p>
+          <h1 class="text-2xl font-bold break-words sm:text-3xl" x-text="event?.title"></h1>
+          <span class="badge badge-neutral mt-2" x-show="isOver">This event has ended</span>
+        </div>
+
+        <dl class="card grid gap-x-4 gap-y-3 sm:grid-cols-[max-content_1fr]">
+          <dt class="font-medium text-muted">When</dt>
+          <dd x-text="event ? formatEventTime(event.starts_at, event.ends_at) : ''"></dd>
+          <dt class="font-medium text-muted">Where</dt>
+          <dd class="break-words" x-text="event?.location_name"></dd>
+          <dt class="font-medium text-muted">Volunteers needed</dt>
+          <dd x-text="event?.volunteers_needed || 'Everyone welcome'"></dd>
+        </dl>
+
+        <div class="isolate overflow-hidden rounded-lg border border-line">
+          <div id="event-map" class="h-64 w-full"></div>
+        </div>
+
+        <section class="space-y-2" x-show="event?.description" aria-labelledby="about-heading">
+          <h2 id="about-heading" class="text-lg font-semibold">About this event</h2>
+          <p class="whitespace-pre-line break-words" x-text="event?.description"></p>
+        </section>
+
+        <div class="grid gap-3 sm:grid-cols-2">
+          <a href="/donor.html" class="btn btn-primary min-h-14 text-base">Donate</a>
+          <div>
+            <button type="button" class="btn btn-secondary min-h-14 w-full text-base" disabled aria-describedby="volunteer-soon">Volunteer</button>
+            <p id="volunteer-soon" class="helper-text text-center">Volunteer sign-up opens soon.</p>
+          </div>
+        </div>
+        <p class="text-sm text-muted" x-show="event?.request?.title" x-text="`Donations for: ${event?.request?.title}`"></p>
+      </article>
     </main>
   </body>
 </html>

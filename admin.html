@@ -19,6 +19,7 @@
     <script src="/js/map.js"></script>
     <script src="/js/orgs.js"></script>
     <script src="/js/requests.js"></script>
+    <script src="/js/events.js"></script>
     <script src="/js/admin-dashboard.js"></script>
     <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3/dist/cdn.min.js"></script>
   </head>
@@ -257,8 +258,78 @@
         </div>
       </section>
 
+      <!-- Events queue (7.2) -->
+      <section class="space-y-4" x-show="activeQueue === 'events'" x-cloak aria-labelledby="evs-heading">
+        <div class="flex flex-wrap items-center justify-between gap-3">
+          <h2 id="evs-heading" class="text-xl font-semibold">Events waiting for approval</h2>
+          <button type="button" class="btn btn-ghost" @click="loadEvents()" :disabled="loadingEvs">Refresh</button>
+        </div>
+
+        <div class="card space-y-3" x-show="loadingEvs" aria-busy="true" aria-label="Loading events">
+          <div class="skeleton h-6 w-1/3"></div><div class="skeleton h-4 w-2/3"></div><div class="skeleton h-4 w-1/2"></div>
+        </div>
+        <div class="card text-center" x-show="!loadingEvs && evsError" x-cloak role="alert">
+          <p class="text-danger" x-text="evsError"></p>
+          <button type="button" class="btn btn-secondary mt-3" @click="loadEvents()">Try again</button>
+        </div>
+        <div class="card py-10 text-center" x-show="!loadingEvs && !evsError && evsLoaded && evs.length === 0" x-cloak>
+          <p class="text-muted">No events waiting for review.</p>
+        </div>
+
+        <div class="space-y-4" x-show="!loadingEvs && !evsError">
+          <template x-for="event in evs" :key="event.id">
+            <article class="card grid gap-5 md:grid-cols-[1fr_280px]">
+              <div class="min-w-0 space-y-3">
+                <div>
+                  <p class="text-sm font-medium text-primary" x-text="event.organization?.name || 'Unknown organization'"></p>
+                  <h3 class="text-lg font-semibold break-words" x-text="event.title"></h3>
+                  <p class="text-sm text-muted" x-text="`Submitted ${formatDate(event.created_at)}`"></p>
+                </div>
+                <p class="whitespace-pre-line break-words" x-show="event.description" x-text="event.description"></p>
+                <dl class="grid gap-x-4 gap-y-2 text-sm sm:grid-cols-[max-content_1fr]">
+                  <dt class="font-medium text-muted">When</dt>
+                  <dd x-text="formatEventTime(event.starts_at, event.ends_at)"></dd>
+                  <dt class="font-medium text-muted">Place</dt>
+                  <dd class="break-words" x-text="event.location_name || '—'"></dd>
+                  <dt class="font-medium text-muted">Volunteers needed</dt>
+                  <dd x-text="event.volunteers_needed || 'No limit'"></dd>
+                  <dt class="font-medium text-muted">Linked request</dt>
+                  <dd class="break-words" x-text="event.request?.title || 'None'"></dd>
+                </dl>
+
+                <div class="flex flex-wrap gap-3 pt-1" x-show="rejectingId !== event.id">
+                  <button type="button" class="btn btn-primary" :disabled="busyId === event.id" @click="approveEvent(event)">
+                    <span class="spinner" x-show="busyId === event.id" x-cloak aria-hidden="true"></span>
+                    Approve
+                  </button>
+                  <button type="button" class="btn btn-danger" :disabled="busyId === event.id" @click="startReject(event)">Reject</button>
+                </div>
+
+                <div class="space-y-3 rounded-md border border-line bg-canvas p-4" x-show="rejectingId === event.id" x-cloak>
+                  <div>
+                    <label :for="`reject-note-${event.id}`" class="label">Reason for rejecting <span class="text-danger" aria-hidden="true">*</span></label>
+                    <textarea :id="`reject-note-${event.id}`" class="input py-2" rows="3" maxlength="500" x-model="rejectNote"
+                      :aria-invalid="rejectError ? 'true' : null" :aria-describedby="`reject-help-${event.id} reject-error-${event.id}`"></textarea>
+                    <p :id="`reject-help-${event.id}`" class="helper-text">The organization will see this note. Explain what to change.</p>
+                    <p :id="`reject-error-${event.id}`" class="field-error" x-show="rejectError" x-text="rejectError"></p>
+                  </div>
+                  <div class="flex flex-wrap gap-3">
+                    <button type="button" class="btn btn-danger" :disabled="busyId === event.id" @click="confirmRejectEvent(event)">
+                      <span class="spinner" x-show="busyId === event.id" x-cloak aria-hidden="true"></span>
+                      Reject event
+                    </button>
+                    <button type="button" class="btn btn-ghost" @click="cancelReject()">Cancel</button>
+                  </div>
+                </div>
+              </div>
+              <div class="isolate h-48 overflow-hidden rounded-md border border-line md:h-full md:min-h-48" x-init="showPin($el, event)"></div>
+            </article>
+          </template>
+        </div>
+      </section>
+
       <!-- Queues not built yet -->
-      <section class="card flex flex-col items-center gap-2 py-10 text-center" x-show="activeQueue !== 'organizations' && activeQueue !== 'requests'" x-cloak aria-live="polite">
+      <section class="card flex flex-col items-center gap-2 py-10 text-center" x-show="!['organizations', 'requests', 'events'].includes(activeQueue)" x-cloak aria-live="polite">
         <h2 class="text-lg font-semibold" x-text="activeLabel"></h2>
         <p class="text-muted">This review queue is coming soon.</p>
       </section>

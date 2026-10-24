@@ -21,6 +21,53 @@ function roundCoord(value) {
 }
 
 /**
+ * A map with one pin per event; each popup links to event.html?id=.
+ * Popups are built with textContent, so event text can't inject HTML.
+ * @param {HTMLElement} element
+ * @param {{ id: string, title: string, latitude: number, longitude: number, starts_at: string,
+ *           ends_at?: string | null, location_name?: string | null }[]} events
+ * @returns {void}
+ */
+function createEventsMap(element, events) {
+  const L = /** @type {any} */ (window).L;
+  const map = L.map(element, { scrollWheelZoom: false }).setView([SINGAPORE_CENTRE.lat, SINGAPORE_CENTRE.lng], 11);
+  L.tileLayer("https://tile.openstreetmap.org/{z}/{x}/{y}.png", {
+    maxZoom: 19,
+    attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
+  }).addTo(map);
+
+  for (const event of events) {
+    const popup = document.createElement("div");
+    const title = document.createElement("p");
+    title.className = "font-semibold";
+    title.textContent = event.title;
+    const when = document.createElement("p");
+    when.textContent = formatEventTime(event.starts_at, event.ends_at);
+    popup.append(title, when);
+    if (event.location_name) {
+      const where = document.createElement("p");
+      where.textContent = event.location_name;
+      popup.append(where);
+    }
+    const link = document.createElement("a");
+    link.href = `/event.html?id=${encodeURIComponent(event.id)}`;
+    link.className = "font-semibold text-primary underline";
+    link.textContent = "View event";
+    popup.append(link);
+
+    L.marker([event.latitude, event.longitude], { title: event.title, alt: `${event.title} pin` })
+      .addTo(map)
+      .bindPopup(popup);
+  }
+
+  if (events.length > 1) {
+    map.fitBounds(events.map((event) => [event.latitude, event.longitude]), { padding: [30, 30], maxZoom: 15 });
+  } else if (events.length === 1) {
+    map.setView([events[0].latitude, events[0].longitude], 15);
+  }
+}
+
+/**
  * Creates a map with an optional pin. When editable, clicking the map or dragging the pin calls onPick.
  * @param {HTMLElement} element
  * @param {{ lat?: number | null, lng?: number | null, editable?: boolean, label?: string,
