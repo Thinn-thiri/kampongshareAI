@@ -14,6 +14,9 @@
     <script src="/js/supabase.js"></script>
     <script src="/js/auth.js"></script>
     <script src="/js/ui.js"></script>
+    <script src="/js/requests.js"></script>
+    <script src="/js/offers.js"></script>
+    <script src="/js/donor-dashboard.js"></script>
     <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3/dist/cdn.min.js"></script>
   </head>
   <body data-require="donor">
@@ -46,11 +49,198 @@
       </div>
     </header>
 
-    <main class="container-page py-8">
-      <h1 class="text-2xl font-bold sm:text-3xl">Donor dashboard</h1>
-      <div class="card mt-6 text-center">
-        <p class="text-muted">This page is coming soon.</p>
+    <main class="container-page space-y-10 py-8" x-data="donorDashboard">
+      <div>
+        <h1 class="text-2xl font-bold sm:text-3xl">Donor dashboard</h1>
+        <p class="mt-1 text-muted">Give exactly what's needed. Choose an item, offer an amount, and the organization will confirm.</p>
       </div>
+
+      <!-- Summary -->
+      <section aria-label="Summary" class="grid grid-cols-3 gap-3 sm:gap-4">
+        <div class="card p-4 sm:p-5">
+          <p class="text-sm text-muted">Open requests</p>
+          <p class="mt-1 text-2xl font-bold sm:text-3xl" x-text="loadingRequests ? '–' : requests.length">–</p>
+        </div>
+        <div class="card p-4 sm:p-5">
+          <p class="text-sm text-muted">My active offers</p>
+          <p class="mt-1 text-2xl font-bold sm:text-3xl" x-text="loadingOffers ? '–' : activeOfferCount">–</p>
+        </div>
+        <div class="card p-4 sm:p-5">
+          <p class="text-sm text-muted">Offers delivered</p>
+          <p class="mt-1 text-2xl font-bold sm:text-3xl" x-text="loadingOffers ? '–' : deliveredCount">–</p>
+        </div>
+      </section>
+
+      <!-- Consent missing (REQUIREMENTS.md 4.2) -->
+      <div class="rounded-md border border-warning bg-warning-soft p-4 text-warning" x-show="needsConsent" x-cloak role="status">
+        <p class="font-semibold">One more step before you can donate</p>
+        <p class="mt-1 text-sm">Please confirm the privacy consent and that you're 18 or older on your profile page.</p>
+        <a href="/profile.html" class="btn btn-secondary mt-3">Go to my profile</a>
+      </div>
+
+      <!-- Open requests -->
+      <section class="space-y-4" aria-labelledby="open-heading">
+        <h2 id="open-heading" class="text-xl font-semibold">Open requests</h2>
+
+        <div class="grid gap-4 md:grid-cols-2" x-show="loadingRequests" aria-busy="true" aria-label="Loading requests">
+          <div class="card space-y-3"><div class="skeleton h-5 w-24"></div><div class="skeleton h-6 w-3/4"></div><div class="skeleton h-4 w-1/2"></div><div class="skeleton h-2.5 w-full"></div></div>
+          <div class="card space-y-3"><div class="skeleton h-5 w-24"></div><div class="skeleton h-6 w-2/3"></div><div class="skeleton h-4 w-1/2"></div><div class="skeleton h-2.5 w-full"></div></div>
+        </div>
+        <div class="card text-center" x-show="!loadingRequests && requestsError" x-cloak role="alert">
+          <p class="text-danger" x-text="requestsError"></p>
+          <button type="button" class="btn btn-secondary mt-3" @click="loadRequests()">Try again</button>
+        </div>
+        <div class="card py-10 text-center" x-show="!loadingRequests && !requestsError && requests.length === 0" x-cloak>
+          <p class="text-muted">No open requests right now. Please check back soon.</p>
+        </div>
+
+        <div class="grid gap-4 md:grid-cols-2" x-show="!loadingRequests && !requestsError">
+          <template x-for="request in requests" :key="request.id">
+            <article class="card flex flex-col gap-4">
+              <div class="flex flex-wrap items-center gap-2">
+                <template x-if="request.ai_score != null">
+                  <span class="flex flex-wrap items-center gap-2">
+                    <span :class="urgencyLevel(request.ai_score).className" x-text="`${request.ai_score} · ${urgencyLevel(request.ai_score).label}`"></span>
+                    <span class="badge badge-ai">AI-suggested</span>
+                  </span>
+                </template>
+                <span class="badge badge-neutral" x-text="`Urgency: ${urgencyLabel(request.urgency)}`"></span>
+              </div>
+
+              <div class="min-w-0">
+                <h3 class="text-lg font-semibold break-words" x-text="request.title"></h3>
+                <p class="mt-1 text-sm font-medium text-primary" x-text="request.organization?.name || 'Organization'"></p>
+                <p class="text-sm text-muted break-words" x-show="request.organization?.address" x-text="request.organization?.address"></p>
+                <p class="mt-1 text-sm text-muted" x-text="request.deadline ? `Needed by ${formatDate(request.deadline)}` : 'No deadline'"></p>
+                <p class="mt-2 text-sm whitespace-pre-line break-words" x-show="request.description" x-text="request.description"></p>
+              </div>
+
+              <div class="rounded-md bg-canvas p-3 text-sm" x-show="request.dropoff_instructions">
+                <p class="font-medium">Drop-off</p>
+                <p class="whitespace-pre-line break-words text-muted" x-text="request.dropoff_instructions"></p>
+              </div>
+
+              <ul class="space-y-4">
+                <template x-for="item in request.request_items" :key="item.id">
+                  <li class="space-y-2 border-t border-line pt-3 first:border-0 first:pt-0">
+                    <div class="flex justify-between gap-3 text-sm">
+                      <span class="min-w-0 font-medium break-words" x-text="item.name"></span>
+                      <span class="shrink-0 text-muted" x-text="`${item.quantity_committed} of ${item.quantity_needed} ${item.unit}`"></span>
+                    </div>
+                    <div class="progress" role="img" :aria-label="`${item.quantity_received} received, ${item.quantity_committed - item.quantity_received} promised, ${item.quantity_remaining} still needed`">
+                      <div class="progress-received" :style="barWidths(item).received"></div>
+                      <div class="progress-committed" :style="barWidths(item).promised"></div>
+                    </div>
+
+                    <div class="flex flex-wrap items-center justify-between gap-2">
+                      <p class="text-sm font-semibold" x-text="item.quantity_remaining > 0 ? `Still needed: ${item.quantity_remaining} ${item.unit}` : 'Fully promised — thank you!'"></p>
+                      <template x-if="activeOfferFor(item)">
+                        <span class="text-sm text-muted" x-text="`You offered ${activeOfferFor(item).quantity} — ${statusInfo(activeOfferFor(item).status, 'offer').label.toLowerCase()}`"></span>
+                      </template>
+                      <button type="button" class="btn btn-primary min-h-11 px-4"
+                        x-show="item.quantity_remaining > 0 && !activeOfferFor(item) && offerItemId !== item.id"
+                        :disabled="needsConsent" @click="openOffer(item)" :aria-label="`Offer ${item.name}`">Offer</button>
+                    </div>
+
+                    <!-- Offer form -->
+                    <form class="space-y-4 rounded-md border border-primary-soft bg-canvas p-4" novalidate x-show="offerItemId === item.id" x-cloak
+                      @submit.prevent="sendOffer(item)" :aria-label="`Offer ${item.name}`">
+                      <div>
+                        <label :for="`offer-qty-${item.id}`" class="label">How many? <span class="text-danger" aria-hidden="true">*</span></label>
+                        <input :id="`offer-qty-${item.id}`" class="input max-w-40" type="number" inputmode="numeric" step="1" min="1" :max="item.quantity_remaining"
+                          x-model.number="offerForm.quantity" :aria-invalid="offerErrors.quantity ? 'true' : null"
+                          :aria-describedby="`offer-qty-help-${item.id} offer-qty-err-${item.id}`" />
+                        <p :id="`offer-qty-help-${item.id}`" class="helper-text" x-text="`Up to ${item.quantity_remaining} ${item.unit}`"></p>
+                        <p :id="`offer-qty-err-${item.id}`" class="field-error" x-show="offerErrors.quantity" x-text="offerErrors.quantity"></p>
+                      </div>
+                      <div>
+                        <label :for="`offer-msg-${item.id}`" class="label">Message to the organization <span class="font-normal text-muted">(optional)</span></label>
+                        <textarea :id="`offer-msg-${item.id}`" class="input py-2" rows="2" maxlength="500" x-model="offerForm.message"
+                          :aria-invalid="offerErrors.message ? 'true' : null" :aria-describedby="`offer-msg-help-${item.id} offer-msg-err-${item.id}`"></textarea>
+                        <p :id="`offer-msg-help-${item.id}`" class="helper-text" x-text="`e.g. when you can drop off. ${offerForm.message.length} / 500`"></p>
+                        <p :id="`offer-msg-err-${item.id}`" class="field-error" x-show="offerErrors.message" x-text="offerErrors.message"></p>
+                      </div>
+                      <template x-if="item.category === 'food'">
+                        <div>
+                          <label class="flex items-start gap-3 text-sm">
+                            <input :id="`offer-food-${item.id}`" type="checkbox" class="mt-0.5 size-5 shrink-0 accent-primary" x-model="offerForm.foodSafetyConfirmed"
+                              :aria-invalid="offerErrors.foodSafety ? 'true' : null" :aria-describedby="`offer-food-err-${item.id}`" />
+                            <span>Items are sealed, unopened and not past their expiry date. <span class="text-danger" aria-hidden="true">*</span>
+                              <span class="block text-muted">Cooked or home-made food can't be accepted.</span></span>
+                          </label>
+                          <p :id="`offer-food-err-${item.id}`" class="field-error ml-8" x-show="offerErrors.foodSafety" x-text="offerErrors.foodSafety"></p>
+                        </div>
+                      </template>
+                      <p class="helper-text mt-0" x-show="item.category === 'clothing'">Clothing should be clean and in usable condition.</p>
+
+                      <div role="alert">
+                        <p class="rounded-md bg-danger-soft p-3 text-sm font-medium text-danger" x-show="offerError" x-text="offerError"></p>
+                      </div>
+                      <div class="flex flex-wrap gap-3">
+                        <button type="submit" class="btn btn-primary" :disabled="sending">
+                          <span class="spinner" x-show="sending" x-cloak aria-hidden="true"></span>
+                          <span x-text="sending ? 'Sending…' : 'Send offer'">Send offer</span>
+                        </button>
+                        <button type="button" class="btn btn-ghost" @click="closeOffer()" :disabled="sending">Cancel</button>
+                      </div>
+                    </form>
+                  </li>
+                </template>
+              </ul>
+            </article>
+          </template>
+        </div>
+      </section>
+
+      <!-- My offers -->
+      <section class="space-y-4" aria-labelledby="offers-heading">
+        <h2 id="offers-heading" class="text-xl font-semibold">My offers</h2>
+
+        <div class="card space-y-3" x-show="loadingOffers" aria-busy="true" aria-label="Loading your offers">
+          <div class="skeleton h-5 w-24"></div><div class="skeleton h-5 w-2/3"></div><div class="skeleton h-4 w-1/2"></div>
+        </div>
+        <div class="card text-center" x-show="!loadingOffers && offersError" x-cloak role="alert">
+          <p class="text-danger" x-text="offersError"></p>
+          <button type="button" class="btn btn-secondary mt-3" @click="loadOffers()">Try again</button>
+        </div>
+        <div class="card py-10 text-center" x-show="!loadingOffers && !offersError && offers.length === 0" x-cloak>
+          <p class="text-muted">You haven't offered anything yet — browse the requests above.</p>
+        </div>
+
+        <ul class="space-y-3" x-show="!loadingOffers && !offersError">
+          <template x-for="offer in offers" :key="offer.id">
+            <li class="card space-y-3">
+              <div class="flex flex-wrap items-start justify-between gap-3">
+                <div class="min-w-0">
+                  <p class="font-semibold break-words" x-text="`${offer.quantity} ${offer.item?.unit ?? ''} · ${offer.item?.name ?? 'Item no longer available'}`"></p>
+                  <p class="text-sm text-muted break-words"
+                    x-text="[offer.item?.request?.title, offer.item?.request?.organization?.name].filter(Boolean).join(' · ') || 'Request no longer available'"></p>
+                  <p class="text-xs text-muted" x-text="`Offered ${formatDate(offer.created_at)}`"></p>
+                </div>
+                <span :class="offerDisplay(offer).className" x-text="offerDisplay(offer).label"></span>
+              </div>
+
+              <!-- Accepted: where to bring it -->
+              <div class="rounded-md border border-info bg-info-soft p-4 text-info" x-show="offer.status === 'accepted'">
+                <p class="font-semibold">Your offer was accepted — please drop off at:</p>
+                <p class="mt-1 whitespace-pre-line break-words text-ink"
+                  x-text="offer.item?.request?.dropoff_instructions || 'The organization will contact you to arrange drop-off.'"></p>
+                <p class="mt-1 text-sm break-words" x-show="offer.item?.request?.organization?.address"
+                  x-text="`Organization address: ${offer.item?.request?.organization?.address}`"></p>
+              </div>
+
+              <p class="text-sm text-muted whitespace-pre-line break-words" x-show="offer.message" x-text="`Your message: ${offer.message}`"></p>
+
+              <div x-show="isActiveOffer(offer)">
+                <button type="button" class="btn btn-danger" :disabled="cancellingId === offer.id" @click="cancel(offer)">
+                  <span class="spinner" x-show="cancellingId === offer.id" x-cloak aria-hidden="true"></span>
+                  Cancel offer
+                </button>
+              </div>
+            </li>
+          </template>
+        </ul>
+      </section>
     </main>
   </body>
 </html>

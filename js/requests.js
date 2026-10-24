@@ -37,7 +37,7 @@
  * @property {string | null} ai_reasons
  * @property {string} created_at
  * @property {RequestItem[]} request_items
- * @property {{ name: string } | null} [organization]  only in admin review lists
+ * @property {{ name: string, address?: string | null } | null} [organization]  in admin and donor lists
  */
 
 /**
