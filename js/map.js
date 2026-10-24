@@ -6,6 +6,7 @@ const SINGAPORE_CENTRE = { lat: 1.3521, lng: 103.8198 };
 /**
  * @typedef {Object} PinMap
  * @property {(lat: number, lng: number) => void} setPin  moves (or adds) the pin
+ * @property {(lat: number, lng: number) => void} focus  moves the pin there and zooms the map in on it
  * @property {() => void} centre  puts the pin at the middle of the map (keyboard-friendly)
  * @property {() => void} refresh  call after the map's box changes size or becomes visible
  */
@@ -72,6 +73,10 @@ function createPinMap(element, options) {
 
   return {
     setPin,
+    focus(pinLat, pinLng) {
+      setPin(pinLat, pinLng);
+      map.setView([pinLat, pinLng], 17);
+    },
     centre() {
       const point = map.getCenter();
       setPin(point.lat, point.lng);

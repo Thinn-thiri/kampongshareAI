@@ -22,6 +22,7 @@ You need [Node.js](https://nodejs.org) (LTS) and Git.
    npm install
    ```
 2. Copy `.env.example` to `.env` and fill in your own values. `.env` is never committed.
+   For postal code → map pin lookup, also add a free [OneMap](https://www.onemap.gov.sg/apidocs/register) account as `ONEMAP_EMAIL` / `ONEMAP_PASSWORD`. It's used only by the `geocode-postal` function.
 3. Put your Supabase Project URL and **anon** key in `js/config.js`. The anon key is public by design. Never put the service role key there.
 4. Start two terminals:
    ```

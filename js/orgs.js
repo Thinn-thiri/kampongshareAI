@@ -13,6 +13,7 @@
  * @property {string} name
  * @property {string | null} description
  * @property {string | null} address
+ * @property {string | null} postal_code
  * @property {string | null} phone
  * @property {number | null} latitude
  * @property {number | null} longitude
@@ -28,12 +29,13 @@
  * @property {string} name
  * @property {string} description
  * @property {string} address
+ * @property {string} postalCode
  * @property {string} phone
  * @property {number | null} latitude
  * @property {number | null} longitude
  */
 
-/** @typedef {Partial<Record<'name' | 'description' | 'address' | 'phone' | 'pin', string>>} OrganizationErrors */
+/** @typedef {Partial<Record<'name' | 'description' | 'address' | 'postalCode' | 'phone' | 'pin', string>>} OrganizationErrors */
 
 /**
  * The organization owned by this account, or null if it hasn't been created yet.
@@ -57,6 +59,7 @@ function organizationRow(details, includeName) {
   const row = {
     description: details.description.trim() || null,
     address: details.address.trim(),
+    postal_code: details.postalCode.trim() || null,
     phone: details.phone.trim() ? normalisePhone(details.phone) : null,
     latitude: details.latitude,
     longitude: details.longitude,
@@ -139,6 +142,9 @@ function validateOrganization(form) {
   const address = form.address.trim();
   if (!address) errors.address = "Please enter your organization's address.";
   else if (address.length > 200) errors.address = "Please keep the address under 200 characters.";
+  if (form.postalCode.trim() && !/^\d{6}$/.test(form.postalCode.trim())) {
+    errors.postalCode = "A Singapore postal code has 6 digits, like 520123.";
+  }
   if (form.phone.trim() && !isValidSgPhone(form.phone)) {
     errors.phone = "Please enter an 8-digit Singapore number, like 6123 4567.";
   }

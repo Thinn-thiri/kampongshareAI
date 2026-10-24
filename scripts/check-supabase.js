@@ -13,6 +13,7 @@ const REQUIRED_COLUMNS = [
   ["events", "approval"],
   ["donation_requests", "dropoff_instructions"],
   ["donation_offers", "food_safety_confirmed"],
+  ["organizations", "postal_code"],
 ];
 
 /** Friendly labels for the public_stats() totals. */

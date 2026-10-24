@@ -47,6 +47,7 @@ Community donation and volunteer platform for Singapore. Hackathon prototype.
 | AI               | NVIDIA Build API, called **only** from Netlify Functions (`netlify/functions/`)                                                                                                                                                                                                                                                           |
 | Hosting          | Netlify (`npx netlify dev` for local testing)                                                                                                                                                                                                                                                                                             |
 | Map              | Leaflet + OpenStreetMap tiles (show the required attribution)                                                                                                                                                                                                                                                                             |
+| Geocoding        | **OneMap Search API** (Singapore Land Authority): 6-digit postal code → address + latitude/longitude, to place map pins automatically. Called **only** from the Netlify Function `geocode-postal` (logged-in users), never from the browser. Only the postal code is sent. OneMap's Search API now requires a token: set `ONEMAP_EMAIL` / `ONEMAP_PASSWORD` in `.env` and Netlify env (free account at onemap.gov.sg/apidocs/register); the function fetches and caches the 3-day token. OneMap's terms don't require attribution for API data, but show "Address lookup by OneMap (Singapore Land Authority)" next to the field. In the browser, always use `lookupPostalCode()` from `js/geocode.js` — **reuse it for event locations in step 9**. |
 | Icons            | Lucide icons (`https://unpkg.com/lucide@latest`)                                                                                                                                                                                                                                                                                          |
 | Font             | Plus Jakarta Sans from Google Fonts, fallback `system-ui, sans-serif`                                                                                                                                                                                                                                                                     |
 
@@ -64,9 +65,10 @@ js/supabase.js         → creates the client
 js/auth.js             → getProfile(), requireAccess('donor' | 'volunteer' | 'organization' | 'admin'), logout
 js/ui.js               → toast(), confirmDialog(), formatDate(), statusBadge(), escapeHtml()
 js/share.js            → share links, poster image, copy caption (section 5)
+js/geocode.js          → lookupPostalCode(): postal code → { address, latitude, longitude } via geocode-postal
 jsconfig.json          → turns on type checking for all .js files
 img/og-default.png     → 1200×630 default preview image for shared links
-netlify/functions/     → server code: AI scoring, match-items, event-caption, share-event
+netlify/functions/     → server code: AI scoring, match-items, event-caption, share-event, geocode-postal
 supabase/migrations/   → database schema and changes (Supabase CLI)
 scripts/               → setup-supabase.js, check-supabase.js, seed.js (run with node)
 ```
@@ -320,7 +322,7 @@ This app handles personal data of people in Singapore, so it follows the **Perso
 
 ### 4.5 Protection (security)
 
-- **Secrets:** the Supabase service role key and NVIDIA API key live only in `.env` (local) and Netlify environment variables. `.env` is in `.gitignore`. Never put them in HTML or JS, and never commit them.
+- **Secrets:** the Supabase service role key, NVIDIA API key and OneMap account (`ONEMAP_EMAIL` / `ONEMAP_PASSWORD`) live only in `.env` (local) and Netlify environment variables. `.env` is in `.gitignore`. Never put them in HTML or JS, and never commit them.
 - Only the Supabase **anon key** may appear in frontend code.
 - **Never put personal data in URLs** or query strings (use IDs only).
 - **Never `console.log` personal data** (names, emails, phones, postal codes).

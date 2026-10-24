@@ -17,6 +17,7 @@
     <script src="/js/auth.js"></script>
     <script src="/js/ui.js"></script>
     <script src="/js/map.js"></script>
+    <script src="/js/geocode.js"></script>
     <script src="/js/orgs.js"></script>
     <script src="/js/organization-dashboard.js"></script>
     <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3/dist/cdn.min.js"></script>
@@ -141,8 +142,31 @@
 
           <fieldset aria-describedby="help-org-pin err-org-pin">
             <legend class="label">Location on the map <span class="text-danger" aria-hidden="true">*</span></legend>
+
+            <div class="mb-4 max-w-xs">
+              <label for="org-postal" class="label">Postal code</label>
+              <input id="org-postal" class="input" type="text" inputmode="numeric" maxlength="6" autocomplete="postal-code"
+                x-model="form.postalCode" @input="onPostalInput()" :aria-invalid="errors.postalCode ? 'true' : null"
+                aria-describedby="help-org-postal err-org-postal lookup-org-postal" />
+              <p id="help-org-postal" class="helper-text">We'll place the pin for you. Address lookup by OneMap (Singapore Land Authority).</p>
+              <p id="err-org-postal" class="field-error" x-show="errors.postalCode" x-text="errors.postalCode"></p>
+            </div>
+
+            <div id="lookup-org-postal" class="mb-3 text-sm" aria-live="polite">
+              <p class="flex items-center gap-2 text-muted" x-show="lookupStatus === 'loading'">
+                <span class="spinner" aria-hidden="true"></span> Looking up…
+              </p>
+              <div class="flex flex-wrap items-center gap-3 rounded-md bg-success-soft p-3 text-success" x-show="lookupStatus === 'found'">
+                <p class="min-w-0 break-words"><span class="font-semibold">Found:</span> <span x-text="foundAddress"></span></p>
+                <button type="button" class="btn btn-secondary min-h-9 px-3" x-show="canUseFoundAddress" @click="useFoundAddress()">Use this address</button>
+              </div>
+              <p class="rounded-md bg-warning-soft p-3 text-warning" x-show="lookupStatus === 'not_found'">
+                We couldn't find that postal code — check it, or tap the map to place the pin.
+              </p>
+            </div>
+
             <p id="help-org-pin" class="helper-text mt-0 mb-2">
-              Click the map to drop a pin where your organization is. You can drag the pin to adjust it.
+              Or click the map to drop the pin yourself. You can drag the pin to the exact spot.
               Using a keyboard? Move the map with the arrow keys, then press "Put pin at map centre".
             </p>
             <div class="isolate overflow-hidden rounded-md border border-line">

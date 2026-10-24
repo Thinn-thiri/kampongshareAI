@@ -7,6 +7,7 @@ const ORG_FIELD_IDS = {
   name: "org-name",
   description: "org-description",
   address: "org-address",
+  postalCode: "org-postal",
   phone: "org-phone",
   pin: "org-pin-centre",
 };
@@ -17,6 +18,9 @@ document.addEventListener("alpine:init", () => {
     // Kept outside Alpine's reactive state: Leaflet doesn't work through proxies.
     /** @type {PinMap | null} */
     let pinMap = null;
+    /** @type {ReturnType<typeof setTimeout> | undefined} */
+    let lookupTimer;
+    let lookupCount = 0; // only the newest lookup's answer is used
 
     return {
       loading: true,
@@ -24,11 +28,14 @@ document.addEventListener("alpine:init", () => {
       /** @type {Organization | null} */
       org: null,
       /** @type {OrganizationDetails} */
-      form: { name: "", description: "", address: "", phone: "", latitude: null, longitude: null },
+      form: { name: "", description: "", address: "", postalCode: "", phone: "", latitude: null, longitude: null },
       /** @type {OrganizationErrors} */
       errors: {},
       formError: "",
       saving: false,
+      /** @type {'' | 'loading' | 'found' | 'not_found'} */
+      lookupStatus: "",
+      foundAddress: "",
 
       async init() {
         await this.load();
@@ -49,6 +56,7 @@ document.addEventListener("alpine:init", () => {
             name: this.org?.name ?? "",
             description: this.org?.description ?? "",
             address: this.org?.address ?? "",
+            postalCode: this.org?.postal_code ?? "",
             phone: this.org?.phone ?? "",
             latitude: this.org?.latitude ?? null,
             longitude: this.org?.longitude ?? null,
@@ -58,6 +66,8 @@ document.addEventListener("alpine:init", () => {
         } finally {
           this.loading = false;
         }
+        this.lookupStatus = "";
+        this.foundAddress = "";
         // Wait for Alpine to show the form, then draw the map into it.
         setTimeout(() => this.setupMap(), 0);
       },
@@ -84,6 +94,50 @@ document.addEventListener("alpine:init", () => {
 
       pinAtCentre() {
         pinMap?.centre();
+      },
+
+      /** Called on every keystroke in the postal code field; looks it up once typing pauses. */
+      onPostalInput() {
+        clearTimeout(lookupTimer);
+        this.errors = { ...this.errors, postalCode: undefined };
+        this.lookupStatus = "";
+        this.foundAddress = "";
+        const code = this.form.postalCode.trim();
+        if (!code) return;
+        lookupTimer = setTimeout(() => this.lookUpPostalCode(code), 500);
+      },
+
+      /** @param {string} code */
+      async lookUpPostalCode(code) {
+        if (!/^\d{6}$/.test(code)) {
+          this.errors = { ...this.errors, postalCode: "A Singapore postal code has 6 digits, like 520123." };
+          return;
+        }
+        const thisLookup = ++lookupCount;
+        this.lookupStatus = "loading";
+        const result = await lookupPostalCode(code);
+        if (thisLookup !== lookupCount || this.form.postalCode.trim() !== code) return; // a newer lookup took over
+
+        if (!result) {
+          this.lookupStatus = "not_found";
+          return;
+        }
+        this.lookupStatus = "found";
+        this.foundAddress = result.address;
+        this.form.latitude = result.latitude;
+        this.form.longitude = result.longitude;
+        this.errors = { ...this.errors, pin: undefined };
+        pinMap?.focus(result.latitude, result.longitude);
+        if (!this.form.address.trim()) this.useFoundAddress();
+      },
+
+      get canUseFoundAddress() {
+        return this.lookupStatus === "found" && Boolean(this.foundAddress) && this.form.address.trim() !== this.foundAddress;
+      },
+
+      useFoundAddress() {
+        this.form.address = this.foundAddress;
+        this.errors = { ...this.errors, address: undefined };
       },
 
       async save() {
