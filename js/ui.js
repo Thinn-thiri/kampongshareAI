@@ -145,8 +145,18 @@ const STATUS_BADGE = {
  * @returns {string}
  */
 function statusBadge(status, kind) {
-  const badge = STATUS_BADGE[kind][status] ?? { className: "badge badge-neutral", label: status };
+  const badge = statusInfo(status, kind);
   return `<span class="${badge.className}">${escapeHtml(badge.label)}</span>`;
+}
+
+/**
+ * The badge classes and word for a status — for Alpine (:class + x-text, never x-html).
+ * @param {string} status
+ * @param {'request' | 'offer'} kind
+ * @returns {{ className: string, label: string }}
+ */
+function statusInfo(status, kind) {
+  return STATUS_BADGE[kind][status] ?? { className: "badge badge-neutral", label: status };
 }
 
 /**
@@ -200,6 +210,10 @@ function friendlyError(error) {
   if (lower.includes("signups not allowed")) {
     return "Sign-ups are switched off right now. Please try again later.";
   }
+  if (lower.includes("committed_within_needed")) {
+    return "The quantity can't be lower than what donors have already promised.";
+  }
+  if (lower.includes("quantity_needed")) return "Each item needs a quantity of at least 1.";
   if (err.code === "23514") return "Some details aren't in the right format. Please check the form.";
   if (err.code === "23505") return "That already exists, so nothing was changed.";
   if (err.code === "42501" || lower.includes("row-level security")) {

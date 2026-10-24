@@ -20,6 +20,8 @@
     <script src="/js/geocode.js"></script>
     <script src="/js/orgs.js"></script>
     <script src="/js/organization-dashboard.js"></script>
+    <script src="/js/requests.js"></script>
+    <script src="/js/org-requests.js"></script>
     <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3/dist/cdn.min.js"></script>
   </head>
   <body data-require="organization">
@@ -192,12 +194,200 @@
       </section>
 
       <!-- Only after approval -->
-      <div class="grid gap-6 md:grid-cols-2" x-show="!loading && approved" x-cloak>
-        <section class="card flex flex-col items-center gap-3 py-10 text-center" aria-labelledby="requests-heading">
-          <h2 id="requests-heading" class="text-lg font-semibold">Donation requests</h2>
-          <p class="text-muted">No requests yet. Posting requests is coming in the next step.</p>
-          <button type="button" class="btn btn-primary" disabled>Create your first request</button>
+      <template x-if="!loading && approved && org">
+        <section class="space-y-4" x-data="orgRequests(org.id)" aria-labelledby="requests-heading">
+          <div class="flex flex-wrap items-center justify-between gap-3">
+            <h2 id="requests-heading" class="text-xl font-semibold">Donation requests</h2>
+            <button type="button" class="btn btn-primary" x-show="!showForm" @click="newRequest()">New donation request</button>
+          </div>
+
+          <!-- New / edit form -->
+          <form id="request-form" class="card scroll-mt-24 space-y-5" novalidate x-show="showForm" x-cloak @submit.prevent="save">
+            <div>
+              <h3 class="text-lg font-semibold" x-text="editing ? 'Edit request' : 'New donation request'"></h3>
+              <p class="mt-1 text-sm text-muted" x-show="!editing">An admin checks each request before donors can see it. Fields marked <span class="text-danger">*</span> are required.</p>
+            </div>
+
+            <p class="rounded-md bg-info-soft p-3 text-sm text-info" x-show="locked">
+              This request is approved, so you can only change item quantities, the deadline, urgency and drop-off instructions.
+              <strong>To change this, close the request and post a new one.</strong>
+            </p>
+
+            <div>
+              <label for="req-title" class="label">Title <span class="text-danger" aria-hidden="true">*</span></label>
+              <input id="req-title" class="input read-only:bg-canvas read-only:text-muted" type="text" maxlength="100" required
+                x-model="form.title" :readonly="locked" :aria-invalid="errors.title ? 'true' : null"
+                :aria-describedby="locked ? 'req-locked-note err-req-title' : 'err-req-title'" />
+              <p id="err-req-title" class="field-error" x-show="errors.title" x-text="errors.title"></p>
+            </div>
+
+            <div>
+              <label for="req-description" class="label">Description</label>
+              <textarea id="req-description" class="input py-2 read-only:bg-canvas read-only:text-muted" rows="3" maxlength="1000"
+                x-model="form.description" :readonly="locked" :aria-invalid="errors.description ? 'true' : null"
+                aria-describedby="help-req-description err-req-description"></textarea>
+              <p id="help-req-description" class="helper-text">
+                Who it's for and why it's needed. <span x-text="`${form.description.length} / 1,000`"></span>
+              </p>
+              <p id="err-req-description" class="field-error" x-show="errors.description" x-text="errors.description"></p>
+            </div>
+
+            <div class="grid gap-5 sm:grid-cols-2">
+              <div>
+                <label for="req-urgency" class="label">Urgency</label>
+                <select id="req-urgency" class="input" x-model="form.urgency">
+                  <template x-for="option in urgencies" :key="option.value">
+                    <option :value="option.value" x-text="option.label"></option>
+                  </template>
+                </select>
+              </div>
+              <div>
+                <label for="req-deadline" class="label">Deadline <span class="font-normal text-muted">(optional)</span></label>
+                <input id="req-deadline" class="input" type="date" :min="editing ? null : today" x-model="form.deadline"
+                  :aria-invalid="errors.deadline ? 'true' : null" aria-describedby="err-req-deadline" />
+                <p id="err-req-deadline" class="field-error" x-show="errors.deadline" x-text="errors.deadline"></p>
+              </div>
+            </div>
+
+            <div>
+              <label for="req-dropoff" class="label">Drop-off instructions</label>
+              <textarea id="req-dropoff" class="input py-2" rows="2" maxlength="500" x-model="form.dropoff"
+                :aria-invalid="errors.dropoff ? 'true' : null" aria-describedby="help-req-dropoff err-req-dropoff"></textarea>
+              <p id="help-req-dropoff" class="helper-text">
+                Where and when donors bring items, e.g. "Blk 123 Tampines St 11, weekdays 10am–5pm".
+                <span x-text="`${form.dropoff.length} / 500`"></span>
+              </p>
+              <p id="err-req-dropoff" class="field-error" x-show="errors.dropoff" x-text="errors.dropoff"></p>
+            </div>
+
+            <!-- Items -->
+            <fieldset class="space-y-3">
+              <legend class="label">Items needed <span class="text-danger" aria-hidden="true">*</span></legend>
+              <p class="helper-text mt-0">Medicines and medical items aren't accepted.</p>
+              <template x-for="(row, index) in form.items" :key="row.key">
+                <div class="grid gap-3 rounded-md border border-line bg-canvas p-3 sm:grid-cols-[2fr_1.3fr_1fr_1fr_auto] sm:items-start">
+                  <div>
+                    <label :for="`item-name-${row.key}`" class="label" x-text="`Item ${index + 1} name`"></label>
+                    <input :id="`item-name-${row.key}`" class="input read-only:bg-surface read-only:text-muted" type="text" maxlength="100"
+                      placeholder="e.g. Rice 5kg" x-model="row.name" :readonly="locked"
+                      :aria-invalid="errors[`items.${row.key}.name`] ? 'true' : null" :aria-describedby="`err-item-name-${row.key}`" />
+                    <p :id="`err-item-name-${row.key}`" class="field-error" x-show="errors[`items.${row.key}.name`]" x-text="errors[`items.${row.key}.name`]"></p>
+                  </div>
+                  <div>
+                    <label :for="`item-category-${row.key}`" class="label">Category</label>
+                    <select :id="`item-category-${row.key}`" class="input disabled:bg-surface disabled:text-muted" x-model="row.category" :disabled="locked">
+                      <template x-for="option in categories" :key="option.value">
+                        <option :value="option.value" x-text="option.label" :selected="option.value === row.category"></option>
+                      </template>
+                    </select>
+                  </div>
+                  <div>
+                    <label :for="`item-unit-${row.key}`" class="label">Unit</label>
+                    <input :id="`item-unit-${row.key}`" class="input read-only:bg-surface read-only:text-muted" type="text" maxlength="30"
+                      placeholder="e.g. bags" x-model="row.unit" :readonly="locked"
+                      :aria-invalid="errors[`items.${row.key}.unit`] ? 'true' : null" :aria-describedby="`err-item-unit-${row.key}`" />
+                    <p :id="`err-item-unit-${row.key}`" class="field-error" x-show="errors[`items.${row.key}.unit`]" x-text="errors[`items.${row.key}.unit`]"></p>
+                  </div>
+                  <div>
+                    <label :for="`item-quantity-${row.key}`" class="label">Quantity needed</label>
+                    <input :id="`item-quantity-${row.key}`" class="input" type="number" inputmode="numeric" step="1" :min="Math.max(row.committed, 1)"
+                      x-model.number="row.quantity" :aria-invalid="errors[`items.${row.key}.quantity`] ? 'true' : null"
+                      :aria-describedby="`help-item-quantity-${row.key} err-item-quantity-${row.key}`" />
+                    <p :id="`help-item-quantity-${row.key}`" class="helper-text" x-show="row.committed > 0" x-text="`At least ${row.committed} — already promised`"></p>
+                    <p :id="`err-item-quantity-${row.key}`" class="field-error" x-show="errors[`items.${row.key}.quantity`]" x-text="errors[`items.${row.key}.quantity`]"></p>
+                  </div>
+                  <div class="sm:pt-6">
+                    <button type="button" class="btn btn-ghost w-full px-3 sm:w-auto" x-show="!locked && form.items.length > 1"
+                      @click="removeItem(row.key)" :aria-label="`Remove item ${index + 1}${row.name ? ' (' + row.name + ')' : ''}`">Remove</button>
+                  </div>
+                </div>
+              </template>
+              <p class="field-error" x-show="errors.items" x-text="errors.items"></p>
+              <p id="req-locked-note" class="helper-text" x-show="locked">Item names, categories and units are locked. To change this, close the request and post a new one.</p>
+              <button id="req-items" type="button" class="btn btn-secondary" x-show="!locked" @click="addItem()">+ Add item</button>
+            </fieldset>
+
+            <div role="alert">
+              <p class="rounded-md bg-danger-soft p-3 text-sm font-medium text-danger" x-show="formError" x-text="formError"></p>
+            </div>
+
+            <div class="flex flex-wrap gap-3">
+              <button type="submit" class="btn btn-primary" :disabled="saving">
+                <span class="spinner" x-show="saving" x-cloak aria-hidden="true"></span>
+                <span x-text="saving ? 'Saving…' : editing ? 'Save changes' : 'Send for approval'">Send for approval</span>
+              </button>
+              <button type="button" class="btn btn-ghost" @click="cancelForm()" :disabled="saving">Cancel</button>
+            </div>
+          </form>
+
+          <!-- Loading / error / empty -->
+          <div class="grid gap-4 md:grid-cols-2" x-show="loading" aria-busy="true" aria-label="Loading your requests">
+            <div class="card space-y-3"><div class="skeleton h-5 w-24"></div><div class="skeleton h-6 w-3/4"></div><div class="skeleton h-2.5 w-full"></div></div>
+            <div class="card space-y-3"><div class="skeleton h-5 w-24"></div><div class="skeleton h-6 w-2/3"></div><div class="skeleton h-2.5 w-full"></div></div>
+          </div>
+          <div class="card text-center" x-show="!loading && loadError" x-cloak role="alert">
+            <p class="text-danger" x-text="loadError"></p>
+            <button type="button" class="btn btn-secondary mt-3" @click="load()">Try again</button>
+          </div>
+          <div class="card flex flex-col items-center gap-3 py-10 text-center" x-show="!loading && !loadError && requests.length === 0 && !showForm" x-cloak>
+            <p class="text-muted">No requests yet.</p>
+            <button type="button" class="btn btn-primary" @click="newRequest()">Create your first request</button>
+          </div>
+
+          <!-- List -->
+          <div class="grid gap-4 md:grid-cols-2" x-show="!loading && !loadError">
+            <template x-for="request in requests" :key="request.id">
+              <article class="card flex flex-col gap-4">
+                <div class="flex flex-wrap items-center gap-2">
+                  <span :class="statusInfo(request.status, 'request').className" x-text="statusInfo(request.status, 'request').label"></span>
+                  <span class="badge badge-neutral" x-text="`Urgency: ${urgencyLabel(request.urgency)}`"></span>
+                </div>
+                <div class="min-w-0">
+                  <h3 class="text-lg font-semibold break-words" x-text="request.title"></h3>
+                  <p class="mt-1 text-sm text-muted" x-text="request.deadline ? `Needed by ${formatDate(request.deadline)}` : 'No deadline'"></p>
+                  <p class="mt-2 text-sm whitespace-pre-line break-words" x-show="request.description" x-text="request.description"></p>
+                </div>
+
+                <div class="rounded-md border border-danger bg-danger-soft p-3 text-sm text-danger" x-show="request.status === 'rejected'">
+                  <p class="font-semibold">Note from the admin</p>
+                  <p class="mt-1 whitespace-pre-line" x-text="request.admin_note || 'No reason was given.'"></p>
+                </div>
+
+                <ul class="space-y-3">
+                  <template x-for="item in request.request_items" :key="item.id">
+                    <li class="space-y-1">
+                      <div class="flex justify-between gap-3 text-sm">
+                        <span class="min-w-0 font-medium break-words" x-text="item.name"></span>
+                        <span class="shrink-0 text-muted" x-text="`${item.quantity_committed} of ${item.quantity_needed} ${item.unit}`"></span>
+                      </div>
+                      <div class="progress" role="img" :aria-label="itemDetail(item)">
+                        <div class="progress-received" :style="barWidths(item).received"></div>
+                        <div class="progress-committed" :style="barWidths(item).promised"></div>
+                      </div>
+                      <p class="helper-text mt-0" x-text="itemDetail(item)"></p>
+                    </li>
+                  </template>
+                </ul>
+
+                <div class="text-sm" x-show="request.dropoff_instructions">
+                  <p class="font-medium">Drop-off</p>
+                  <p class="whitespace-pre-line break-words text-muted" x-text="request.dropoff_instructions"></p>
+                </div>
+
+                <div class="mt-auto flex flex-wrap gap-3 pt-1" x-show="isEditable(request)">
+                  <button type="button" class="btn btn-secondary" @click="edit(request)">Edit</button>
+                  <button type="button" class="btn btn-danger" :disabled="closingId === request.id" @click="close(request)">
+                    <span class="spinner" x-show="closingId === request.id" x-cloak aria-hidden="true"></span>
+                    Close
+                  </button>
+                </div>
+              </article>
+            </template>
+          </div>
         </section>
+      </template>
+
+      <div x-show="!loading && approved" x-cloak>
         <section class="card flex flex-col items-center gap-3 py-10 text-center" aria-labelledby="events-heading">
           <h2 id="events-heading" class="text-lg font-semibold">Events</h2>
           <p class="text-muted">No events yet. Creating events is coming soon.</p>
