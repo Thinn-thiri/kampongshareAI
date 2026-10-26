@@ -14,6 +14,9 @@ document.addEventListener("alpine:init", () => {
     badges: APPLICATION_BADGE,
     confirmedNote: CONFIRMED_NOTE,
 
+    /** Why the organization cancelled it ("" when not cancelled or not readable) */
+    cancelReason: "",
+
     /** @type {Profile | null} null for visitors */
     profile: null,
     approvedCount: 0,
@@ -38,6 +41,7 @@ document.addEventListener("alpine:init", () => {
         this.event = event;
         this.profile = profile;
         this.notFound = !event;
+        if (event?.status === "cancelled") this.cancelReason = await getEventCancelReason(event.id);
         if (event) await this.loadVolunteering();
       } catch (error) {
         this.error = friendlyError(error);
@@ -78,10 +82,11 @@ document.addEventListener("alpine:init", () => {
 
     /**
      * Which volunteer message / button to show (REQUIREMENTS.md 5.1 and 6.6a).
-     * @returns {'ended' | 'visitor' | 'not_individual' | 'turn_on' | 'account_pending' | 'account_rejected'
+     * @returns {'cancelled' | 'ended' | 'visitor' | 'not_individual' | 'turn_on' | 'account_pending' | 'account_rejected'
      *   | 'consent' | 'applied' | 'full' | 'can_apply'}
      */
     get volunteerState() {
+      if (this.event?.status === "cancelled") return "cancelled";
       if (this.isOver) return "ended";
       if (!this.profile) return "visitor";
       if (this.profile.role === "organization" || this.profile.role === "admin") return "not_individual";

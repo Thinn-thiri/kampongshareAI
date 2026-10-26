@@ -83,8 +83,20 @@
           <a class="font-medium text-primary underline-offset-2 hover:underline" :href="event ? `/org.html?id=${event.organization_id}` : '/'"
             x-text="event?.organization?.name"></a>
           <h1 class="text-2xl font-bold break-words sm:text-3xl" x-text="event?.title"></h1>
-          <span class="badge badge-neutral mt-2" x-show="isOver">This event has ended</span>
+          <span class="badge badge-neutral mt-2" x-show="isOver && event?.status !== 'cancelled'">This event has ended</span>
         </div>
+
+        <!-- Cancelled: say why, and don't take volunteers -->
+        <div class="rounded-md border border-warning bg-warning-soft p-4 text-warning" role="status" x-show="event?.status === 'cancelled'">
+          <p class="font-semibold break-words" x-text="cancelReason ? `This event was cancelled: ${cancelReason}` : 'This event was cancelled.'"></p>
+          <p class="mt-1 text-sm text-ink">Thank you for your interest. See the organization's page for other ways to help.</p>
+        </div>
+
+        <!-- Completed: what happened -->
+        <section class="rounded-md bg-success-soft p-4" x-show="event?.status === 'completed' && event?.outcome_summary" aria-labelledby="outcome-heading">
+          <h2 id="outcome-heading" class="font-semibold text-success">How it went</h2>
+          <p class="mt-1 whitespace-pre-line break-words" x-text="event?.outcome_summary"></p>
+        </section>
 
         <dl class="card grid gap-x-4 gap-y-3 sm:grid-cols-[max-content_1fr]">
           <dt class="font-medium text-muted">When</dt>
@@ -192,8 +204,8 @@
           </div>
         </div>
 
-        <!-- Share this event (REQUIREMENTS.md 5.3) — this page only ever shows approved events -->
-        <template x-if="event">
+        <!-- Share this event (REQUIREMENTS.md 5.3) — approved events only, and not once it's over or cancelled -->
+        <template x-if="event && !isOver">
           <section class="card space-y-4" x-data="sharePanel(event, event.organization?.name || 'KampongShare', false)" aria-labelledby="share-heading">
             <div>
               <h2 id="share-heading" class="text-lg font-semibold">Share this event</h2>

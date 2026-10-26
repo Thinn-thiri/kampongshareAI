@@ -17,10 +17,19 @@
  * @property {boolean} food_safety_confirmed
  * @property {OfferStatus} status
  * @property {string} created_at
+ * @property {string} updated_at   when the status last changed (the "ended" date in History)
  * @property {{ name: string, unit: string, category: ItemCategory,
  *              request: { title: string, status: RequestStatus, dropoff_instructions: string | null,
+ *                         close_reason: string | null, closed_at: string | null,
  *                         organization: { name: string, address: string | null } | null } | null } | null} item
  */
+
+/** What the donor sees of each offer: the item, its request (incl. why it closed) and the organization. */
+const MY_OFFER_COLUMNS =
+  "*, item:request_items(name, unit, category, request:donation_requests(title, status, dropoff_instructions, close_reason, closed_at, organization:organizations(name, address)))";
+
+/** Offer statuses that are finished and belong in History. */
+const PAST_OFFER_STATUSES = ["delivered", "cancelled", "rejected"];
 
 /**
  * What the offer form edits.
@@ -49,20 +58,53 @@ async function listOpenRequests() {
 }
 
 /**
- * This donor's offers, newest first.
+ * This donor's active offers (pending or accepted), newest first.
  * @param {string} donorId
  * @returns {Promise<DonationOffer[]>}
  */
 async function listMyOffers(donorId) {
   const { data, error } = await db()
     .from("donation_offers")
-    .select(
-      "*, item:request_items(name, unit, category, request:donation_requests(title, status, dropoff_instructions, organization:organizations(name, address)))",
-    )
+    .select(MY_OFFER_COLUMNS)
     .eq("donor_id", donorId)
+    .in("status", ["pending", "accepted"])
     .order("created_at", { ascending: false });
   if (error) throw error;
-  return data ?? [];
+  return /** @type {DonationOffer[]} */ (/** @type {unknown} */ (data ?? []));
+}
+
+/**
+ * One page of this donor's finished offers (delivered, cancelled, rejected), most recently ended first.
+ * @param {string} donorId
+ * @param {number} from first row (0-based)
+ * @param {number} to last row, inclusive
+ * @returns {Promise<DonationOffer[]>}
+ */
+async function listMyOfferHistory(donorId, from, to) {
+  const { data, error } = await db()
+    .from("donation_offers")
+    .select(MY_OFFER_COLUMNS)
+    .eq("donor_id", donorId)
+    .in("status", PAST_OFFER_STATUSES)
+    .order("updated_at", { ascending: false })
+    .range(from, to);
+  if (error) throw error;
+  return /** @type {DonationOffer[]} */ (/** @type {unknown} */ (data ?? []));
+}
+
+/**
+ * How many of this donor's offers were delivered (for the summary card).
+ * @param {string} donorId
+ * @returns {Promise<number>}
+ */
+async function countMyDeliveredOffers(donorId) {
+  const { count, error } = await db()
+    .from("donation_offers")
+    .select("id", { count: "exact", head: true })
+    .eq("donor_id", donorId)
+    .eq("status", "delivered");
+  if (error) throw error;
+  return count ?? 0;
 }
 
 /**
@@ -104,6 +146,7 @@ async function cancelOffer(id) {
  * @property {boolean} food_safety_confirmed
  * @property {OfferStatus} status
  * @property {string} created_at
+ * @property {string} updated_at
  * @property {{ full_name: string, phone: string | null } | null} donor
  * @property {{ name: string, unit: string, category: ItemCategory, request_id: string,
  *              request: { title: string, status: RequestStatus, organization_id: string } }} item
@@ -224,4 +267,14 @@ function offerDisplay(offer) {
     return { className: "badge badge-neutral", label: "Request closed" };
   }
   return statusInfo(offer.status, "offer");
+}
+
+/**
+ * The "ended" line for an offer in History, e.g. "Delivered 3 Oct 2026".
+ * @param {{ status: OfferStatus, updated_at: string }} offer
+ * @returns {string}
+ */
+function offerEndedText(offer) {
+  const word = { delivered: "Delivered", cancelled: "Cancelled", rejected: "Ended" }[/** @type {string} */ (offer.status)] ?? "Updated";
+  return `${word} ${formatDate(offer.updated_at)}`;
 }

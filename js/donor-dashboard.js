@@ -19,6 +19,12 @@ document.addEventListener("alpine:init", () => {
     offersError: "",
     /** @type {string | null} id of the offer being cancelled */
     cancellingId: null,
+    /** "My offers" tab: active (pending, accepted) or history (delivered, cancelled, rejected) */
+    offerTab: "active",
+    /** Finished offers, 20 at a time — loads the first time the History tab opens */
+    /** @type {HistoryPager<DonationOffer>} */
+    history: historyPager(),
+    deliveredCount: 0,
 
     /** @type {string | null} the item whose offer form is open */
     offerItemId: null,
@@ -61,6 +67,8 @@ document.addEventListener("alpine:init", () => {
         this.profile = null;
       }
       if (!this.profile?.is_donor) return; // the page guard is redirecting
+      const donorId = this.profile.id;
+      this.history = historyPager((from, to) => listMyOfferHistory(donorId, from, to));
       await Promise.all([this.loadRequests(), this.loadOffers()]);
     },
 
@@ -71,10 +79,6 @@ document.addEventListener("alpine:init", () => {
 
     get activeOfferCount() {
       return this.offers.filter(isActiveOffer).length;
-    },
-
-    get deliveredCount() {
-      return this.offers.filter((offer) => offer.status === "delivered").length;
     },
 
     async loadRequests() {
@@ -94,7 +98,8 @@ document.addEventListener("alpine:init", () => {
       this.loadingOffers = true;
       this.offersError = "";
       try {
-        this.offers = await listMyOffers(this.profile.id);
+        [this.offers, this.deliveredCount] = await Promise.all([listMyOffers(this.profile.id), countMyDeliveredOffers(this.profile.id)]);
+        if (this.history.loaded) await this.history.load();
       } catch (error) {
         this.offersError = friendlyError(error);
       } finally {
@@ -191,7 +196,14 @@ document.addEventListener("alpine:init", () => {
       }
     },
 
+    /** @param {'active' | 'history'} tab */
+    showOfferTab(tab) {
+      this.offerTab = tab;
+      if (tab === "history" && !this.history.loaded) this.history.load();
+    },
+
     offerDisplay,
+    offerEndedText,
     isActiveOffer,
 
     /**

@@ -24,6 +24,7 @@
     <script src="/js/events.js"></script>
     <script src="/js/volunteering.js"></script>
     <script src="/js/admin-dashboard.js"></script>
+    <script src="/js/admin-history.js"></script>
     <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3/dist/cdn.min.js"></script>
   </head>
   <body data-require="admin">
@@ -605,6 +606,114 @@
       <section class="card flex flex-col items-center gap-2 py-10 text-center" x-show="!['organizations', 'volunteers', 'requests', 'events', 'applications', 'offers'].includes(activeQueue)" x-cloak aria-live="polite">
         <h2 class="text-lg font-semibold" x-text="activeLabel"></h2>
         <p class="text-muted">This review queue is coming soon.</p>
+      </section>
+
+      <!-- History: past records with status filters + recently closed or cancelled -->
+      <section class="space-y-6 border-t border-line pt-8" x-data="adminHistory" aria-labelledby="history-heading">
+        <div>
+          <h2 id="history-heading" class="text-xl font-semibold">History</h2>
+          <p class="mt-1 text-sm text-muted">Finished requests, events, offers and applications, newest first.</p>
+        </div>
+
+        <!-- Recently closed or cancelled (last 30 days) -->
+        <div class="card space-y-4" aria-labelledby="recent-heading">
+          <div>
+            <h3 id="recent-heading" class="text-lg font-semibold">Recently closed or cancelled</h3>
+            <p class="text-sm text-muted">The last 30 days — look out for organizations that close or cancel a lot.</p>
+          </div>
+          <div class="space-y-2" x-show="loadingRecent" aria-busy="true" aria-label="Loading recent activity">
+            <div class="skeleton h-5 w-2/3"></div><div class="skeleton h-4 w-1/2"></div>
+          </div>
+          <div x-show="!loadingRecent && recentError" x-cloak role="alert">
+            <p class="text-sm text-danger" x-text="recentError"></p>
+            <button type="button" class="btn btn-secondary mt-2" @click="loadRecent()">Try again</button>
+          </div>
+          <template x-if="!loadingRecent && !recentError">
+            <div class="space-y-4">
+              <dl class="grid grid-cols-3 gap-3">
+                <template x-for="item in recentCounts" :key="item.label">
+                  <div class="rounded-md bg-canvas p-3">
+                    <dt class="text-xs text-muted" x-text="item.label"></dt>
+                    <dd class="text-xl font-bold" x-text="item.value"></dd>
+                  </div>
+                </template>
+              </dl>
+              <div x-show="topOrgs.length">
+                <p class="text-sm font-medium">Most closures and cancellations</p>
+                <ul class="mt-1 space-y-1 text-sm">
+                  <template x-for="org in topOrgs" :key="org.name">
+                    <li class="flex flex-wrap items-center gap-2">
+                      <span class="break-words" x-text="`${org.name}: ${org.total}`"></span>
+                      <span class="badge badge-warning" x-show="org.unusual">Worth a look</span>
+                    </li>
+                  </template>
+                </ul>
+              </div>
+              <p class="text-sm text-muted" x-show="recent.length === 0">Nothing was closed or cancelled in the last 30 days.</p>
+              <ul class="divide-y divide-line" x-show="recentPage.items.length">
+                <template x-for="row in recentPage.items" :key="`${row.type}-${row.id}`">
+                  <li class="flex flex-wrap items-start justify-between gap-2 py-3">
+                    <div class="min-w-0">
+                      <p class="text-sm font-semibold break-words"><span class="text-muted" x-text="`${row.type}: `"></span><span x-text="row.title"></span></p>
+                      <p class="text-sm text-muted break-words" x-text="row.detail"></p>
+                      <p class="text-sm break-words" x-show="row.reason" x-text="`Reason: ${row.reason}`"></p>
+                    </div>
+                    <span class="text-xs text-muted" x-text="row.whenText"></span>
+                  </li>
+                </template>
+              </ul>
+              <button type="button" class="btn btn-secondary w-full sm:w-auto" x-show="recentPage.hasMore" @click="recentPage.more()">Show more</button>
+            </div>
+          </template>
+        </div>
+
+        <!-- Past records by kind -->
+        <div class="space-y-4">
+          <div class="segmented w-full sm:w-auto sm:self-start" role="group" aria-label="Show history for">
+            <template x-for="option in kinds" :key="option.value">
+              <button type="button" class="segmented-link px-2" :aria-current="kind === option.value ? 'page' : null" @click="showKind(option.value)" x-text="option.label"></button>
+            </template>
+          </div>
+          <div class="flex flex-wrap gap-2" role="group" aria-label="Filter by status">
+            <template x-for="option in filters" :key="option.value">
+              <button type="button" class="btn btn-secondary" :class="filter === option.value ? 'border-primary text-primary' : ''"
+                :aria-pressed="(filter === option.value).toString()" @click="showFilter(option.value)" x-text="option.label"></button>
+            </template>
+          </div>
+
+          <div class="card space-y-3" x-show="history.loading && history.items.length === 0" aria-busy="true" aria-label="Loading history">
+            <div class="skeleton h-5 w-2/3"></div><div class="skeleton h-4 w-1/2"></div>
+          </div>
+          <div class="card text-center" x-show="!history.loading && history.error" x-cloak role="alert">
+            <p class="text-danger" x-text="history.error"></p>
+            <button type="button" class="btn btn-secondary mt-3" @click="history.load()">Try again</button>
+          </div>
+          <div class="card flex flex-col items-center gap-3 py-10 text-center"
+            x-show="history.loaded && !history.loading && !history.error && history.items.length === 0" x-cloak>
+            <i data-lucide="history" class="size-10 text-primary" aria-hidden="true"></i>
+            <p class="text-muted">Nothing here yet.</p>
+          </div>
+          <ul class="grid gap-3 md:grid-cols-2" x-show="history.items.length > 0">
+            <template x-for="row in history.items" :key="row.id">
+              <li class="card space-y-1">
+                <div class="flex flex-wrap items-start justify-between gap-2">
+                  <p class="min-w-0 font-semibold break-words" x-text="row.title"></p>
+                  <span :class="statusInfo(row.status, row.statusKind).className" x-text="statusInfo(row.status, row.statusKind).label"></span>
+                </div>
+                <p class="text-sm text-muted break-words" x-text="row.detail"></p>
+                <p class="text-xs text-muted" x-text="row.whenText"></p>
+                <p class="text-sm whitespace-pre-line break-words" x-show="row.reason"
+                  x-text="row.type === 'Event' && row.status === 'completed' ? `Outcome: ${row.reason}` : row.type === 'Application' ? row.reason : `Reason: ${row.reason}`"></p>
+              </li>
+            </template>
+          </ul>
+          <div x-show="history.hasMore" x-cloak>
+            <button type="button" class="btn btn-secondary w-full sm:w-auto" :disabled="history.loading" @click="history.more()">
+              <span class="spinner" x-show="history.loading" x-cloak aria-hidden="true"></span>
+              Show more
+            </button>
+          </div>
+        </div>
       </section>
     </main>
   </body>

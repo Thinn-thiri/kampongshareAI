@@ -25,6 +25,15 @@ document.addEventListener("alpine:init", () => {
     loadingTasks: true,
     tasksError: "",
 
+    /** Tabs: active (still going) or history (finished), for applications and tasks */
+    appTab: "active",
+    taskTab: "active",
+    /** Past applications / tasks, shown 20 at a time (a volunteer has few, so they're already loaded) */
+    /** @type {HistoryPager<MyApplication>} */
+    appHistory: historyPager(),
+    /** @type {HistoryPager<VolunteerTask>} */
+    taskHistory: historyPager(),
+
     /** @type {string | null} event whose apply form is open */
     applyEventId: null,
     applyMessage: "",
@@ -44,6 +53,8 @@ document.addEventListener("alpine:init", () => {
         this.profile = null;
       }
       if (!this.profile?.is_volunteer) return; // the page guard is redirecting
+      this.appHistory = historyPager(async (from, to) => this.pastApplications.slice(from, to + 1));
+      this.taskHistory = historyPager(async (from, to) => this.pastTasks.slice(from, to + 1));
       await Promise.all([this.loadEvents(), this.loadApplications(), this.loadTasks()]);
     },
 
@@ -80,13 +91,54 @@ document.addEventListener("alpine:init", () => {
       }
     },
 
+    get activeApplications() {
+      return this.applications.filter(isActiveApplication);
+    },
+
+    /** Newest first: when the event ended or was cancelled, else when they applied. */
+    get pastApplications() {
+      /** @param {MyApplication} a */
+      const when = (a) => new Date(a.event?.cancelled_at ?? (a.event && !isActiveApplication(a) ? a.event.ends_at ?? a.event.starts_at : a.created_at)).getTime();
+      return this.applications.filter((a) => !isActiveApplication(a)).sort((a, b) => when(b) - when(a));
+    },
+
+    get activeTasks() {
+      return this.tasks.filter(isActiveTask);
+    },
+
+    get pastTasks() {
+      return this.tasks.filter((t) => !isActiveTask(t)).reverse();
+    },
+
     get activeApplicationCount() {
-      return this.applications.filter((a) => a.status === "pending" || a.status === "approved").length;
+      return this.activeApplications.length;
     },
 
     get openTaskCount() {
-      return this.tasks.filter((t) => t.status !== "done").length;
+      return this.activeTasks.length;
     },
+
+    /** @param {'active' | 'history'} tab */
+    showAppTab(tab) {
+      this.appTab = tab;
+      if (tab === "history") this.appHistory.load();
+    },
+
+    /** @param {'active' | 'history'} tab */
+    showTaskTab(tab) {
+      this.taskTab = tab;
+      if (tab === "history") this.taskHistory.load();
+    },
+
+    applicationOutcome,
+    applicationEndedText,
+
+    /** "Apply again" only makes sense while the event is still going. */
+    /** @param {{ status: EventStatus, starts_at: string, ends_at: string | null }} event */
+    isActiveEvent(event) {
+      return (event.status === "upcoming" || event.status === "ongoing") && isNotOver(event);
+    },
+
 
     async loadEvents() {
       this.loadingEvents = true;
@@ -108,6 +160,7 @@ document.addEventListener("alpine:init", () => {
       this.applicationsError = "";
       try {
         this.applications = await listMyApplications(this.profile.id);
+        if (this.appHistory.loaded) await this.appHistory.load();
       } catch (error) {
         this.applicationsError = friendlyError(error);
       } finally {
@@ -121,6 +174,7 @@ document.addEventListener("alpine:init", () => {
       this.tasksError = "";
       try {
         this.tasks = await listMyTasks(this.profile.id);
+        if (this.taskHistory.loaded) await this.taskHistory.load();
       } catch (error) {
         this.tasksError = friendlyError(error);
       } finally {

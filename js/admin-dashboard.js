@@ -276,14 +276,20 @@ document.addEventListener("alpine:init", () => {
 
     /** @param {DonationRequest} request */
     async closeRequestAsAdmin(request) {
-      const ok = await confirmDialog(
+      const reason = await reasonDialog(
         `"${request.title}" will stop taking donations. Waiting offers are declined automatically; accepted offers carry on.`,
-        { title: "Close this request?", confirmText: "Close request", danger: true },
+        {
+          title: "Close this request?",
+          label: "Reason the organization and donors will see",
+          maxLength: REASON_MAX_LENGTH,
+          confirmText: "Close request",
+          danger: true,
+        },
       );
-      if (!ok) return;
+      if (reason === null) return;
       this.busyId = request.id;
       try {
-        await closeRequest(request.id);
+        await closeRequest(request.id, reason);
         toast("The request was closed.");
         await Promise.all([this.loadOpenRequests(), this.loadCounts()]);
       } catch (error) {

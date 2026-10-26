@@ -56,8 +56,12 @@ document.addEventListener("alpine:init", () => {
     requests: [],
     loading: true,
     loadError: "",
-    /** @type {string | null} id of the request being closed */
+    /** @type {string | null} id of the request being closed or deleted */
     closingId: null,
+    /** Active (pending approval, open) or History (fulfilled, closed, rejected) */
+    tab: "active",
+    /** @type {HistoryPager<DonationRequest>} */
+    history: historyPager((from, to) => listMyRequestHistory(orgId, from, to)),
 
     showForm: false,
     /** @type {DonationRequest | null} the request being edited, or null for a new one */
@@ -82,12 +86,26 @@ document.addEventListener("alpine:init", () => {
       this.loadError = "";
       try {
         this.requests = await listMyRequests(orgId);
+        if (this.history.loaded) await this.history.load();
       } catch (error) {
         this.loadError = friendlyError(error);
       } finally {
         this.loading = false;
       }
     },
+
+    /** Requests still in progress (the History tab loads finished ones 20 at a time). */
+    get activeRequests() {
+      return this.requests.filter(isEditableRequest);
+    },
+
+    /** @param {'active' | 'history'} tab */
+    showTab(tab) {
+      this.tab = tab;
+      if (tab === "history" && !this.history.loaded) this.history.load();
+    },
+
+    requestEndedText,
 
     /** @param {string} fieldId */
     openForm(fieldId) {
@@ -162,24 +180,49 @@ document.addEventListener("alpine:init", () => {
 
     /** @param {DonationRequest} request */
     async close(request) {
-      const message =
-        request.status === "open"
-          ? "Donors won't be able to offer anything new. Waiting offers will be declined automatically; accepted offers carry on so promised items can still be delivered."
-          : "It won't be reviewed or shown to donors.";
-      const ok = await confirmDialog(message, {
-        title: `Close "${request.title}"?`,
-        confirmText: "Close request",
+      const reason = await reasonDialog(
+        "Donors won't be able to offer anything new. Waiting offers will be declined automatically; accepted offers carry on so promised items can still be delivered.",
+        {
+          title: `Close "${request.title}"?`,
+          label: "Reason donors will see",
+          maxLength: REASON_MAX_LENGTH,
+          confirmText: "Close request",
+          danger: true,
+        },
+      );
+      if (reason === null) return;
+      this.closingId = request.id;
+      try {
+        await closeRequest(request.id, reason);
+        toast("The request was closed. You'll find it under History.");
+        if (this.editing?.id === request.id) this.cancelForm();
+        await this.load();
+        // Closing declines waiting offers in the database: refresh "Incoming offers".
+        window.dispatchEvent(new CustomEvent("offers-changed"));
+      } catch (error) {
+        toast(friendlyError(error), "error");
+      } finally {
+        this.closingId = null;
+      }
+    },
+
+    /**
+     * Only requests still waiting for approval can be deleted; approved ones are closed instead.
+     * @param {DonationRequest} request
+     */
+    async remove(request) {
+      const ok = await confirmDialog("Nobody has seen it yet, so it will be removed completely.", {
+        title: `Delete "${request.title}"?`,
+        confirmText: "Delete request",
         danger: true,
       });
       if (!ok) return;
       this.closingId = request.id;
       try {
-        await closeRequest(request.id);
-        toast("The request was closed.");
+        await deleteRequest(request.id);
+        toast("The request was deleted.");
         if (this.editing?.id === request.id) this.cancelForm();
         await this.load();
-        // Closing declines waiting offers in the database: refresh "Incoming offers".
-        window.dispatchEvent(new CustomEvent("offers-changed"));
       } catch (error) {
         toast(friendlyError(error), "error");
       } finally {

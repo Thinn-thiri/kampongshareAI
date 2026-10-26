@@ -128,7 +128,145 @@ function confirmDialog(message, options = {}) {
   });
 }
 
-/** @type {Record<'request' | 'offer', Record<string, { className: string, label: string }>>} */
+/**
+ * Like confirmDialog, but also asks for a reason (e.g. why a request is closed or an event cancelled).
+ * Resolves with the trimmed reason ("" when optional and left empty), or null when cancelled.
+ * @param {string} message
+ * @param {{ title?: string, label?: string, required?: boolean, maxLength?: number, confirmText?: string, cancelText?: string, danger?: boolean, warning?: string }} [options]
+ * @returns {Promise<string | null>}
+ */
+function reasonDialog(message, options = {}) {
+  const {
+    title = "Are you sure?",
+    label = "Reason",
+    required = false,
+    maxLength = 300,
+    confirmText = "Confirm",
+    cancelText = "Cancel",
+    danger = false,
+    warning = "",
+  } = options;
+  const dialog = document.createElement("dialog");
+  dialog.className = "dialog";
+  dialog.setAttribute("aria-labelledby", "reason-dialog-title");
+  dialog.innerHTML = `
+    <form method="dialog" novalidate>
+      <h2 id="reason-dialog-title" class="text-lg font-semibold">${escapeHtml(title)}</h2>
+      <p class="mt-2 text-muted">${escapeHtml(message)}</p>
+      ${warning ? `<p class="mt-3 rounded-md bg-warning-soft p-3 text-sm text-warning">${escapeHtml(warning)}</p>` : ""}
+      <div class="mt-4">
+        <label for="reason-dialog-input" class="label">${escapeHtml(label)}${
+          required ? ' <span class="text-danger" aria-hidden="true">*</span>' : ' <span class="font-normal text-muted">(optional)</span>'
+        }</label>
+        <textarea id="reason-dialog-input" class="input py-2" rows="3" maxlength="${maxLength}" ${required ? "required" : ""}
+          aria-describedby="reason-dialog-count reason-dialog-error"></textarea>
+        <p id="reason-dialog-count" class="helper-text">0 / ${maxLength} characters</p>
+        <p id="reason-dialog-error" class="field-error" hidden>Please give a reason.</p>
+      </div>
+      <div class="mt-6 flex flex-col-reverse gap-3 sm:flex-row sm:justify-end">
+        <button class="btn btn-secondary" value="cancel" formnovalidate>${escapeHtml(cancelText)}</button>
+        <button class="${danger ? "btn btn-danger" : "btn btn-primary"}" value="confirm">${escapeHtml(confirmText)}</button>
+      </div>
+    </form>`;
+  document.body.append(dialog);
+  const input = /** @type {HTMLTextAreaElement} */ (dialog.querySelector("textarea"));
+  const count = /** @type {HTMLElement} */ (dialog.querySelector("#reason-dialog-count"));
+  const error = /** @type {HTMLElement} */ (dialog.querySelector("#reason-dialog-error"));
+  input.addEventListener("input", () => {
+    count.textContent = `${input.value.length} / ${maxLength} characters`;
+    if (input.value.trim()) {
+      error.hidden = true;
+      input.removeAttribute("aria-invalid");
+    }
+  });
+  const confirmButton = /** @type {HTMLButtonElement} */ (dialog.querySelector('button[value="confirm"]'));
+  confirmButton.addEventListener("click", (event) => {
+    if (required && !input.value.trim()) {
+      event.preventDefault();
+      error.hidden = false;
+      input.setAttribute("aria-invalid", "true");
+      input.focus();
+    }
+  });
+  return new Promise((resolve) => {
+    dialog.addEventListener(
+      "close",
+      () => {
+        resolve(dialog.returnValue === "confirm" ? input.value.trim().slice(0, maxLength) : null);
+        dialog.remove();
+      },
+      { once: true },
+    );
+    dialog.showModal();
+    input.focus();
+  });
+}
+
+/** Longest reason for closing a request or cancelling an event (characters). */
+const REASON_MAX_LENGTH = 300;
+
+/** How many past records a History tab loads at a time. */
+const HISTORY_PAGE_SIZE = 20;
+
+/**
+ * A History list that loads 20 at a time with a "Show more" button.
+ * @template T
+ * @typedef {Object} HistoryPager
+ * @property {T[]} items
+ * @property {boolean} loading
+ * @property {boolean} loaded   true once the first page has been asked for
+ * @property {string} error
+ * @property {boolean} hasMore
+ * @property {() => Promise<void>} load   (re)loads the first page
+ * @property {() => Promise<void>} more   adds the next page
+ */
+
+/**
+ * State for a History list. Put it in Alpine state, e.g. once the user is known:
+ * `this.history = historyPager((from, to) => listSomething(id, from, to))`, then call `history.load()`.
+ * fetchPage(from, to) returns rows from..to inclusive; we ask for one extra row to know if there's more.
+ * Without fetchPage it stays empty (a placeholder until the page knows who is logged in).
+ * @template T
+ * @param {(from: number, to: number) => Promise<T[]>} [fetchPage]
+ * @returns {HistoryPager<T>}
+ */
+function historyPager(fetchPage = async () => []) {
+  return {
+    /** @type {T[]} */
+    items: [],
+    loading: false,
+    loaded: false,
+    error: "",
+    hasMore: false,
+
+    async load() {
+      this.items = [];
+      await this.more();
+      this.loaded = true;
+    },
+
+    async more() {
+      if (this.loading) return;
+      this.loading = true;
+      this.error = "";
+      try {
+        const from = this.items.length;
+        const rows = await fetchPage(from, from + HISTORY_PAGE_SIZE);
+        this.hasMore = rows.length > HISTORY_PAGE_SIZE;
+        this.items = [...this.items, ...rows.slice(0, HISTORY_PAGE_SIZE)];
+      } catch (error) {
+        this.error = friendlyError(error);
+      } finally {
+        this.loading = false;
+      }
+    },
+  };
+}
+
+/** @typedef {'request' | 'offer' | 'event' | 'application'} StatusKind */
+
+/** One badge per status for every kind of record (full class names, so Tailwind finds them). */
+/** @type {Record<StatusKind, Record<string, { className: string, label: string }>>} */
 const STATUS_BADGE = {
   request: {
     pending_approval: { className: "badge badge-warning", label: "Waiting for approval" },
@@ -144,12 +282,24 @@ const STATUS_BADGE = {
     rejected: { className: "badge badge-neutral", label: "Rejected" },
     cancelled: { className: "badge badge-neutral", label: "Cancelled" },
   },
+  event: {
+    upcoming: { className: "badge badge-info", label: "Upcoming" },
+    ongoing: { className: "badge badge-success", label: "Happening now" },
+    completed: { className: "badge badge-neutral", label: "Completed" },
+    cancelled: { className: "badge badge-neutral", label: "Cancelled" },
+  },
+  application: {
+    pending: { className: "badge badge-warning", label: "Waiting" },
+    approved: { className: "badge badge-success", label: "Approved" },
+    rejected: { className: "badge badge-neutral", label: "Not selected" },
+    withdrawn: { className: "badge badge-neutral", label: "Withdrawn" },
+  },
 };
 
 /**
  * HTML for a status pill, e.g. statusBadge('open', 'request').
  * @param {string} status
- * @param {'request' | 'offer'} kind
+ * @param {StatusKind} kind
  * @returns {string}
  */
 function statusBadge(status, kind) {
@@ -160,7 +310,7 @@ function statusBadge(status, kind) {
 /**
  * The badge classes and word for a status — for Alpine (:class + x-text, never x-html).
  * @param {string} status
- * @param {'request' | 'offer'} kind
+ * @param {StatusKind} kind
  * @returns {{ className: string, label: string }}
  */
 function statusInfo(status, kind) {
@@ -225,6 +375,7 @@ function friendlyError(error) {
   if (/_length\b/.test(lower)) return "Some text is too long. Please shorten it and try again.";
   if (err.code === "23514") return "Some details aren't in the right format. Please check the form.";
   if (err.code === "23505") return "That already exists, so nothing was changed.";
+  if (err.code === "23503") return "Other records still depend on this, so it can't be deleted. Close or cancel it instead.";
   if (err.code === "42501" || lower.includes("row-level security")) {
     return "You don't have permission to do that.";
   }

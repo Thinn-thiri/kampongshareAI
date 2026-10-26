@@ -245,6 +245,10 @@
             <h2 id="requests-heading" class="text-xl font-semibold">Donation requests</h2>
             <button type="button" class="btn btn-primary" x-show="!showForm" @click="newRequest()">New donation request</button>
           </div>
+          <div class="segmented w-full sm:w-auto sm:self-start" role="group" aria-label="Show requests">
+            <button type="button" class="segmented-link" :aria-current="tab === 'active' ? 'page' : null" @click="showTab('active')">Active</button>
+            <button type="button" class="segmented-link" :aria-current="tab === 'history' ? 'page' : null" @click="showTab('history')">History</button>
+          </div>
 
           <!-- New / edit form -->
           <form id="request-form" class="card scroll-mt-24 space-y-5" novalidate x-show="showForm" x-cloak @submit.prevent="save">
@@ -365,7 +369,8 @@
             </div>
           </form>
 
-          <!-- Loading / error / empty -->
+          <!-- Active: loading / error / empty -->
+          <div class="space-y-4" x-show="tab === 'active'">
           <div class="grid gap-4 md:grid-cols-2" x-show="loading" aria-busy="true" aria-label="Loading your requests">
             <div class="card space-y-3"><div class="skeleton h-5 w-24"></div><div class="skeleton h-6 w-3/4"></div><div class="skeleton h-2.5 w-full"></div></div>
             <div class="card space-y-3"><div class="skeleton h-5 w-24"></div><div class="skeleton h-6 w-2/3"></div><div class="skeleton h-2.5 w-full"></div></div>
@@ -374,15 +379,15 @@
             <p class="text-danger" x-text="loadError"></p>
             <button type="button" class="btn btn-secondary mt-3" @click="load()">Try again</button>
           </div>
-          <div class="card flex flex-col items-center gap-3 py-10 text-center" x-show="!loading && !loadError && requests.length === 0 && !showForm" x-cloak>
+          <div class="card flex flex-col items-center gap-3 py-10 text-center" x-show="!loading && !loadError && activeRequests.length === 0 && !showForm" x-cloak>
             <i data-lucide="package-open" class="size-10 text-primary" aria-hidden="true"></i>
-            <p class="text-muted">No requests yet.</p>
-            <button type="button" class="btn btn-primary" @click="newRequest()">Create your first request</button>
+            <p class="text-muted" x-text="requests.length ? 'No active requests right now.' : 'No requests yet.'">No requests yet.</p>
+            <button type="button" class="btn btn-primary" @click="newRequest()" x-text="requests.length ? 'New donation request' : 'Create your first request'">Create your first request</button>
           </div>
 
           <!-- List -->
           <div class="grid gap-4 md:grid-cols-2" x-show="!loading && !loadError">
-            <template x-for="request in requests" :key="request.id">
+            <template x-for="request in activeRequests" :key="request.id">
               <article class="card flex flex-col gap-4">
                 <div class="flex flex-wrap items-center gap-2">
                   <span :class="statusInfo(request.status, 'request').className" x-text="statusInfo(request.status, 'request').label"></span>
@@ -439,13 +444,58 @@
 
                 <div class="mt-auto flex flex-wrap gap-3 pt-1" x-show="isEditable(request)">
                   <button type="button" class="btn btn-secondary" @click="edit(request)">Edit</button>
-                  <button type="button" class="btn btn-danger" :disabled="closingId === request.id" @click="close(request)">
+                  <!-- Approved requests are closed (kept in History); only unseen ones can be deleted -->
+                  <button type="button" class="btn btn-danger" x-show="request.status === 'open'" :disabled="closingId === request.id" @click="close(request)">
                     <span class="spinner" x-show="closingId === request.id" x-cloak aria-hidden="true"></span>
-                    Close
+                    Close request
+                  </button>
+                  <button type="button" class="btn btn-danger" x-show="request.status === 'pending_approval'" :disabled="closingId === request.id" @click="remove(request)">
+                    <span class="spinner" x-show="closingId === request.id" x-cloak aria-hidden="true"></span>
+                    Delete
                   </button>
                 </div>
               </article>
             </template>
+          </div>
+          </div>
+
+          <!-- History: fulfilled, closed, rejected (newest first, 20 at a time) -->
+          <div class="space-y-4" x-show="tab === 'history'" x-cloak>
+            <div class="card space-y-3" x-show="history.loading && history.items.length === 0" aria-busy="true" aria-label="Loading past requests">
+              <div class="skeleton h-5 w-24"></div><div class="skeleton h-6 w-2/3"></div>
+            </div>
+            <div class="card text-center" x-show="!history.loading && history.error" x-cloak role="alert">
+              <p class="text-danger" x-text="history.error"></p>
+              <button type="button" class="btn btn-secondary mt-3" @click="history.load()">Try again</button>
+            </div>
+            <div class="card flex flex-col items-center gap-3 py-10 text-center"
+              x-show="history.loaded && !history.loading && !history.error && history.items.length === 0" x-cloak>
+              <i data-lucide="history" class="size-10 text-primary" aria-hidden="true"></i>
+              <p class="text-muted">No past requests yet. Fulfilled, closed and rejected requests will appear here.</p>
+            </div>
+            <ul class="grid gap-4 md:grid-cols-2" x-show="history.items.length > 0">
+              <template x-for="request in history.items" :key="request.id">
+                <li class="card space-y-2">
+                  <div class="flex flex-wrap items-start justify-between gap-3">
+                    <div class="min-w-0">
+                      <h3 class="font-semibold break-words" x-text="request.title"></h3>
+                      <p class="text-xs text-muted" x-text="requestEndedText(request)"></p>
+                    </div>
+                    <span :class="statusInfo(request.status, 'request').className" x-text="statusInfo(request.status, 'request').label"></span>
+                  </div>
+                  <p class="text-sm text-muted" x-text="request.request_items.map((item) => `${item.name}: ${item.quantity_received} of ${item.quantity_needed} ${item.unit} received`).join(' · ')"></p>
+                  <p class="text-sm whitespace-pre-line break-words" x-show="request.close_reason" x-text="`Reason: ${request.close_reason}`"></p>
+                  <p class="text-sm whitespace-pre-line break-words text-danger" x-show="request.status === 'rejected'"
+                    x-text="`Note from the admin: ${request.admin_note || 'No reason was given.'}`"></p>
+                </li>
+              </template>
+            </ul>
+            <div x-show="history.hasMore" x-cloak>
+              <button type="button" class="btn btn-secondary w-full sm:w-auto" :disabled="history.loading" @click="history.more()">
+                <span class="spinner" x-show="history.loading" x-cloak aria-hidden="true"></span>
+                Show more
+              </button>
+            </div>
           </div>
         </section>
       </template>
@@ -459,8 +509,8 @@
               <span class="badge badge-warning" x-show="pendingCount > 0" x-text="`${pendingCount} waiting`"></span>
             </div>
             <div class="segmented w-full sm:w-auto" role="group" aria-label="Show offers">
-              <button type="button" class="segmented-link" :aria-current="filter === 'action' ? 'page' : null" @click="filter = 'action'">Needs action</button>
-              <button type="button" class="segmented-link" :aria-current="filter === 'all' ? 'page' : null" @click="filter = 'all'">All</button>
+              <button type="button" class="segmented-link" :aria-current="filter === 'active' ? 'page' : null" @click="showFilter('active')">Active</button>
+              <button type="button" class="segmented-link" :aria-current="filter === 'history' ? 'page' : null" @click="showFilter('history')">History</button>
             </div>
           </div>
 
@@ -471,20 +521,26 @@
             <p class="text-danger" x-text="error"></p>
             <button type="button" class="btn btn-secondary mt-3" @click="load()">Try again</button>
           </div>
-          <div class="card flex flex-col items-center gap-3 text-center py-10" x-show="!loading && !error && shown.length === 0" x-cloak>
+          <div class="card flex flex-col items-center gap-3 text-center py-10" x-show="!loading && !error && filter === 'active' && activeOffers.length === 0" x-cloak>
             <i data-lucide="inbox" class="size-10 text-primary" aria-hidden="true"></i>
             <p class="text-muted" x-text="offers.length === 0
               ? 'No offers yet. They\'ll appear here when donors respond to your requests.'
               : 'Nothing needs your action right now.'"></p>
           </div>
+          <div class="card flex flex-col items-center gap-3 text-center py-10"
+            x-show="!loading && !error && filter === 'history' && history.loaded && !history.loading && history.items.length === 0" x-cloak>
+            <i data-lucide="history" class="size-10 text-primary" aria-hidden="true"></i>
+            <p class="text-muted">No past offers yet. Delivered, rejected and cancelled offers will appear here.</p>
+          </div>
 
           <ul class="grid gap-4 md:grid-cols-2" x-show="!loading && !error">
-            <template x-for="offer in shown" :key="offer.id">
+            <template x-for="offer in (filter === 'active' ? activeOffers : history.items)" :key="offer.id">
               <li class="card flex flex-col gap-3">
                 <div class="flex flex-wrap items-start justify-between gap-3">
                   <div class="min-w-0">
                     <p class="font-semibold break-words" x-text="`${offer.quantity} ${offer.item.unit} · ${offer.item.name}`"></p>
                     <p class="text-sm text-muted break-words" x-text="`For: ${offer.item.request.title}`"></p>
+                    <p class="text-xs text-muted" x-show="filter === 'history'" x-text="offerEndedText(offer)"></p>
                   </div>
                   <span :class="statusInfo(offer.status, 'offer').className" x-text="statusInfo(offer.status, 'offer').label"></span>
                 </div>
@@ -492,8 +548,9 @@
                 <dl class="grid gap-x-3 gap-y-1 text-sm grid-cols-[max-content_1fr]">
                   <dt class="text-muted">Donor</dt>
                   <dd class="break-words" x-text="offer.donor ? (offer.donor.full_name || 'Name not given') : 'Deleted account'"></dd>
-                  <dt class="text-muted">Phone</dt>
-                  <dd>
+                  <!-- The phone is only needed to arrange drop-off, so History doesn't show it -->
+                  <dt class="text-muted" x-show="filter === 'active'">Phone</dt>
+                  <dd x-show="filter === 'active'">
                     <template x-if="offer.donor?.phone">
                       <a :href="`tel:${offer.donor.phone}`" class="font-medium text-primary underline" x-text="offer.donor.phone"></a>
                     </template>
@@ -502,7 +559,7 @@
                   <dt class="text-muted">Offered</dt>
                   <dd x-text="formatDate(offer.created_at)"></dd>
                 </dl>
-                <p class="text-xs text-muted">The donor's details are only shown to you, to arrange drop-off.</p>
+                <p class="text-xs text-muted" x-show="filter === 'active'">The donor's details are only shown to you, to arrange drop-off.</p>
 
                 <p class="rounded-md bg-canvas p-3 text-sm whitespace-pre-line break-words" x-show="offer.message" x-text="offer.message"></p>
                 <p class="text-sm text-success" x-show="offer.item.category === 'food' && offer.food_safety_confirmed">
@@ -529,6 +586,12 @@
               </li>
             </template>
           </ul>
+          <div x-show="filter === 'history' && history.hasMore" x-cloak>
+            <button type="button" class="btn btn-secondary w-full sm:w-auto" :disabled="history.loading" @click="history.more()">
+              <span class="spinner" x-show="history.loading" x-cloak aria-hidden="true"></span>
+              Show more
+            </button>
+          </div>
         </section>
       </template>
 
@@ -538,6 +601,10 @@
           <div class="flex flex-wrap items-center justify-between gap-3">
             <h2 id="events-heading" class="text-xl font-semibold">Events</h2>
             <button type="button" class="btn btn-primary" x-show="!showForm" @click="newEvent()">New event</button>
+          </div>
+          <div class="segmented w-full sm:w-auto sm:self-start" role="group" aria-label="Show events">
+            <button type="button" class="segmented-link" :aria-current="tab === 'active' ? 'page' : null" @click="showTab('active')">Upcoming</button>
+            <button type="button" class="segmented-link" :aria-current="tab === 'history' ? 'page' : null" @click="showTab('history')">Past &amp; cancelled</button>
           </div>
 
           <!-- New / edit form -->
@@ -658,22 +725,27 @@
           </form>
 
           <!-- Loading / error / empty -->
-          <div class="card space-y-3" x-show="loading" aria-busy="true" aria-label="Loading events">
+          <div class="card space-y-3" x-show="tab === 'active' ? loading : history.loading && history.items.length === 0" aria-busy="true" aria-label="Loading events">
             <div class="skeleton h-5 w-24"></div><div class="skeleton h-6 w-2/3"></div><div class="skeleton h-4 w-1/2"></div>
           </div>
-          <div class="card text-center" x-show="!loading && loadError" x-cloak role="alert">
-            <p class="text-danger" x-text="loadError"></p>
-            <button type="button" class="btn btn-secondary mt-3" @click="load()">Try again</button>
+          <div class="card text-center" x-show="tab === 'active' ? !loading && loadError : !history.loading && history.error" x-cloak role="alert">
+            <p class="text-danger" x-text="tab === 'active' ? loadError : history.error"></p>
+            <button type="button" class="btn btn-secondary mt-3" @click="tab === 'active' ? load() : history.load()">Try again</button>
           </div>
-          <div class="card flex flex-col items-center gap-3 py-10 text-center" x-show="!loading && !loadError && events.length === 0 && !showForm" x-cloak>
+          <div class="card flex flex-col items-center gap-3 py-10 text-center" x-show="tab === 'active' && !loading && !loadError && activeEvents.length === 0 && !showForm" x-cloak>
             <i data-lucide="calendar" class="size-10 text-primary" aria-hidden="true"></i>
-            <p class="text-muted">No events yet.</p>
-            <button type="button" class="btn btn-primary" @click="newEvent()">Create your first event</button>
+            <p class="text-muted" x-text="events.length ? 'No upcoming events right now.' : 'No events yet.'">No events yet.</p>
+            <button type="button" class="btn btn-primary" @click="newEvent()" x-text="events.length ? 'New event' : 'Create your first event'">Create your first event</button>
+          </div>
+          <div class="card flex flex-col items-center gap-3 py-10 text-center"
+            x-show="tab === 'history' && history.loaded && !history.loading && !history.error && history.items.length === 0" x-cloak>
+            <i data-lucide="history" class="size-10 text-primary" aria-hidden="true"></i>
+            <p class="text-muted">No past events yet. Completed and cancelled events will appear here.</p>
           </div>
 
-          <!-- List -->
-          <ul class="grid gap-4 md:grid-cols-2" x-show="!loading && !loadError">
-            <template x-for="event in events" :key="event.id">
+          <!-- List: the same card for Upcoming and Past & cancelled (past events are read-only) -->
+          <ul class="grid gap-4 md:grid-cols-2" x-show="tab === 'active' ? !loading && !loadError : history.items.length > 0">
+            <template x-for="event in (tab === 'active' ? activeEvents : history.items)" :key="event.id">
               <li class="card flex flex-col gap-3">
                 <div class="flex flex-wrap items-center gap-2">
                   <span :class="badges.approval[event.approval].className" x-text="badges.approval[event.approval].label"></span>
@@ -683,6 +755,11 @@
                   <h3 class="text-lg font-semibold break-words" x-text="event.title"></h3>
                   <p class="text-sm text-muted" x-text="formatEventTime(event.starts_at, event.ends_at)"></p>
                   <p class="text-sm text-muted break-words" x-text="event.location_name"></p>
+                  <p class="text-xs text-muted" x-show="!isActiveEventStatus(event)" x-text="eventEndedText(event)"></p>
+                </div>
+                <div class="rounded-md bg-warning-soft p-3 text-sm text-warning" x-show="event.status === 'cancelled'">
+                  <p class="font-semibold">Cancelled</p>
+                  <p class="mt-1 whitespace-pre-line break-words text-ink" x-text="event.cancel_reason || 'No reason was given.'"></p>
                 </div>
                 <dl class="grid grid-cols-[max-content_1fr] gap-x-3 gap-y-1 text-sm">
                   <dt class="text-muted">Volunteers needed</dt>
@@ -696,9 +773,27 @@
                   <p class="mt-1 whitespace-pre-line" x-text="event.admin_note || 'No reason was given.'"></p>
                   <p class="mt-2">Edit the event to send it for approval again.</p>
                 </div>
-                <div class="rounded-md bg-success-soft p-3 text-sm text-success" x-show="event.status === 'completed' && event.outcome_summary">
+                <div class="rounded-md bg-success-soft p-3 text-sm text-success" x-show="event.status === 'completed' && editingOutcomeId !== event.id">
                   <p class="font-semibold">Outcome</p>
-                  <p class="mt-1 whitespace-pre-line text-ink" x-text="event.outcome_summary"></p>
+                  <p class="mt-1 whitespace-pre-line break-words text-ink" x-text="event.outcome_summary || 'No summary yet.'"></p>
+                  <button type="button" class="btn btn-ghost -ml-3 mt-1 px-3" @click="startEditOutcome(event)">Edit outcome</button>
+                </div>
+
+                <!-- Edit the outcome of a completed event (everything else stays read-only) -->
+                <div class="space-y-3 rounded-md border border-line bg-canvas p-4" x-show="editingOutcomeId === event.id" x-cloak>
+                  <div>
+                    <label :for="`edit-outcome-${event.id}`" class="label">Outcome summary <span class="text-danger" aria-hidden="true">*</span></label>
+                    <textarea :id="`edit-outcome-${event.id}`" class="input py-2" rows="3" maxlength="1000" x-model="outcome"
+                      :aria-invalid="outcomeError ? 'true' : null" :aria-describedby="`edit-outcome-err-${event.id}`"></textarea>
+                    <p :id="`edit-outcome-err-${event.id}`" class="field-error" x-show="outcomeError" x-text="outcomeError"></p>
+                  </div>
+                  <div class="flex flex-wrap gap-3">
+                    <button type="button" class="btn btn-primary" :disabled="busyId === event.id" @click="saveOutcome(event)">
+                      <span class="spinner" x-show="busyId === event.id" x-cloak aria-hidden="true"></span>
+                      Save outcome
+                    </button>
+                    <button type="button" class="btn btn-ghost" @click="editingOutcomeId = null">Cancel</button>
+                  </div>
                 </div>
 
                 <!-- Outcome form -->
@@ -723,6 +818,17 @@
                   <button type="button" class="btn btn-secondary" x-show="event.status !== 'completed' && event.status !== 'cancelled'" @click="edit(event)">Edit</button>
                   <a class="btn btn-ghost" x-show="event.approval === 'approved'" :href="`/event.html?id=${event.id}`">View public page</a>
                   <button type="button" class="btn btn-primary" x-show="canComplete(event)" @click="startComplete(event)">Mark completed</button>
+                  <!-- Nobody applied yet → Delete; otherwise Cancel event (volunteers see the reason) -->
+                  <button type="button" class="btn btn-danger" x-show="isActiveEventStatus(event) && hasApplications[event.id]"
+                    :disabled="busyId === event.id" @click="cancel(event)">
+                    <span class="spinner" x-show="busyId === event.id" x-cloak aria-hidden="true"></span>
+                    Cancel event
+                  </button>
+                  <button type="button" class="btn btn-danger" x-show="isActiveEventStatus(event) && !hasApplications[event.id]"
+                    :disabled="busyId === event.id" @click="remove(event)">
+                    <span class="spinner" x-show="busyId === event.id" x-cloak aria-hidden="true"></span>
+                    Delete
+                  </button>
                 </div>
 
                 <!-- Share (REQUIREMENTS.md 5.3): approved events only -->
@@ -877,6 +983,12 @@
               </li>
             </template>
           </ul>
+          <div x-show="tab === 'history' && history.hasMore" x-cloak>
+            <button type="button" class="btn btn-secondary w-full sm:w-auto" :disabled="history.loading" @click="history.more()">
+              <span class="spinner" x-show="history.loading" x-cloak aria-hidden="true"></span>
+              Show more
+            </button>
+          </div>
         </section>
       </template>
     </main>

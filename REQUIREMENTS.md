@@ -30,6 +30,20 @@ Community donation and volunteer platform for Singapore. Hackathon prototype.
 
 **Events:** organization creates an event (optionally linked to one of its own donation requests) → admin approves → it appears on the map and can be shared (section 5). Changing an approved event's title, description, place or time sends it back for approval automatically.
 
+**History and cancelling (cancel instead of delete):**
+
+- Every list is split into **Active** and **History** tabs (Alpine). History is newest first, shows the status badge, the date it ended (`closed_at`, `cancelled_at` or `updated_at`) and any reason, and loads **20 at a time** with "Show more". Friendly empty states ("No past donations yet").
+  - **Donor:** Active = pending and accepted offers; History = delivered, cancelled, rejected. An offer declined because its request closed shows "Request closed" plus the request's `close_reason`.
+  - **Volunteer:** Active = pending and approved applications for upcoming or ongoing events, and open tasks; History = everything else. Cancelled event → "Event cancelled: <reason>"; completed → "Event completed" with the outcome summary.
+  - **Organization:** requests Active (pending approval, open) | History (fulfilled, closed, rejected); events Upcoming (upcoming, ongoing) | Past & cancelled (completed, cancelled); offers Active | History. Completed events can still have their outcome summary edited; everything else about a past event is read-only.
+  - **Admin:** a History section with status filters for requests, events, offers and applications, plus "Recently closed or cancelled" (last 30 days) to spot unusual activity.
+- **Close request:** dialog with an optional reason (`donation_requests.close_reason`, max 300 characters). The database sets `closed_at`.
+- **Cancel event:** dialog with a **required** reason (`events.cancel_reason`, max 300 characters) and a warning that approved volunteers will see it. The database sets `cancelled_at`. Visitors can read the reason (column grant), and `event.html` shows "This event was cancelled: <reason>" and hides the Volunteer button.
+- **Delete** only while nothing depends on the row: requests still pending approval, and events nobody has applied to (`event_has_applications()`). Otherwise show Close / Cancel instead.
+- Maps and public event lists show only upcoming and ongoing events.
+- History is kept for 12 months (privacy notice); users can ask for it to be deleted sooner.
+- The original migration file (`20261026040000_history_and_cancel.sql`) was rebuilt from the live database; see its header.
+
 **Account types and roles:**
 
 - **Individual** accounts can **donate**, **volunteer**, or **both**. This is stored as `profiles.is_donor` and `profiles.is_volunteer`. `profiles.role` (`donor` or `volunteer`) only decides which dashboard opens first after login.

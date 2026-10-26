@@ -20,6 +20,8 @@
  * @property {number} volunteers_needed     0 = no limit
  * @property {EventStatus} status
  * @property {string | null} outcome_summary
+ * @property {string | null} [cancel_reason]   why the organization cancelled it (required when cancelling)
+ * @property {string | null} [cancelled_at]    set by the database when it's cancelled
  * @property {string | null} donation_request_id
  * @property {Approval} approval
  * @property {string | null} [admin_note]   not included for visitors
@@ -48,13 +50,9 @@
 const PUBLIC_EVENT_COLUMNS =
   "id, organization_id, title, description, location_name, latitude, longitude, starts_at, ends_at, volunteers_needed, status, outcome_summary, donation_request_id, approval, created_at";
 
+/** Event status badges live in STATUS_BADGE (js/ui.js) with every other status. */
 /** @type {Record<EventStatus, { className: string, label: string }>} */
-const EVENT_STATUS_BADGE = {
-  upcoming: { className: "badge badge-info", label: "Upcoming" },
-  ongoing: { className: "badge badge-success", label: "Happening now" },
-  completed: { className: "badge badge-neutral", label: "Completed" },
-  cancelled: { className: "badge badge-neutral", label: "Cancelled" },
-};
+const EVENT_STATUS_BADGE = /** @type {any} */ (STATUS_BADGE.event);
 
 /** @type {Record<Approval, { className: string, label: string }>} */
 const APPROVAL_BADGE = {
@@ -102,7 +100,7 @@ function formatEventTime(start, end) {
 
 /**
  * True until the event has finished (end time, or start time when there's no end).
- * @param {VolunteerEvent} event
+ * @param {{ starts_at: string, ends_at?: string | null }} event
  * @returns {boolean}
  */
 function isNotOver(event) {
@@ -181,6 +179,114 @@ async function completeEvent(id, summary) {
     .select("id");
   if (error) throw error;
   if (!data?.length) throw { code: "42501", message: "No event was updated" };
+}
+
+/**
+ * Upcoming or ongoing (the "Upcoming" tab); completed and cancelled events are History.
+ * @param {{ status: EventStatus }} event
+ * @returns {boolean}
+ */
+function isActiveEventStatus(event) {
+  return event.status === "upcoming" || event.status === "ongoing";
+}
+
+/**
+ * One page of this organization's past events (completed or cancelled), latest first.
+ * @param {string} orgId
+ * @param {number} from first row (0-based)
+ * @param {number} to last row, inclusive
+ * @returns {Promise<VolunteerEvent[]>}
+ */
+async function listMyEventHistory(orgId, from, to) {
+  const { data, error } = await db()
+    .from("events")
+    .select("*, request:donation_requests(title)")
+    .eq("organization_id", orgId)
+    .in("status", ["completed", "cancelled"])
+    .order("starts_at", { ascending: false })
+    .range(from, to);
+  if (error) throw error;
+  return data ?? [];
+}
+
+/**
+ * Which of these events already have applications (any status). Events with applications are
+ * cancelled, not deleted, so volunteers can see what happened.
+ * @param {string[]} eventIds
+ * @returns {Promise<Record<string, boolean>>}
+ */
+async function eventsWithApplications(eventIds) {
+  const answers = await Promise.all(
+    eventIds.map(async (id) => {
+      const { data, error } = await db().rpc("event_has_applications", { ev_id: id });
+      if (error) throw error;
+      return /** @type {[string, boolean]} */ ([id, Boolean(data)]);
+    }),
+  );
+  return Object.fromEntries(answers);
+}
+
+/**
+ * Cancels an event with a reason that volunteers and visitors see. The database records when.
+ * @param {string} id
+ * @param {string} reason
+ * @returns {Promise<void>}
+ */
+async function cancelEvent(id, reason) {
+  const { data, error } = await db()
+    .from("events")
+    .update({ status: "cancelled", cancel_reason: reason.trim().slice(0, REASON_MAX_LENGTH) })
+    .eq("id", id)
+    .select("id");
+  if (error) throw error;
+  if (!data?.length) throw { code: "42501", message: "No event was updated" };
+}
+
+/**
+ * Deletes an event nobody has applied to. Events with applications are cancelled instead.
+ * @param {string} id
+ * @returns {Promise<void>}
+ */
+async function deleteEvent(id) {
+  const { data, error } = await db().from("events").delete().eq("id", id).select("id");
+  if (error) throw error;
+  if (!data?.length) {
+    throw { code: "P0001", message: "Volunteers have applied, so this event can't be deleted — cancel it instead." };
+  }
+}
+
+/**
+ * Updates the outcome summary of a completed event (the only thing that changes after it's over).
+ * @param {string} id
+ * @param {string} summary
+ * @returns {Promise<void>}
+ */
+async function updateOutcome(id, summary) {
+  const { data, error } = await db().from("events").update({ outcome_summary: summary.trim() }).eq("id", id).select("id");
+  if (error) throw error;
+  if (!data?.length) throw { code: "42501", message: "No event was updated" };
+}
+
+/**
+ * Why a cancelled event was cancelled, for event.html. Asked separately so the page still works
+ * if visitors can't read the reason yet (the grant migration hasn't been run): then it's "".
+ * @param {string} id
+ * @returns {Promise<string>}
+ */
+async function getEventCancelReason(id) {
+  const { data, error } = await db().from("events").select("cancel_reason").eq("id", id).maybeSingle();
+  if (error) return "";
+  return data?.cancel_reason ?? "";
+}
+
+/**
+ * The "ended" line for a past event, e.g. "Cancelled 3 Oct 2026".
+ * @param {VolunteerEvent} event
+ * @returns {string}
+ */
+function eventEndedText(event) {
+  if (event.status === "cancelled") return `Cancelled ${formatDate(event.cancelled_at ?? event.starts_at)}`;
+  return `Ended ${formatDate(event.ends_at ?? event.starts_at)}`;
 }
 
 /**

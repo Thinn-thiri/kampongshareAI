@@ -33,6 +33,9 @@
  * @property {string | null} dropoff_instructions
  * @property {RequestStatus} status
  * @property {string | null} [admin_note]   not included for visitors
+ * @property {string | null} [close_reason]   why the organization or admin closed it (optional)
+ * @property {string | null} [closed_at]      set by the database when it's closed or fulfilled
+ * @property {string} [updated_at]
  * @property {number | null} ai_score
  * @property {string | null} ai_reasons
  * @property {string} created_at
@@ -224,6 +227,38 @@ async function listMyRequests(orgId) {
   return (data ?? []).map(sortItems);
 }
 
+/** Request statuses that are finished and belong in History. */
+const PAST_REQUEST_STATUSES = ["fulfilled", "closed", "rejected"];
+
+/**
+ * One page of this organization's finished requests (fulfilled, closed, rejected), most recently ended first.
+ * @param {string} orgId
+ * @param {number} from first row (0-based)
+ * @param {number} to last row, inclusive
+ * @returns {Promise<DonationRequest[]>}
+ */
+async function listMyRequestHistory(orgId, from, to) {
+  const { data, error } = await db()
+    .from("donation_requests")
+    .select("*, request_items(*)")
+    .eq("organization_id", orgId)
+    .in("status", PAST_REQUEST_STATUSES)
+    .order("updated_at", { ascending: false })
+    .range(from, to);
+  if (error) throw error;
+  return (data ?? []).map(sortItems);
+}
+
+/**
+ * The "ended" line for a request in History, e.g. "Closed 3 Oct 2026".
+ * @param {DonationRequest} request
+ * @returns {string}
+ */
+function requestEndedText(request) {
+  const word = { fulfilled: "Fulfilled", closed: "Closed", rejected: "Rejected" }[/** @type {string} */ (request.status)] ?? "Updated";
+  return `${word} ${formatDate(request.closed_at ?? request.updated_at ?? request.created_at)}`;
+}
+
 /**
  * @param {ItemFormRow} row
  * @returns {{ name: string, category: ItemCategory, unit: string, quantity_needed: number }}
@@ -327,14 +362,32 @@ async function updateRequest(request, form) {
 }
 
 /**
- * Closes a request. Waiting offers are declined by the database; accepted ones carry on.
+ * Closes a request, with an optional reason donors can see. Waiting offers are declined by the
+ * database; accepted ones carry on. The database records when (closed_at).
+ * @param {string} id
+ * @param {string} [reason]
+ * @returns {Promise<void>}
+ */
+async function closeRequest(id, reason = "") {
+  const { data, error } = await db()
+    .from("donation_requests")
+    .update({ status: "closed", close_reason: reason.trim().slice(0, REASON_MAX_LENGTH) || null })
+    .eq("id", id)
+    .select("id");
+  if (error) throw error;
+  if (!data?.length) throw { code: "42501", message: "No request was updated" };
+}
+
+/**
+ * Deletes a request that is still waiting for approval (nobody has seen it yet).
+ * Approved requests are closed instead, so donors and the organization keep their history.
  * @param {string} id
  * @returns {Promise<void>}
  */
-async function closeRequest(id) {
-  const { data, error } = await db().from("donation_requests").update({ status: "closed" }).eq("id", id).select("id");
+async function deleteRequest(id) {
+  const { data, error } = await db().from("donation_requests").delete().eq("id", id).select("id");
   if (error) throw error;
-  if (!data?.length) throw { code: "42501", message: "No request was updated" };
+  if (!data?.length) throw { code: "P0001", message: "This request can't be deleted any more — close it instead." };
 }
 
 /**

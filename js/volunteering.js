@@ -16,6 +16,7 @@
  * @property {string} created_at
  * @property {{ id: string, title: string, starts_at: string, ends_at: string | null, location_name: string | null,
  *              status: EventStatus, approval: Approval, volunteers_needed: number,
+ *              cancel_reason: string | null, cancelled_at: string | null, outcome_summary: string | null,
  *              organization: { name: string } | null } | null} event   null if the event isn't visible any more
  */
 
@@ -44,17 +45,13 @@
  * @property {string | null} description
  * @property {string | null} due_at
  * @property {TaskStatus} status
- * @property {{ title: string, starts_at: string } | null} [event]
+ * @property {{ title: string, starts_at: string, ends_at?: string | null, status?: EventStatus } | null} [event]
  * @property {{ full_name: string } | null} [volunteer]
  */
 
+/** Application badges live in STATUS_BADGE (js/ui.js) with every other status. */
 /** @type {Record<ApplicationStatus, { className: string, label: string }>} */
-const APPLICATION_BADGE = {
-  pending: { className: "badge badge-warning", label: "Waiting" },
-  approved: { className: "badge badge-success", label: "Approved" },
-  rejected: { className: "badge badge-neutral", label: "Not selected" },
-  withdrawn: { className: "badge badge-neutral", label: "Withdrawn" },
-};
+const APPLICATION_BADGE = /** @type {any} */ (STATUS_BADGE.application);
 
 /** Shown under the disabled Withdraw button once a volunteer is approved. */
 const CONFIRMED_NOTE = "Your place is confirmed — please contact the organization if you can't make it.";
@@ -123,12 +120,61 @@ async function listMyApplications(volunteerId) {
   const { data, error } = await db()
     .from("volunteer_applications")
     .select(
-      "*, event:events(id, title, starts_at, ends_at, location_name, status, approval, volunteers_needed, organization:organizations(name))",
+      "*, event:events(id, title, starts_at, ends_at, location_name, status, approval, volunteers_needed, cancel_reason, cancelled_at, outcome_summary, organization:organizations(name))",
     )
     .eq("volunteer_id", volunteerId)
     .order("created_at", { ascending: false });
   if (error) throw error;
   return data ?? [];
+}
+
+/**
+ * Active = still going: a pending or approved application for an upcoming or ongoing event that isn't over.
+ * Everything else (rejected, withdrawn, or the event was completed, cancelled or has ended) is History.
+ * @param {MyApplication} application
+ * @returns {boolean}
+ */
+function isActiveApplication(application) {
+  const event = application.event;
+  if (!event || (application.status !== "pending" && application.status !== "approved")) return false;
+  return (event.status === "upcoming" || event.status === "ongoing") && isNotOver(event);
+}
+
+/**
+ * What happened to the event, for an application in History.
+ * @param {MyApplication} application
+ * @returns {{ text: string, detail: string }}
+ */
+function applicationOutcome(application) {
+  const event = application.event;
+  if (!event) return { text: "Event no longer available", detail: "" };
+  if (event.status === "cancelled") {
+    return { text: event.cancel_reason ? `Event cancelled: ${event.cancel_reason}` : "Event cancelled", detail: "" };
+  }
+  if (event.status === "completed") return { text: "Event completed", detail: event.outcome_summary ?? "" };
+  if (!isNotOver(event)) return { text: "Event ended", detail: "" };
+  return { text: "", detail: "" };
+}
+
+/**
+ * The date line for an application in History: when the event was cancelled or ended, else when they applied.
+ * @param {MyApplication} application
+ * @returns {string}
+ */
+function applicationEndedText(application) {
+  const event = application.event;
+  if (event?.status === "cancelled" && event.cancelled_at) return `Cancelled ${formatDate(event.cancelled_at)}`;
+  if (event && (event.status === "completed" || !isNotOver(event))) return `Ended ${formatDate(event.ends_at ?? event.starts_at)}`;
+  return `Applied ${formatDate(application.created_at)}`;
+}
+
+/**
+ * Active tasks: not done yet, for an event that hasn't been completed or cancelled.
+ * @param {VolunteerTask} task
+ * @returns {boolean}
+ */
+function isActiveTask(task) {
+  return task.status !== "done" && task.event?.status !== "completed" && task.event?.status !== "cancelled";
 }
 
 /**
@@ -167,7 +213,7 @@ async function withdrawApplication(id) {
 async function listMyTasks(volunteerId) {
   const { data, error } = await db()
     .from("volunteer_tasks")
-    .select("*, event:events(title, starts_at)")
+    .select("*, event:events(title, starts_at, ends_at, status)")
     .eq("volunteer_id", volunteerId)
     .order("due_at", { ascending: true, nullsFirst: false })
     .order("created_at", { ascending: true });

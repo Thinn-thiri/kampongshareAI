@@ -12,12 +12,16 @@ document.addEventListener("alpine:init", () => {
     offers: [],
     loading: true,
     error: "",
-    /** @type {'action' | 'all'} */
-    filter: "action",
+    /** Active (pending, accepted) or History (delivered, rejected, cancelled) */
+    /** @type {'active' | 'history'} */
+    filter: "active",
+    /** @type {HistoryPager<IncomingOffer>} finished offers, newest first, 20 at a time */
+    history: historyPager(),
     /** @type {string | null} id of the offer being updated */
     busyId: null,
 
     async init() {
+      this.history = historyPager(async (from, to) => this.pastOffers.slice(from, to + 1));
       await this.load();
     },
 
@@ -27,6 +31,7 @@ document.addEventListener("alpine:init", () => {
       try {
         const offers = await listIncomingOffers(orgId);
         this.offers = offers.sort((a, b) => OFFER_ORDER[a.status] - OFFER_ORDER[b.status]);
+        if (this.history.loaded) await this.history.load();
       } catch (error) {
         this.error = friendlyError(error);
       } finally {
@@ -34,9 +39,23 @@ document.addEventListener("alpine:init", () => {
       }
     },
 
-    get shown() {
-      return this.filter === "all" ? this.offers : this.offers.filter((offer) => offer.status === "pending" || offer.status === "accepted");
+    get activeOffers() {
+      return this.offers.filter((offer) => offer.status === "pending" || offer.status === "accepted");
     },
+
+    get pastOffers() {
+      return this.offers
+        .filter((offer) => offer.status !== "pending" && offer.status !== "accepted")
+        .sort((a, b) => new Date(b.updated_at).getTime() - new Date(a.updated_at).getTime());
+    },
+
+    /** @param {'active' | 'history'} filter */
+    showFilter(filter) {
+      this.filter = filter;
+      if (filter === "history") this.history.load();
+    },
+
+    offerEndedText,
 
     get pendingCount() {
       return this.offers.filter((offer) => offer.status === "pending").length;

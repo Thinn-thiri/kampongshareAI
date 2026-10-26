@@ -296,56 +296,105 @@
         </div>
       </section>
 
-      <!-- My offers -->
+      <!-- My offers: Active | History -->
       <section class="space-y-4" aria-labelledby="offers-heading">
-        <h2 id="offers-heading" class="text-xl font-semibold">My offers</h2>
-
-        <div class="card space-y-3" x-show="loadingOffers" aria-busy="true" aria-label="Loading your offers">
-          <div class="skeleton h-5 w-24"></div><div class="skeleton h-5 w-2/3"></div><div class="skeleton h-4 w-1/2"></div>
-        </div>
-        <div class="card text-center" x-show="!loadingOffers && offersError" x-cloak role="alert">
-          <p class="text-danger" x-text="offersError"></p>
-          <button type="button" class="btn btn-secondary mt-3" @click="loadOffers()">Try again</button>
-        </div>
-        <div class="card flex flex-col items-center gap-3 text-center py-10" x-show="!loadingOffers && !offersError && offers.length === 0" x-cloak>
-          <i data-lucide="hand-heart" class="size-10 text-primary" aria-hidden="true"></i>
-          <p class="text-muted">You haven't offered anything yet — browse the requests above.</p>
-          <a href="/needs.html" class="btn btn-primary">Browse needs</a>
+        <div class="flex flex-wrap items-center justify-between gap-3">
+          <h2 id="offers-heading" class="text-xl font-semibold">My offers</h2>
+          <div class="segmented w-full sm:w-auto" role="group" aria-label="Show offers">
+            <button type="button" class="segmented-link" :aria-current="offerTab === 'active' ? 'page' : null" @click="showOfferTab('active')">Active</button>
+            <button type="button" class="segmented-link" :aria-current="offerTab === 'history' ? 'page' : null" @click="showOfferTab('history')">History</button>
+          </div>
         </div>
 
-        <ul class="space-y-3" x-show="!loadingOffers && !offersError">
-          <template x-for="offer in offers" :key="offer.id">
-            <li class="card space-y-3">
-              <div class="flex flex-wrap items-start justify-between gap-3">
-                <div class="min-w-0">
-                  <p class="font-semibold break-words" x-text="`${offer.quantity} ${offer.item?.unit ?? ''} · ${offer.item?.name ?? 'Item no longer available'}`"></p>
-                  <p class="text-sm text-muted break-words"
-                    x-text="[offer.item?.request?.title, offer.item?.request?.organization?.name].filter(Boolean).join(' · ') || 'Request no longer available'"></p>
-                  <p class="text-xs text-muted" x-text="`Offered ${formatDate(offer.created_at)}`"></p>
+        <div class="space-y-4" x-show="offerTab === 'active'">
+          <div class="card space-y-3" x-show="loadingOffers" aria-busy="true" aria-label="Loading your offers">
+            <div class="skeleton h-5 w-24"></div><div class="skeleton h-5 w-2/3"></div><div class="skeleton h-4 w-1/2"></div>
+          </div>
+          <div class="card text-center" x-show="!loadingOffers && offersError" x-cloak role="alert">
+            <p class="text-danger" x-text="offersError"></p>
+            <button type="button" class="btn btn-secondary mt-3" @click="loadOffers()">Try again</button>
+          </div>
+          <div class="card flex flex-col items-center gap-3 text-center py-10" x-show="!loadingOffers && !offersError && offers.length === 0" x-cloak>
+            <i data-lucide="hand-heart" class="size-10 text-primary" aria-hidden="true"></i>
+            <p class="text-muted">No active offers right now — browse the requests above.</p>
+            <a href="/needs.html" class="btn btn-primary">Browse needs</a>
+          </div>
+
+          <ul class="space-y-3" x-show="!loadingOffers && !offersError">
+            <template x-for="offer in offers" :key="offer.id">
+              <li class="card space-y-3">
+                <div class="flex flex-wrap items-start justify-between gap-3">
+                  <div class="min-w-0">
+                    <p class="font-semibold break-words" x-text="`${offer.quantity} ${offer.item?.unit ?? ''} · ${offer.item?.name ?? 'Item no longer available'}`"></p>
+                    <p class="text-sm text-muted break-words"
+                      x-text="[offer.item?.request?.title, offer.item?.request?.organization?.name].filter(Boolean).join(' · ') || 'Request no longer available'"></p>
+                    <p class="text-xs text-muted" x-text="`Offered ${formatDate(offer.created_at)}`"></p>
+                  </div>
+                  <span :class="offerDisplay(offer).className" x-text="offerDisplay(offer).label"></span>
                 </div>
-                <span :class="offerDisplay(offer).className" x-text="offerDisplay(offer).label"></span>
-              </div>
 
-              <!-- Accepted: where to bring it -->
-              <div class="rounded-md border border-info bg-info-soft p-4 text-info" x-show="offer.status === 'accepted'">
-                <p class="font-semibold">Your offer was accepted — please drop off at:</p>
-                <p class="mt-1 whitespace-pre-line break-words text-ink"
-                  x-text="offer.item?.request?.dropoff_instructions || 'The organization will contact you to arrange drop-off.'"></p>
-                <p class="mt-1 text-sm break-words" x-show="offer.item?.request?.organization?.address"
-                  x-text="`Organization address: ${offer.item?.request?.organization?.address}`"></p>
-              </div>
+                <!-- Accepted: where to bring it -->
+                <div class="rounded-md border border-info bg-info-soft p-4 text-info" x-show="offer.status === 'accepted'">
+                  <p class="font-semibold">Your offer was accepted — please drop off at:</p>
+                  <p class="mt-1 whitespace-pre-line break-words text-ink"
+                    x-text="offer.item?.request?.dropoff_instructions || 'The organization will contact you to arrange drop-off.'"></p>
+                  <p class="mt-1 text-sm break-words" x-show="offer.item?.request?.organization?.address"
+                    x-text="`Organization address: ${offer.item?.request?.organization?.address}`"></p>
+                </div>
 
-              <p class="text-sm text-muted whitespace-pre-line break-words" x-show="offer.message" x-text="`Your message: ${offer.message}`"></p>
+                <p class="text-sm text-muted whitespace-pre-line break-words" x-show="offer.message" x-text="`Your message: ${offer.message}`"></p>
 
-              <div x-show="isActiveOffer(offer)">
-                <button type="button" class="btn btn-danger" :disabled="cancellingId === offer.id" @click="cancel(offer)">
-                  <span class="spinner" x-show="cancellingId === offer.id" x-cloak aria-hidden="true"></span>
-                  Cancel offer
-                </button>
-              </div>
-            </li>
-          </template>
-        </ul>
+                <div x-show="isActiveOffer(offer)">
+                  <button type="button" class="btn btn-danger" :disabled="cancellingId === offer.id" @click="cancel(offer)">
+                    <span class="spinner" x-show="cancellingId === offer.id" x-cloak aria-hidden="true"></span>
+                    Cancel offer
+                  </button>
+                </div>
+              </li>
+            </template>
+          </ul>
+        </div>
+
+        <!-- History: delivered, cancelled, rejected (newest first, 20 at a time) -->
+        <div class="space-y-4" x-show="offerTab === 'history'" x-cloak>
+          <div class="card space-y-3" x-show="history.loading && history.items.length === 0" aria-busy="true" aria-label="Loading past offers">
+            <div class="skeleton h-5 w-24"></div><div class="skeleton h-5 w-2/3"></div><div class="skeleton h-4 w-1/2"></div>
+          </div>
+          <div class="card text-center" x-show="!history.loading && history.error" x-cloak role="alert">
+            <p class="text-danger" x-text="history.error"></p>
+            <button type="button" class="btn btn-secondary mt-3" @click="history.load()">Try again</button>
+          </div>
+          <div class="card flex flex-col items-center gap-3 text-center py-10"
+            x-show="history.loaded && !history.loading && !history.error && history.items.length === 0" x-cloak>
+            <i data-lucide="history" class="size-10 text-primary" aria-hidden="true"></i>
+            <p class="text-muted">No past donations yet. Delivered, cancelled and closed offers will appear here.</p>
+          </div>
+
+          <ul class="space-y-3" x-show="history.items.length > 0">
+            <template x-for="offer in history.items" :key="offer.id">
+              <li class="card space-y-2">
+                <div class="flex flex-wrap items-start justify-between gap-3">
+                  <div class="min-w-0">
+                    <p class="font-semibold break-words" x-text="`${offer.quantity} ${offer.item?.unit ?? ''} · ${offer.item?.name ?? 'Item no longer available'}`"></p>
+                    <p class="text-sm text-muted break-words"
+                      x-text="[offer.item?.request?.title, offer.item?.request?.organization?.name].filter(Boolean).join(' · ') || 'Request no longer available'"></p>
+                    <p class="text-xs text-muted" x-text="offerEndedText(offer)"></p>
+                  </div>
+                  <span :class="offerDisplay(offer).className" x-text="offerDisplay(offer).label"></span>
+                </div>
+                <p class="text-sm text-muted whitespace-pre-line break-words"
+                  x-show="offerDisplay(offer).label === 'Request closed' && offer.item?.request?.close_reason"
+                  x-text="`Reason: ${offer.item?.request?.close_reason}`"></p>
+              </li>
+            </template>
+          </ul>
+          <div x-show="history.hasMore" x-cloak>
+            <button type="button" class="btn btn-secondary w-full sm:w-auto" :disabled="history.loading" @click="history.more()">
+              <span class="spinner" x-show="history.loading" x-cloak aria-hidden="true"></span>
+              Show more
+            </button>
+          </div>
+        </div>
       </section>
     </main>
   </body>

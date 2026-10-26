@@ -67,6 +67,15 @@ document.addEventListener("alpine:init", () => {
         /** @type {string | null} */
         busyId: null,
 
+        /** Upcoming (upcoming, ongoing) or Past & cancelled (completed, cancelled) */
+        tab: "active",
+        /** @type {HistoryPager<VolunteerEvent>} */
+        history: historyPager((from, to) => listMyEventHistory(orgId, from, to)),
+        /** @type {Record<string, boolean>} active events that already have applications (can't be deleted) */
+        hasApplications: {},
+        /** @type {string | null} completed event whose outcome is being edited */
+        editingOutcomeId: null,
+
         async init() {
           await this.load();
         },
@@ -76,8 +85,10 @@ document.addEventListener("alpine:init", () => {
           this.loadError = "";
           try {
             const [events, requests] = await Promise.all([listMyEvents(orgId), listMyRequests(orgId)]);
+            this.hasApplications = await eventsWithApplications(events.filter(isActiveEventStatus).map((e) => e.id));
             this.events = events;
             this.myRequests = requests.map((r) => ({ id: r.id, title: r.title, status: r.status }));
+            if (this.history.loaded) await this.history.load();
           } catch (error) {
             this.loadError = friendlyError(error);
           } finally {
@@ -98,6 +109,17 @@ document.addEventListener("alpine:init", () => {
 
         badges: { status: EVENT_STATUS_BADGE, approval: APPROVAL_BADGE },
         formatEventTime,
+        eventEndedText,
+
+        get activeEvents() {
+          return this.events.filter(isActiveEventStatus);
+        },
+
+        /** @param {'active' | 'history'} tab */
+        showTab(tab) {
+          this.tab = tab;
+          if (tab === "history" && !this.history.loaded) this.history.load();
+        },
 
         /** @param {string} fieldId */
         openForm(fieldId) {
@@ -277,11 +299,94 @@ document.addEventListener("alpine:init", () => {
           this.busyId = event.id;
           try {
             await completeEvent(event.id, summary);
-            toast("Event marked completed. Thank you for running it!");
+            toast("Event marked completed. Thank you for running it! You'll find it under Past & cancelled.");
             this.completingId = null;
             await this.load();
           } catch (error) {
             toast(friendlyError(error), "error");
+          } finally {
+            this.busyId = null;
+          }
+        },
+
+        /**
+         * Events with applications are cancelled (volunteers see the reason); others can be deleted.
+         * @param {VolunteerEvent} event
+         */
+        async cancel(event) {
+          const reason = await reasonDialog(`"${event.title}" won't take new volunteers and will disappear from the map.`, {
+            title: "Cancel this event?",
+            label: "Why is it cancelled?",
+            required: true,
+            maxLength: REASON_MAX_LENGTH,
+            warning: "Approved volunteers will see this reason, and so will anyone who opens the event's link.",
+            confirmText: "Cancel event",
+            cancelText: "Keep it",
+            danger: true,
+          });
+          if (reason === null) return;
+          this.busyId = event.id;
+          try {
+            await cancelEvent(event.id, reason);
+            toast("The event was cancelled. Volunteers can see the reason.");
+            if (this.editing?.id === event.id) this.cancelForm();
+            await this.load();
+          } catch (error) {
+            toast(friendlyError(error), "error");
+          } finally {
+            this.busyId = null;
+          }
+        },
+
+        /** @param {VolunteerEvent} event */
+        async remove(event) {
+          const ok = await confirmDialog("Nobody has applied yet, so it will be removed completely.", {
+            title: `Delete "${event.title}"?`,
+            confirmText: "Delete event",
+            danger: true,
+          });
+          if (!ok) return;
+          this.busyId = event.id;
+          try {
+            await deleteEvent(event.id);
+            toast("The event was deleted.");
+            if (this.editing?.id === event.id) this.cancelForm();
+            await this.load();
+          } catch (error) {
+            toast(friendlyError(error), "error");
+            await this.load(); // someone may have applied meanwhile: show "Cancel event" instead
+          } finally {
+            this.busyId = null;
+          }
+        },
+
+        /** @param {VolunteerEvent} event */
+        startEditOutcome(event) {
+          this.editingOutcomeId = event.id;
+          this.outcome = event.outcome_summary ?? "";
+          this.outcomeError = "";
+          setTimeout(() => document.getElementById(`edit-outcome-${event.id}`)?.focus(), 0);
+        },
+
+        /** @param {VolunteerEvent} event */
+        async saveOutcome(event) {
+          const summary = this.outcome.trim();
+          if (!summary) {
+            this.outcomeError = "Please write a short summary, e.g. how many people helped and what was done.";
+            return;
+          }
+          if (summary.length > 1000) {
+            this.outcomeError = "Please keep the summary under 1,000 characters.";
+            return;
+          }
+          this.busyId = event.id;
+          try {
+            await updateOutcome(event.id, summary);
+            event.outcome_summary = summary;
+            this.editingOutcomeId = null;
+            toast("Outcome summary saved.");
+          } catch (error) {
+            this.outcomeError = friendlyError(error);
           } finally {
             this.busyId = null;
           }

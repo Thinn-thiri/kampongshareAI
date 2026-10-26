@@ -16,6 +16,8 @@ const REQUIRED_COLUMNS = [
   ["organizations", "postal_code"],
   ["profiles", "volunteer_approval"],
   ["profile_contacts", "phone"],
+  ["donation_requests", "close_reason"],
+  ["events", "cancel_reason"],
 ];
 
 /** Friendly labels for the public_stats() totals. */
