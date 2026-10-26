@@ -1,10 +1,30 @@
 // @ts-check
 // Donor dashboard (donor.html): browse open requests, offer items, and manage "My offers".
+// Three sections, Overview · Find needs · My offers, linked from the top bar (js/auth.js
+// DASHBOARD_SECTIONS) and kept in the URL hash, so reloading and Back / Forward work.
 // UI state only — database calls live in js/offers.js.
+
+/** @typedef {'overview' | 'find' | 'offers'} DonorSection */
+
+const DONOR_SECTIONS = /** @type {DonorSection[]} */ (["overview", "find", "offers"]);
+
+/**
+ * The section in the hash. The Donate button on event.html (?request= / ?org=) opens Find needs.
+ * @returns {DonorSection}
+ */
+function readDonorSection() {
+  const hash = /** @type {DonorSection} */ (location.hash.replace(/^#/, ""));
+  if (DONOR_SECTIONS.includes(hash)) return hash;
+  const params = new URLSearchParams(location.search);
+  return params.get("request") || params.get("org") ? "find" : "overview";
+}
 
 document.addEventListener("alpine:init", () => {
   const Alpine = /** @type {any} */ (window).Alpine;
   Alpine.data("donorDashboard", () => ({
+    /** @type {DonorSection} */
+    section: readDonorSection(),
+
     /** @type {Profile | null} */
     profile: null,
 
@@ -57,7 +77,7 @@ document.addEventListener("alpine:init", () => {
     clearFilter() {
       this.filterRequestId = null;
       this.filterOrgId = null;
-      history.replaceState(null, "", location.pathname);
+      history.replaceState(null, "", location.pathname + location.hash);
     },
 
     async init() {
@@ -67,6 +87,15 @@ document.addEventListener("alpine:init", () => {
         this.profile = null;
       }
       if (!this.profile?.is_donor) return; // the page guard is redirecting
+      window.addEventListener("hashchange", () => {
+        this.section = readDonorSection();
+        window.scrollTo({ top: 0 });
+      });
+      // links from event.html (?request= / ?org=): show the section's own address so the top bar marks it
+      if (!location.hash && this.section !== "overview") {
+        history.replaceState(null, "", `${location.pathname}${location.search}#${this.section}`);
+        window.dispatchEvent(new HashChangeEvent("hashchange"));
+      }
       const donorId = this.profile.id;
       this.history = historyPager((from, to) => listMyOfferHistory(donorId, from, to), "past offers");
       await Promise.all([this.loadRequests(), this.loadOffers()]);
@@ -100,6 +129,8 @@ document.addEventListener("alpine:init", () => {
       try {
         [this.offers, this.deliveredCount] = await Promise.all([listMyOffers(this.profile.id), countMyDeliveredOffers(this.profile.id)]);
         if (this.history.loaded) await this.history.load();
+        // top bar badge on "My offers": accepted offers waiting to be dropped off
+        window.dispatchEvent(new CustomEvent("dashboard-counts", { detail: { dropoff: this.readyToDropOff.length } }));
       } catch (error) {
         this.offersError = friendlyError(error);
       } finally {
@@ -131,6 +162,7 @@ document.addEventListener("alpine:init", () => {
      */
     async offerFromMatch(itemId) {
       if (this.filterRequestId || this.filterOrgId) this.clearFilter();
+      if (this.section !== "find") location.hash = "#find"; // the offer form lives in Find needs
       let item = this.requests.flatMap((r) => r.request_items).find((i) => i.id === itemId);
       if (!item) {
         await this.loadRequests();
@@ -141,7 +173,7 @@ document.addEventListener("alpine:init", () => {
         return;
       }
       if (this.activeOfferFor(item)) {
-        toast("You already have an offer for this item — see My offers below.", "error");
+        toast("You already have an offer for this item — see My offers.", "error");
         return;
       }
       this.openOffer(item);
@@ -201,6 +233,11 @@ document.addEventListener("alpine:init", () => {
     showOfferTab(tab) {
       this.offerTab = tab;
       if (tab === "history" && !this.history.loaded) this.history.load();
+    },
+
+    /** Accepted offers: the organization is expecting them, so show where to bring them. */
+    get readyToDropOff() {
+      return this.offers.filter((offer) => offer.status === "accepted");
     },
 
     offerDisplay,

@@ -533,6 +533,11 @@ document.addEventListener("DOMContentLoaded", async () => {
  * @type {Partial<Record<Role, { href: string, label: string, icon: string, countKey?: string }[]>>}
  */
 const DASHBOARD_SECTIONS = {
+  donor: [
+    { href: "/donor.html#overview", label: "Overview", icon: "layout-dashboard" },
+    { href: "/donor.html#find", label: "Find needs", icon: "package-open" },
+    { href: "/donor.html#offers", label: "My offers", icon: "hand-heart", countKey: "dropoff" },
+  ],
   admin: [
     { href: "/admin.html#overview", label: "Overview", icon: "layout-dashboard" },
     { href: "/admin.html#review", label: "To review", icon: "inbox", countKey: "review" },
@@ -583,6 +588,18 @@ document.addEventListener("alpine:init", () => {
     },
 
     /**
+     * The dashboard sections to show in the bars, if any: admins and organizations always;
+     * donors always, or — for people who also volunteer — while they're on donor.html.
+     */
+    get sections() {
+      const profile = this.profile;
+      if (!profile) return null;
+      if (profile.role === "admin" || profile.role === "organization") return DASHBOARD_SECTIONS[profile.role] ?? null;
+      if (profile.is_donor && (!profile.is_volunteer || location.pathname === "/donor.html")) return DASHBOARD_SECTIONS.donor ?? null;
+      return null;
+    },
+
+    /**
      * Desktop top bar links. Visitors: Home · Browse needs. Logged in: Home · My dashboard
      * (people who both donate and volunteer get the Donating / Volunteering switch instead).
      * Admins and organizations get their dashboard's sections instead of "My dashboard".
@@ -591,7 +608,7 @@ document.addEventListener("alpine:init", () => {
     get topLinks() {
       const home = { href: "/", label: "Home" };
       if (!this.profile) return [home, { href: "/needs.html", label: "Browse needs" }];
-      const sections = DASHBOARD_SECTIONS[this.profile.role];
+      const sections = this.sections;
       if (sections) {
         return [home, ...sections.map((s) => ({ href: s.href, label: s.label, badge: s.countKey ? this.counts[s.countKey] : null }))];
       }
@@ -614,7 +631,12 @@ document.addEventListener("alpine:init", () => {
       if (profile.role === "admin") return [...(DASHBOARD_SECTIONS.admin ?? []), profileLink];
       const donating = { href: "/donor.html", label: "Donating", icon: "hand-heart" };
       const volunteering = { href: "/volunteer.html", label: "Volunteering", icon: "users" };
-      if (profile.is_donor && profile.is_volunteer) return [donating, volunteering, needs, profileLink];
+      const donorSections = DASHBOARD_SECTIONS.donor ?? [];
+      if (profile.is_donor && profile.is_volunteer) {
+        // on donor.html: its sections, plus a way over to volunteering
+        return location.pathname === "/donor.html" ? [...donorSections, volunteering] : [donating, volunteering, needs, profileLink];
+      }
+      if (profile.is_donor && !profile.is_volunteer) return [...donorSections, profileLink];
       if (profile.is_volunteer) return [volunteering, { href: "/#events-heading", label: "Events", icon: "calendar" }, profileLink];
       return [donating, needs, profileLink];
     },

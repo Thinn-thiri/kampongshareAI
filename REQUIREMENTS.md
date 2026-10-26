@@ -28,6 +28,8 @@ Community donation and volunteer platform for Singapore. Hackathon prototype.
 
 **Core flow:** approved organization posts a request with items → admin approves → AI scores urgency with reasons → donor browses (sorted by urgency) or gets AI recommendations → donor offers against one specific item (never more than remaining) → organization accepts / rejects → marks delivered → request becomes fulfilled automatically.
 
+**Donor dashboard (`donor.html`):** sections Overview · Find needs · My offers (`#overview`, `#find`, `#offers`). Overview: the summary cards (each links to its section), "Ready to drop off" (accepted offers with their drop-off instructions) and the "What can you give?" AI box. Find needs: open requests with the Offer form (event.html's Donate button, `?request=` / `?org=`, opens it filtered). My offers: Active | History. The "My offers" badge counts accepted offers waiting to be dropped off.
+
 **Organization dashboard (`organization.html`):** sections Overview · Requests · Offers · Events (`#overview`, `#requests`, `#offers`, `#events`; older `#requests-heading` links still work, and `?new=request` opens the new-request form). Overview: approval status until approved, the 4 summary cards (each links to its section), "Needs your action" (offers to accept or deliver, volunteer applications waiting, items waiting for admin approval) and the organization's details (a summary with "Edit details" once approved). Before approval, Requests, Offers and Events show a locked card. Badges: Offers = offers waiting, Events = volunteer applications waiting.
 
 **Events:** organization creates an event (optionally linked to one of its own donation requests) → admin approves → it appears on the map and can be shared (section 5). Changing an approved event's title, description, place or time sends it back for approval automatically.
@@ -340,7 +342,7 @@ Use Tailwind's built-in spacing (`p-4`, `gap-6`…) and text sizes (`text-sm`, `
 - **Mobile-first.** Must work at 360px wide with no sideways scrolling. Breakpoints at 640px and 1024px.
 - Content max width 1100px, centred, 16px side padding on mobile.
 - Top bar: logo, the logged-in person's own name, the main links, theme control, profile menu with logout. On mobile, a bottom navigation bar with the 3–4 main sections for that role.
-- **Dashboards are split into sections** linked from the top bar (`DASHBOARD_SECTIONS` in js/auth.js) instead of one long page: an Overview first, then one section per job. The section is kept in the URL hash, so reloading and Back / Forward work; a badge shows what's waiting (sent with the `dashboard-counts` event). Admin: Overview · To review · Browse. Organization: Overview · Requests · Offers · Events.
+- **Dashboards are split into sections** linked from the top bar (`DASHBOARD_SECTIONS` in js/auth.js) instead of one long page: an Overview first, then one section per job. The section is kept in the URL hash, so reloading and Back / Forward work; a badge shows what's waiting (sent with the `dashboard-counts` event). Admin: Overview · To review · Browse. Organization: Overview · Requests · Offers · Events. Donor: Overview · Find needs · My offers (people who also volunteer see the donor sections on donor.html, plus the Donating / Volunteering switch).
 - Dashboards start with 3–4 summary stat cards (e.g., "Open requests", "Items still needed", "Offers waiting").
 - Lists become card grids on desktop, single column on mobile.
 - Map pages: map fills the top of the screen, list of events below (mobile) or beside it (desktop).

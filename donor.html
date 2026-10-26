@@ -100,22 +100,6 @@
         <p class="mt-1 text-muted">Give exactly what's needed. Choose an item, offer an amount, and the organization will confirm.</p>
       </div>
 
-      <!-- Summary -->
-      <section aria-label="Summary" class="grid grid-cols-3 gap-3 sm:gap-4">
-        <div class="card p-4 sm:p-5">
-          <p class="text-sm text-muted">Open requests</p>
-          <p class="mt-1 text-2xl font-bold sm:text-3xl" x-text="loadingRequests ? '–' : requests.length">–</p>
-        </div>
-        <div class="card p-4 sm:p-5">
-          <p class="text-sm text-muted">My active offers</p>
-          <p class="mt-1 text-2xl font-bold sm:text-3xl" x-text="loadingOffers ? '–' : activeOfferCount">–</p>
-        </div>
-        <div class="card p-4 sm:p-5">
-          <p class="text-sm text-muted">Offers delivered</p>
-          <p class="mt-1 text-2xl font-bold sm:text-3xl" x-text="loadingOffers ? '–' : deliveredCount">–</p>
-        </div>
-      </section>
-
       <!-- Consent missing (REQUIREMENTS.md 4.2) -->
       <div class="rounded-md border border-warning bg-warning-soft p-4 text-warning" x-show="needsConsent" x-cloak role="status">
         <p class="font-semibold">One more step before you can donate</p>
@@ -123,10 +107,52 @@
         <a href="/profile.html" class="btn btn-secondary mt-3">Go to my profile</a>
       </div>
 
+      <!-- ===================== Overview ===================== -->
+      <div class="space-y-8" x-show="section === 'overview'">
+        <h2 class="text-2xl font-semibold">Overview</h2>
+
+        <section aria-label="Summary" class="grid grid-cols-3 gap-3 sm:gap-4">
+          <a href="#find" class="card block p-4 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary sm:p-5">
+            <span class="block text-sm text-muted">Open requests</span>
+            <span class="mt-1 block text-2xl font-bold sm:text-3xl" x-text="loadingRequests ? '–' : requests.length">–</span>
+          </a>
+          <a href="#offers" class="card block p-4 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary sm:p-5">
+            <span class="block text-sm text-muted">My active offers</span>
+            <span class="mt-1 block text-2xl font-bold sm:text-3xl" x-text="loadingOffers ? '–' : activeOfferCount">–</span>
+          </a>
+          <a href="#offers" class="card block p-4 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary sm:p-5">
+            <span class="block text-sm text-muted">Offers delivered</span>
+            <span class="mt-1 block text-2xl font-bold sm:text-3xl" x-text="loadingOffers ? '–' : deliveredCount">–</span>
+          </a>
+        </section>
+
+        <!-- Accepted offers: where to bring them -->
+        <section class="card space-y-3" aria-labelledby="dropoff-heading">
+          <h3 id="dropoff-heading" class="text-lg font-semibold">Ready to drop off</h3>
+          <div class="space-y-2" x-show="loadingOffers" role="status"><span class="sr-only">Loading…</span>
+            <div class="skeleton h-5 w-2/3"></div><div class="skeleton h-5 w-1/2"></div>
+          </div>
+          <p class="text-muted" x-show="!loadingOffers && readyToDropOff.length === 0" x-cloak>
+            Nothing to drop off right now. When an organization accepts your offer, where to bring it shows here.
+          </p>
+          <ul class="divide-y divide-line" x-show="!loadingOffers && readyToDropOff.length">
+            <template x-for="offer in readyToDropOff" :key="offer.id">
+              <li class="space-y-1 py-3">
+                <p class="font-semibold break-words" x-text="`${offer.quantity} ${offer.item?.unit ?? ''} · ${offer.item?.name ?? 'Item'}`"></p>
+                <p class="text-sm text-primary break-words" x-text="[offer.item?.request?.title, offer.item?.request?.organization?.name].filter(Boolean).join(' · ')"></p>
+                <p class="text-sm whitespace-pre-line break-words"
+                  x-text="offer.item?.request?.dropoff_instructions || 'The organization will contact you to arrange drop-off.'"></p>
+                <p class="text-sm text-muted break-words" x-show="offer.item?.request?.organization?.address"
+                  x-text="`Organization address: ${offer.item?.request?.organization?.address}`"></p>
+              </li>
+            </template>
+          </ul>
+        </section>
+
       <!-- What can you give? (REQUIREMENTS.md 6.4) -->
       <section class="card space-y-4" x-data="matchBox" aria-labelledby="match-heading">
         <div class="flex flex-wrap items-center gap-2">
-          <h2 id="match-heading" class="text-xl font-semibold">What can you give?</h2>
+          <h3 id="match-heading" class="text-lg font-semibold">What can you give?</h3>
           <span class="badge badge-ai">AI-suggested</span>
         </div>
         <form class="space-y-3" novalidate @submit.prevent="search">
@@ -194,9 +220,11 @@
         </div>
       </section>
 
-      <!-- Open requests -->
-      <section class="space-y-4" aria-labelledby="open-heading">
-        <h2 id="open-heading" class="text-xl font-semibold">Open requests</h2>
+      </div>
+
+      <!-- ===================== Find needs ===================== -->
+      <section class="space-y-4" x-show="section === 'find'" x-cloak aria-labelledby="open-heading">
+        <h2 id="open-heading" class="text-2xl font-semibold">Find needs</h2>
         <div class="flex flex-wrap items-center justify-between gap-3 rounded-md bg-info-soft p-3 text-sm text-info" x-show="filterText" x-cloak role="status">
           <p x-text="filterText"></p>
           <button type="button" class="btn btn-secondary min-h-9 px-3" @click="clearFilter()">Show all requests</button>
@@ -332,9 +360,9 @@
       </section>
 
       <!-- My offers: Active | History -->
-      <section class="space-y-4" aria-labelledby="offers-heading">
+      <section class="space-y-4" x-show="section === 'offers'" x-cloak aria-labelledby="offers-heading">
         <div class="flex flex-wrap items-center justify-between gap-3">
-          <h2 id="offers-heading" class="text-xl font-semibold">My offers</h2>
+          <h2 id="offers-heading" class="text-2xl font-semibold">My offers</h2>
           <div class="segmented w-full sm:w-auto" role="group" aria-label="Show offers">
             <button type="button" class="segmented-link" :aria-pressed="(offerTab === 'active').toString()" @click="showOfferTab('active')">Active</button>
             <button type="button" class="segmented-link" :aria-pressed="(offerTab === 'history').toString()" @click="showOfferTab('history')">History</button>
@@ -351,8 +379,8 @@
           </div>
           <div class="card flex flex-col items-center gap-3 text-center py-10" x-show="!loadingOffers && !offersError && offers.length === 0" x-cloak>
             <i data-lucide="hand-heart" class="size-10 text-primary" aria-hidden="true"></i>
-            <p class="text-muted">No active offers right now — browse the requests above.</p>
-            <a href="/needs.html" class="btn btn-primary">Browse needs</a>
+            <p class="text-muted">No active offers right now — find something you can give.</p>
+            <a href="#find" class="btn btn-primary">Find needs</a>
           </div>
 
           <ul class="space-y-3" x-show="!loadingOffers && !offersError">
