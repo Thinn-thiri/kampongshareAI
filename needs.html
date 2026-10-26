@@ -203,7 +203,7 @@
               <p class="text-sm text-muted break-words" x-show="request.organization?.address" x-text="request.organization?.address"></p>
               <p class="text-sm text-muted" x-text="request.deadline ? `Needed by ${formatDate(request.deadline)}` : 'No deadline'"></p>
               <p class="mt-2 text-sm whitespace-pre-line break-words" x-show="request.description" x-text="request.description"></p>
-              <a class="btn btn-ghost -ml-3 mt-1 px-3 text-sm" x-show="viewerReady && ownsContent(request.organization_id)" x-cloak href="/organization.html#requests-heading">Your organization · Manage</a>
+              <a class="btn btn-ghost -ml-3 mt-1 px-3 text-sm" x-show="viewerReady && ownsContent(request.organization_id)" x-cloak href="/organization.html#requests">Your organization · Manage</a>
               <a class="btn btn-ghost -ml-3 mt-1 px-3 text-sm" x-show="viewerReady && isAdmin()" x-cloak href="/admin.html#browse/requests?view=active">Open in admin</a>
             </div>
             <div class="rounded-md bg-canvas p-3 text-sm" x-show="request.dropoff_instructions">

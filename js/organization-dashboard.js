@@ -1,6 +1,22 @@
 // @ts-check
 // Organization dashboard (organization.html): create / edit the organization and see its approval status.
+// The page has four sections, Overview · Requests · Offers · Events, linked from the top bar
+// (js/auth.js DASHBOARD_SECTIONS) and kept in the URL hash, so reloading and Back / Forward work.
 // UI state only — database calls live in js/orgs.js.
+
+/** @typedef {'overview' | 'requests' | 'offers' | 'events'} OrgSection */
+
+const ORG_SECTIONS = /** @type {OrgSection[]} */ (["overview", "requests", "offers", "events"]);
+
+/**
+ * The section in the hash. Older links (#requests-heading…) still work.
+ * @returns {OrgSection}
+ */
+function readOrgSection() {
+  const hash = location.hash.replace(/^#/, "").replace(/-heading$/, "");
+  if (new URLSearchParams(location.search).get("new") === "request") return "requests";
+  return ORG_SECTIONS.includes(/** @type {OrgSection} */ (hash)) ? /** @type {OrgSection} */ (hash) : "overview";
+}
 
 /** Form error key → id of the field to focus. */
 const ORG_FIELD_IDS = {
@@ -36,9 +52,45 @@ document.addEventListener("alpine:init", () => {
       /** @type {'' | 'loading' | 'found' | 'not_found'} */
       lookupStatus: "",
       foundAddress: "",
+      /** @type {OrgSection} */
+      section: readOrgSection(),
+      /** approved organizations see a summary first; "Edit details" opens the form */
+      editingDetails: false,
 
       async init() {
+        // older links (#requests-heading) and "Post a request" (?new=request): show the section's own
+        // address, and tell the top bar so the right link is marked as current
+        const canonical = `#${this.section}`;
+        if (location.hash !== canonical && (location.hash || this.section !== "overview")) {
+          history.replaceState(null, "", location.pathname + location.search + canonical);
+          window.dispatchEvent(new HashChangeEvent("hashchange"));
+        }
+        window.addEventListener("hashchange", () => {
+          this.section = readOrgSection();
+          if (/-heading$/.test(location.hash)) {
+            history.replaceState(null, "", location.pathname + location.search + `#${this.section}`);
+            window.dispatchEvent(new HashChangeEvent("hashchange"));
+            return;
+          }
+          window.scrollTo({ top: 0 });
+        });
         await this.load();
+      },
+
+      /** Shows the organization's details form (approved organizations see a summary until then). */
+      editDetails() {
+        this.editingDetails = true;
+        setTimeout(() => {
+          pinMap?.refresh();
+          document.getElementById("org-name")?.focus();
+        }, 0);
+      },
+
+      cancelDetails() {
+        this.editingDetails = false;
+        this.errors = {};
+        this.formError = "";
+        setTimeout(() => document.getElementById("edit-details")?.focus(), 0);
       },
 
       get approved() {
@@ -153,6 +205,7 @@ document.addEventListener("alpine:init", () => {
           if (this.org) {
             await updateOrganization(this.org.id, this.form, !this.approved);
             toast("Your changes were saved.");
+            this.editingDetails = false;
           } else {
             await createOrganization(this.form);
             toast("Thanks! Your organization was sent to the admin for approval.");

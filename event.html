@@ -120,7 +120,7 @@
           <h1 class="text-2xl font-bold break-words sm:text-3xl" x-text="event?.title"></h1>
           <span class="badge badge-neutral mt-2" x-show="isOver && event?.status !== 'cancelled'">This event has ended</span>
           <div class="mt-1 flex flex-wrap gap-2">
-            <a class="btn btn-ghost -ml-3 px-3 text-sm" x-show="ownsContent(event?.organization_id)" href="/organization.html#events-heading">Your organization · Manage</a>
+            <a class="btn btn-ghost -ml-3 px-3 text-sm" x-show="ownsContent(event?.organization_id)" href="/organization.html#events">Your organization · Manage</a>
             <a class="btn btn-ghost -ml-3 px-3 text-sm" x-show="isAdmin()" href="/admin.html#browse/events?view=active">Open in admin</a>
           </div>
         </div>

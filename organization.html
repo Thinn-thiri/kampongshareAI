@@ -126,10 +126,14 @@
         <button type="button" class="btn btn-secondary" @click="load()">Try again</button>
       </div>
 
-      <!-- Approval status -->
-      <section class="card space-y-3" x-show="!loading && org" x-cloak aria-labelledby="status-heading">
+      <!-- ===================== Overview ===================== -->
+      <div class="space-y-8" x-show="!loading && !loadError && section === 'overview'" x-cloak>
+        <h2 class="text-2xl font-semibold">Overview</h2>
+
+      <!-- Approval status (until approved; afterwards a badge in the details) -->
+      <section class="card space-y-3" x-show="!loading && org && !approved" x-cloak aria-labelledby="status-heading">
         <div class="flex flex-wrap items-center gap-3">
-          <h2 id="status-heading" class="text-lg font-semibold">Approval status</h2>
+          <h3 id="status-heading" class="text-lg font-semibold">Approval status</h3>
           <span class="badge badge-warning" x-show="org?.approval === 'pending'">Waiting for admin approval</span>
           <span class="badge badge-success" x-show="org?.approval === 'approved'">Approved</span>
           <span class="badge badge-danger" x-show="org?.approval === 'rejected'">Rejected</span>
@@ -149,9 +153,77 @@
         </template>
       </section>
 
+      <!-- Summary and "Needs your action" (approved organizations) -->
+      <template x-if="!loading && approved && org">
+        <div class="space-y-6" x-data="orgStats(org.id)" @requests-changed.window="load()" @offers-changed.window="load()">
+          <section aria-label="Summary" class="grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-4">
+            <a href="#requests" class="card block p-4 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary sm:p-5">
+              <span class="block text-sm text-muted">Open requests</span>
+              <span class="mt-1 block text-2xl font-bold sm:text-3xl" x-text="stats ? stats.openRequests : '–'">–</span>
+            </a>
+            <a href="#requests" class="card block p-4 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary sm:p-5">
+              <span class="block text-sm text-muted">Items still needed</span>
+              <span class="mt-1 block text-2xl font-bold sm:text-3xl" x-text="stats ? stats.itemsNeeded.toLocaleString('en-SG') : '–'">–</span>
+            </a>
+            <a href="#offers" class="card block p-4 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary sm:p-5">
+              <span class="block text-sm text-muted">Offers waiting</span>
+              <span class="mt-1 block text-2xl font-bold sm:text-3xl" x-text="stats ? stats.offersWaiting : '–'">–</span>
+            </a>
+            <a href="#events" class="card block p-4 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary sm:p-5">
+              <span class="block text-sm text-muted">Upcoming events</span>
+              <span class="mt-1 block text-2xl font-bold sm:text-3xl" x-text="stats ? stats.upcomingEvents : '–'">–</span>
+            </a>
+          </section>
+          <div class="flex flex-wrap items-center gap-3" x-show="error" x-cloak role="alert">
+            <p class="field-error mt-0" x-text="error"></p>
+            <button type="button" class="btn btn-secondary" @click="load()">Try again</button>
+          </div>
+
+          <section class="card space-y-3" aria-labelledby="action-heading">
+            <h3 id="action-heading" class="text-lg font-semibold">Needs your action</h3>
+            <div class="space-y-2" x-show="!stats && !error" role="status"><span class="sr-only">Loading…</span>
+              <div class="skeleton h-5 w-2/3"></div><div class="skeleton h-5 w-1/2"></div>
+            </div>
+            <p class="flex items-center gap-2 text-muted" x-show="stats && actions().length === 0" x-cloak>
+              <i data-lucide="circle-check" class="size-5 text-success" aria-hidden="true"></i> All caught up ✓
+            </p>
+            <ul class="divide-y divide-line" x-show="stats && actions().length">
+              <template x-for="action in actions()" :key="action.text">
+                <li>
+                  <a :href="action.href" class="-mx-2 flex items-center justify-between gap-3 rounded-md px-2 py-3 hover:bg-canvas focus-visible:outline-2 focus-visible:outline-primary">
+                    <span :class="action.info ? 'text-muted' : 'font-semibold'" x-text="action.text"></span>
+                    <i data-lucide="chevron-right" class="size-5 shrink-0 text-muted" aria-hidden="true"></i>
+                  </a>
+                </li>
+              </template>
+            </ul>
+          </section>
+        </div>
+      </template>
+
+      <!-- Organization details: a summary for approved organizations, the form otherwise -->
+      <section class="card space-y-3" x-show="!loading && approved && !editingDetails" x-cloak aria-labelledby="details-heading">
+        <div class="flex flex-wrap items-center justify-between gap-3">
+          <div class="flex flex-wrap items-center gap-2">
+            <h3 id="details-heading" class="text-lg font-semibold">Organization details</h3>
+            <span class="badge badge-success">Approved</span>
+          </div>
+          <button id="edit-details" type="button" class="btn btn-secondary" @click="editDetails()">Edit details</button>
+        </div>
+        <dl class="grid grid-cols-[max-content_1fr] gap-x-4 gap-y-2 text-sm">
+          <dt class="font-medium text-muted">Name</dt>
+          <dd class="break-words" x-text="org?.name"></dd>
+          <dt class="font-medium text-muted">Address</dt>
+          <dd class="break-words" x-text="org?.address || '—'"></dd>
+          <dt class="font-medium text-muted">Phone</dt>
+          <dd x-text="org?.phone || '—'"></dd>
+        </dl>
+        <a class="btn btn-ghost -ml-3 px-3 text-sm" :href="org ? `/org.html?id=${org.id}` : '/'">See your public page</a>
+      </section>
+
       <!-- Create / edit form -->
-      <section class="card" x-show="!loading && !loadError" x-cloak aria-labelledby="form-heading">
-        <h2 id="form-heading" class="text-lg font-semibold" x-text="org ? 'Organization details' : 'Tell us about your organization'"></h2>
+      <section class="card" x-show="!loading && !loadError && (!approved || editingDetails)" x-cloak aria-labelledby="form-heading">
+        <h3 id="form-heading" class="text-lg font-semibold" x-text="org ? 'Organization details' : 'Tell us about your organization'"></h3>
         <p class="mt-1 text-sm text-muted" x-show="!org">
           An admin checks every organization before it can post requests or events. Fields marked <span class="text-danger">*</span> are required.
         </p>
@@ -238,46 +310,28 @@
             <p class="rounded-md bg-danger-soft p-3 text-sm font-medium text-danger" x-show="formError" x-text="formError"></p>
           </div>
 
-          <button type="submit" class="btn btn-primary w-full sm:w-auto" :disabled="saving">
-            <span class="spinner" x-show="saving" x-cloak aria-hidden="true"></span>
-            <span x-text="saving ? 'Saving…' : org ? 'Save changes' : 'Submit for approval'">Submit for approval</span>
-          </button>
+          <div class="flex flex-wrap gap-3">
+            <button type="submit" class="btn btn-primary w-full sm:w-auto" :disabled="saving">
+              <span class="spinner" x-show="saving" x-cloak aria-hidden="true"></span>
+              <span x-text="saving ? 'Saving…' : org ? 'Save changes' : 'Submit for approval'">Submit for approval</span>
+            </button>
+            <button type="button" class="btn btn-ghost w-full sm:w-auto" x-show="approved" @click="cancelDetails()" :disabled="saving">Cancel</button>
+          </div>
         </form>
       </section>
+      </div>
 
-      <!-- Only after approval -->
-      <!-- Summary cards (REQUIREMENTS.md section 3) -->
-      <template x-if="!loading && approved && org">
-        <section x-data="orgStats(org.id)" @requests-changed.window="load()" @offers-changed.window="load()" aria-label="Summary">
-          <div class="grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-4">
-            <div class="card p-4 sm:p-5">
-              <p class="text-sm text-muted">Open requests</p>
-              <p class="mt-1 text-2xl font-bold sm:text-3xl" x-text="stats ? stats.openRequests : '–'">–</p>
-            </div>
-            <div class="card p-4 sm:p-5">
-              <p class="text-sm text-muted">Items still needed</p>
-              <p class="mt-1 text-2xl font-bold sm:text-3xl" x-text="stats ? stats.itemsNeeded.toLocaleString('en-SG') : '–'">–</p>
-            </div>
-            <div class="card p-4 sm:p-5">
-              <p class="text-sm text-muted">Offers waiting</p>
-              <p class="mt-1 text-2xl font-bold sm:text-3xl" x-text="stats ? stats.offersWaiting : '–'">–</p>
-            </div>
-            <div class="card p-4 sm:p-5">
-              <p class="text-sm text-muted">Upcoming events</p>
-              <p class="mt-1 text-2xl font-bold sm:text-3xl" x-text="stats ? stats.upcomingEvents : '–'">–</p>
-            </div>
-          </div>
-          <div class="mt-2 flex flex-wrap items-center gap-3" x-show="error" x-cloak role="alert">
-            <p class="field-error mt-0" x-text="error"></p>
-            <button type="button" class="btn btn-secondary" @click="load()">Try again</button>
-          </div>
-        </section>
-      </template>
+      <!-- Requests, Offers and Events need an approved organization -->
+      <div class="card flex flex-col items-center gap-3 py-10 text-center" x-show="!loading && !loadError && !approved && section !== 'overview'" x-cloak>
+        <i data-lucide="lock" class="size-10 text-primary" aria-hidden="true"></i>
+        <p class="max-w-md text-muted">You can post requests and events, and receive offers, once an admin approves your organization.</p>
+        <a href="#overview" class="btn btn-secondary">Back to Overview</a>
+      </div>
 
       <template x-if="!loading && approved && org">
-        <section class="space-y-4" x-data="orgRequests(org.id)" @requests-changed.window="load()" aria-labelledby="requests-heading">
+        <section class="space-y-4" x-show="section === 'requests'" x-data="orgRequests(org.id)" @requests-changed.window="load()" aria-labelledby="requests-heading">
           <div class="flex flex-wrap items-center justify-between gap-3">
-            <h2 id="requests-heading" class="text-xl font-semibold">Donation requests</h2>
+            <h2 id="requests-heading" class="text-2xl font-semibold">Donation requests</h2>
             <button type="button" class="btn btn-primary" x-show="!showForm" @click="newRequest()">New donation request</button>
           </div>
           <div class="segmented w-full sm:w-auto sm:self-start" role="group" aria-label="Show requests">
@@ -537,10 +591,10 @@
 
       <!-- Incoming offers -->
       <template x-if="!loading && approved && org">
-        <section class="space-y-4" x-data="orgOffers(org.id)" @offers-changed.window="load()" aria-labelledby="offers-heading">
+        <section class="space-y-4" x-show="section === 'offers'" x-data="orgOffers(org.id)" @offers-changed.window="load()" aria-labelledby="offers-heading">
           <div class="flex flex-wrap items-center justify-between gap-3">
             <div class="flex items-center gap-2">
-              <h2 id="offers-heading" class="text-xl font-semibold">Incoming offers</h2>
+              <h2 id="offers-heading" class="text-2xl font-semibold">Incoming offers</h2>
               <span class="badge badge-warning" x-show="pendingCount > 0" x-text="`${pendingCount} waiting`"></span>
             </div>
             <div class="segmented w-full sm:w-auto" role="group" aria-label="Show offers">
@@ -632,9 +686,9 @@
 
       <!-- Events -->
       <template x-if="!loading && approved && org">
-        <section class="space-y-4" x-data="orgEvents(org.id, org.latitude, org.longitude)" aria-labelledby="events-heading">
+        <section class="space-y-4" x-show="section === 'events'" x-data="orgEvents(org.id, org.latitude, org.longitude)" aria-labelledby="events-heading">
           <div class="flex flex-wrap items-center justify-between gap-3">
-            <h2 id="events-heading" class="text-xl font-semibold">Events</h2>
+            <h2 id="events-heading" class="text-2xl font-semibold">Events</h2>
             <button type="button" class="btn btn-primary" x-show="!showForm" @click="newEvent()">New event</button>
           </div>
           <div class="segmented w-full sm:w-auto sm:self-start" role="group" aria-label="Show events">

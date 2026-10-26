@@ -104,10 +104,10 @@ document.addEventListener("alpine:init", () => {
       async init() {
         window.addEventListener("hashchange", () => this.applyRoute());
         // the top bar shows the waiting count next to "To review"
-        /** @type {any} */ (this).$watch("totalWaiting", (/** @type {number} */ total) => window.dispatchEvent(new CustomEvent("admin-waiting", { detail: total })));
+        /** @type {any} */ (this).$watch("totalWaiting", (/** @type {number} */ total) => window.dispatchEvent(new CustomEvent("dashboard-counts", { detail: { review: total } })));
         this.applyRoute();
         await Promise.all([this.loadReview(), this.loadRecent(), this.loadStats()]);
-        window.dispatchEvent(new CustomEvent("admin-waiting", { detail: this.totalWaiting }));
+        window.dispatchEvent(new CustomEvent("dashboard-counts", { detail: { review: this.totalWaiting } }));
         this.openItemFromRoute();
       },
 

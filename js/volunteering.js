@@ -290,6 +290,22 @@ async function createTask(task) {
 }
 
 /**
+ * How many volunteer applications wait for this organization's decision, across all its events.
+ * A head-only count: no rows (and no personal details) are downloaded.
+ * @param {string} orgId
+ * @returns {Promise<number>}
+ */
+async function countPendingApplications(orgId) {
+  const { count, error } = await db()
+    .from("volunteer_applications")
+    .select("id, event:events!inner(organization_id)", { count: "exact", head: true })
+    .eq("status", "pending")
+    .eq("event.organization_id", orgId);
+  if (error) throw error;
+  return count ?? 0;
+}
+
+/**
  * Pending applications for the admin queue, oldest first.
  * @returns {Promise<Application[]>}
  */

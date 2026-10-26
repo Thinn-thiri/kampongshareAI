@@ -221,7 +221,7 @@
                 <p class="text-sm text-muted" x-text="request.deadline ? `Needed by ${formatDate(request.deadline)}` : 'No deadline'"></p>
               </div>
               <!-- the organization's own request / admins -->
-              <a class="btn btn-ghost -ml-3 self-start px-3 text-sm" x-show="viewerReady && ownsContent(request.organization_id)" x-cloak href="/organization.html#requests-heading">Your organization · Manage</a>
+              <a class="btn btn-ghost -ml-3 self-start px-3 text-sm" x-show="viewerReady && ownsContent(request.organization_id)" x-cloak href="/organization.html#requests">Your organization · Manage</a>
               <a class="btn btn-ghost -ml-3 self-start px-3 text-sm" x-show="viewerReady && isAdmin()" x-cloak href="/admin.html#browse/requests?view=active">Open in admin</a>
               <ul class="space-y-3">
                 <template x-for="item in request.request_items" :key="item.id">
@@ -297,7 +297,7 @@
                   <a class="btn btn-secondary" x-show="!applicationFor(event.id) && ['visitor', 'volunteer', 'consent'].includes(volunteerMode())"
                     :href="volunteerMode() === 'visitor' ? `/login.html?next=${encodeURIComponent(`/event.html?id=${event.id}&apply=1`)}` : `/event.html?id=${event.id}&apply=1`"
                     :aria-label="`Volunteer at ${event.title}`">Volunteer</a>
-                  <a class="btn btn-ghost px-3 text-sm" x-show="ownsContent(event.organization_id)" href="/organization.html#events-heading">Your organization · Manage</a>
+                  <a class="btn btn-ghost px-3 text-sm" x-show="ownsContent(event.organization_id)" href="/organization.html#events">Your organization · Manage</a>
                   <a class="btn btn-ghost px-3 text-sm" x-show="isAdmin()" href="/admin.html#browse/events?view=active">Open in admin</a>
                 </div>
               </article>

@@ -527,6 +527,25 @@ document.addEventListener("DOMContentLoaded", async () => {
   }
 });
 
+/**
+ * Dashboards split into sections (REQUIREMENTS.md section 3): the top bar (and the phone bottom bar)
+ * links straight to them. `countKey` shows a badge from the "dashboard-counts" event the page sends.
+ * @type {Partial<Record<Role, { href: string, label: string, icon: string, countKey?: string }[]>>}
+ */
+const DASHBOARD_SECTIONS = {
+  admin: [
+    { href: "/admin.html#overview", label: "Overview", icon: "layout-dashboard" },
+    { href: "/admin.html#review", label: "To review", icon: "inbox", countKey: "review" },
+    { href: "/admin.html#browse", label: "Browse", icon: "list" },
+  ],
+  organization: [
+    { href: "/organization.html#overview", label: "Overview", icon: "layout-dashboard" },
+    { href: "/organization.html#requests", label: "Requests", icon: "package-open" },
+    { href: "/organization.html#offers", label: "Offers", icon: "inbox", countKey: "offers" },
+    { href: "/organization.html#events", label: "Events", icon: "calendar", countKey: "events" },
+  ],
+};
+
 // Top bar: login state, account menu and the Donating / Volunteering switch.
 document.addEventListener("alpine:init", () => {
   const Alpine = /** @type {any} */ (window).Alpine;
@@ -535,14 +554,16 @@ document.addEventListener("alpine:init", () => {
     profile: null,
     ready: false,
     open: false,
-    /** the URL hash, so admin.html's Overview / To review / Browse links know which is current */
+    /** the URL hash, so a dashboard's section links know which is current */
     hash: location.hash,
-    /** @type {number | null} admins: how many things wait for review (sent by admin.html) */
-    adminWaiting: null,
+    /** @type {Record<string, number>} badge numbers sent by the dashboard page ("dashboard-counts" event) */
+    counts: {},
 
     async init() {
       window.addEventListener("hashchange", () => (this.hash = location.hash));
-      window.addEventListener("admin-waiting", (event) => (this.adminWaiting = /** @type {CustomEvent<number>} */ (event).detail));
+      window.addEventListener("dashboard-counts", (event) => {
+        this.counts = { ...this.counts, .../** @type {CustomEvent<Record<string, number>>} */ (event).detail };
+      });
       await this.refresh();
       this.ready = true;
       // e.g. profile.html adds a role: show the Donating / Volunteering switch straight away.
@@ -564,19 +585,15 @@ document.addEventListener("alpine:init", () => {
     /**
      * Desktop top bar links. Visitors: Home · Browse needs. Logged in: Home · My dashboard
      * (people who both donate and volunteer get the Donating / Volunteering switch instead).
-     * Admins get their dashboard's three sections instead of "My dashboard".
+     * Admins and organizations get their dashboard's sections instead of "My dashboard".
      * @returns {{ href: string, label: string, badge?: number | null }[]}
      */
     get topLinks() {
       const home = { href: "/", label: "Home" };
       if (!this.profile) return [home, { href: "/needs.html", label: "Browse needs" }];
-      if (this.profile.role === "admin") {
-        return [
-          home,
-          { href: "/admin.html#overview", label: "Overview" },
-          { href: "/admin.html#review", label: "To review", badge: this.adminWaiting },
-          { href: "/admin.html#browse", label: "Browse" },
-        ];
+      const sections = DASHBOARD_SECTIONS[this.profile.role];
+      if (sections) {
+        return [home, ...sections.map((s) => ({ href: s.href, label: s.label, badge: s.countKey ? this.counts[s.countKey] : null }))];
       }
       if (this.canSwitch) return [home];
       return [home, { href: dashboardFor(this.profile), label: "My dashboard" }];
@@ -593,22 +610,8 @@ document.addEventListener("alpine:init", () => {
       if (!profile) {
         return [{ href: "/", label: "Home", icon: "house" }, needs, { href: "/login.html", label: "Log in", icon: "log-in" }];
       }
-      if (profile.role === "organization") {
-        return [
-          { href: "/organization.html", label: "Dashboard", icon: "layout-dashboard" },
-          { href: "/organization.html#requests-heading", label: "Requests", icon: "package-open" },
-          { href: "/organization.html#events-heading", label: "Events", icon: "calendar" },
-          profileLink,
-        ];
-      }
-      if (profile.role === "admin") {
-        return [
-          { href: "/admin.html#overview", label: "Overview", icon: "layout-dashboard" },
-          { href: "/admin.html#review", label: "To review", icon: "inbox" },
-          { href: "/admin.html#browse", label: "Browse", icon: "list" },
-          profileLink,
-        ];
-      }
+      if (profile.role === "organization") return DASHBOARD_SECTIONS.organization ?? [];
+      if (profile.role === "admin") return [...(DASHBOARD_SECTIONS.admin ?? []), profileLink];
       const donating = { href: "/donor.html", label: "Donating", icon: "hand-heart" };
       const volunteering = { href: "/volunteer.html", label: "Volunteering", icon: "users" };
       if (profile.is_donor && profile.is_volunteer) return [donating, volunteering, needs, profileLink];
@@ -623,10 +626,12 @@ document.addEventListener("alpine:init", () => {
      */
     isCurrent(href) {
       const [path, section] = href.split("#");
-      // admin.html's sections: current when the hash starts with it (no hash = Overview)
-      if (section && path === "/admin.html") {
-        if (location.pathname !== "/admin.html") return false;
-        const hash = this.hash.replace(/^#/, "") || "overview";
+      // a dashboard's sections: current when the hash starts with it (no hash = its first section)
+      const sections = Object.values(DASHBOARD_SECTIONS).find((list) => list?.some((s) => s.href === href));
+      if (section && sections) {
+        if (location.pathname !== path) return false;
+        const first = sections[0].href.split("#")[1];
+        const hash = this.hash.replace(/^#/, "") || first;
         return hash === section || hash.startsWith(`${section}/`) || hash.startsWith(`${section}?`);
       }
       if (section) return false; // other shortcuts into a page section aren't "the current page"
