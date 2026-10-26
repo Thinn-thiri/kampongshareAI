@@ -272,6 +272,27 @@ html.theme-changing * {
     @apply flex min-h-14 flex-1 flex-col items-center justify-center gap-0.5 text-xs font-medium text-muted hover:text-primary focus-visible:outline-2 focus-visible:outline-primary aria-[current=page]:text-primary aria-[current=page]:font-semibold;
   }
   /* Donating / Volunteering switch */
+  /* tabs (role="tablist" / "tab"): scroll sideways on phones instead of wrapping */
+  .tablist {
+    @apply flex gap-1 overflow-x-auto border-b border-line;
+  }
+  .tab {
+    @apply inline-flex min-h-11 shrink-0 items-center gap-2 border-b-2 border-transparent px-4 text-sm font-semibold whitespace-nowrap text-muted hover:text-ink focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-primary aria-selected:border-primary aria-selected:text-primary;
+  }
+  .tab-count {
+    @apply inline-flex min-w-6 items-center justify-center rounded-full bg-canvas px-1.5 text-xs font-bold text-muted;
+  }
+
+  /* filter chips and quick reasons (buttons with aria-pressed) */
+  .chip {
+    @apply inline-flex min-h-11 items-center rounded-full border border-line bg-surface px-4 text-sm font-medium text-ink hover:border-primary focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary aria-pressed:border-primary aria-pressed:bg-primary-soft aria-pressed:text-primary;
+  }
+
+  /* details panel (native <dialog>): full screen on phones, a sheet on the right on wider screens */
+  .side-panel {
+    @apply m-0 h-dvh max-h-none w-full max-w-none overflow-y-auto bg-surface p-0 text-ink shadow-md backdrop:bg-overlay sm:ml-auto sm:w-[30rem] sm:border-l sm:border-line;
+  }
+
   /* desktop top bar links (Home · Browse needs · My dashboard) */
   .top-link {
     @apply inline-flex min-h-11 items-center rounded-md px-3 text-sm font-semibold text-muted hover:bg-primary-soft hover:text-primary focus-visible:outline-2 focus-visible:outline-primary aria-[current=page]:text-primary aria-[current=page]:underline aria-[current=page]:underline-offset-4;

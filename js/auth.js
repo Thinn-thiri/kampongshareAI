@@ -535,8 +535,14 @@ document.addEventListener("alpine:init", () => {
     profile: null,
     ready: false,
     open: false,
+    /** the URL hash, so admin.html's Overview / To review / Browse links know which is current */
+    hash: location.hash,
+    /** @type {number | null} admins: how many things wait for review (sent by admin.html) */
+    adminWaiting: null,
 
     async init() {
+      window.addEventListener("hashchange", () => (this.hash = location.hash));
+      window.addEventListener("admin-waiting", (event) => (this.adminWaiting = /** @type {CustomEvent<number>} */ (event).detail));
       await this.refresh();
       this.ready = true;
       // e.g. profile.html adds a role: show the Donating / Volunteering switch straight away.
@@ -558,11 +564,20 @@ document.addEventListener("alpine:init", () => {
     /**
      * Desktop top bar links. Visitors: Home · Browse needs. Logged in: Home · My dashboard
      * (people who both donate and volunteer get the Donating / Volunteering switch instead).
-     * @returns {{ href: string, label: string }[]}
+     * Admins get their dashboard's three sections instead of "My dashboard".
+     * @returns {{ href: string, label: string, badge?: number | null }[]}
      */
     get topLinks() {
       const home = { href: "/", label: "Home" };
       if (!this.profile) return [home, { href: "/needs.html", label: "Browse needs" }];
+      if (this.profile.role === "admin") {
+        return [
+          home,
+          { href: "/admin.html#overview", label: "Overview" },
+          { href: "/admin.html#review", label: "To review", badge: this.adminWaiting },
+          { href: "/admin.html#browse", label: "Browse" },
+        ];
+      }
       if (this.canSwitch) return [home];
       return [home, { href: dashboardFor(this.profile), label: "My dashboard" }];
     },
@@ -587,7 +602,12 @@ document.addEventListener("alpine:init", () => {
         ];
       }
       if (profile.role === "admin") {
-        return [{ href: "/admin.html", label: "Admin", icon: "shield-check" }, needs, profileLink];
+        return [
+          { href: "/admin.html#overview", label: "Overview", icon: "layout-dashboard" },
+          { href: "/admin.html#review", label: "To review", icon: "inbox" },
+          { href: "/admin.html#browse", label: "Browse", icon: "list" },
+          profileLink,
+        ];
       }
       const donating = { href: "/donor.html", label: "Donating", icon: "hand-heart" };
       const volunteering = { href: "/volunteer.html", label: "Volunteering", icon: "users" };
@@ -602,7 +622,14 @@ document.addEventListener("alpine:init", () => {
      * @returns {boolean}
      */
     isCurrent(href) {
-      if (href.includes("#")) return false; // shortcuts into a page section aren't "the current page"
+      const [path, section] = href.split("#");
+      // admin.html's sections: current when the hash starts with it (no hash = Overview)
+      if (section && path === "/admin.html") {
+        if (location.pathname !== "/admin.html") return false;
+        const hash = this.hash.replace(/^#/, "") || "overview";
+        return hash === section || hash.startsWith(`${section}/`) || hash.startsWith(`${section}?`);
+      }
+      if (section) return false; // other shortcuts into a page section aren't "the current page"
       return href === location.pathname || (href === "/" && location.pathname === "/index.html");
     },
 

@@ -35,7 +35,10 @@
         <!-- Desktop links (phones use the bottom navigation) -->
         <nav class="hidden items-center gap-1 sm:flex" aria-label="Site" x-show="ready" x-cloak>
           <template x-for="link in topLinks" :key="link.href">
-            <a :href="link.href" class="top-link" :aria-current="isCurrent(link.href) ? 'page' : null" x-text="link.label"></a>
+            <a :href="link.href" class="top-link gap-2" :aria-current="isCurrent(link.href) ? 'page' : null">
+              <span x-text="link.label"></span>
+              <span class="badge badge-warning" x-show="link.badge" x-text="link.badge" :aria-label="`${link.badge} waiting`"></span>
+            </a>
           </template>
         </nav>
         <nav class="segmented order-last w-full sm:order-none sm:w-auto" aria-label="Switch between donating and volunteering" x-show="canSwitch" x-cloak>
@@ -198,7 +201,7 @@
               <p class="text-sm text-muted" x-text="request.deadline ? `Needed by ${formatDate(request.deadline)}` : 'No deadline'"></p>
               <p class="mt-2 text-sm whitespace-pre-line break-words" x-show="request.description" x-text="request.description"></p>
               <a class="btn btn-ghost -ml-3 mt-1 px-3 text-sm" x-show="viewerReady && ownsContent(request.organization_id)" x-cloak href="/organization.html#requests-heading">Your organization · Manage</a>
-              <a class="btn btn-ghost -ml-3 mt-1 px-3 text-sm" x-show="viewerReady && isAdmin()" x-cloak href="/admin.html?queue=requests&amp;tab=open">Open in admin</a>
+              <a class="btn btn-ghost -ml-3 mt-1 px-3 text-sm" x-show="viewerReady && isAdmin()" x-cloak href="/admin.html#browse/requests?view=active">Open in admin</a>
             </div>
             <div class="rounded-md bg-canvas p-3 text-sm" x-show="request.dropoff_instructions">
               <p class="font-medium">Drop-off</p>

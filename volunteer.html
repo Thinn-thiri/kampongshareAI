@@ -35,7 +35,10 @@
         <!-- Desktop links (phones use the bottom navigation) -->
         <nav class="hidden items-center gap-1 sm:flex" aria-label="Site" x-show="ready" x-cloak>
           <template x-for="link in topLinks" :key="link.href">
-            <a :href="link.href" class="top-link" :aria-current="isCurrent(link.href) ? 'page' : null" x-text="link.label"></a>
+            <a :href="link.href" class="top-link gap-2" :aria-current="isCurrent(link.href) ? 'page' : null">
+              <span x-text="link.label"></span>
+              <span class="badge badge-warning" x-show="link.badge" x-text="link.badge" :aria-label="`${link.badge} waiting`"></span>
+            </a>
           </template>
         </nav>
         <nav class="segmented order-last w-full sm:order-none sm:w-auto" aria-label="Switch between donating and volunteering" x-show="canSwitch" x-cloak>

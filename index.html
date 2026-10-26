@@ -27,6 +27,7 @@
     <script src="/js/requests.js"></script>
     <script src="/js/offers.js"></script>
     <script src="/js/match.js"></script>
+    <script src="/js/stats.js"></script>
     <script src="/js/home-page.js"></script>
     <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3/dist/cdn.min.js"></script>
   </head>
@@ -43,7 +44,10 @@
         <!-- Desktop links (phones use the bottom navigation) -->
         <nav class="hidden items-center gap-1 sm:flex" aria-label="Site" x-show="ready" x-cloak>
           <template x-for="link in topLinks" :key="link.href">
-            <a :href="link.href" class="top-link" :aria-current="isCurrent(link.href) ? 'page' : null" x-text="link.label"></a>
+            <a :href="link.href" class="top-link gap-2" :aria-current="isCurrent(link.href) ? 'page' : null">
+              <span x-text="link.label"></span>
+              <span class="badge badge-warning" x-show="link.badge" x-text="link.badge" :aria-label="`${link.badge} waiting`"></span>
+            </a>
           </template>
         </nav>
         <nav class="segmented order-last w-full sm:order-none sm:w-auto" aria-label="Switch between donating and volunteering" x-show="canSwitch" x-cloak>
@@ -215,7 +219,7 @@
               </div>
               <!-- the organization's own request / admins -->
               <a class="btn btn-ghost -ml-3 self-start px-3 text-sm" x-show="viewerReady && ownsContent(request.organization_id)" x-cloak href="/organization.html#requests-heading">Your organization · Manage</a>
-              <a class="btn btn-ghost -ml-3 self-start px-3 text-sm" x-show="viewerReady && isAdmin()" x-cloak href="/admin.html?queue=requests&amp;tab=open">Open in admin</a>
+              <a class="btn btn-ghost -ml-3 self-start px-3 text-sm" x-show="viewerReady && isAdmin()" x-cloak href="/admin.html#browse/requests?view=active">Open in admin</a>
               <ul class="space-y-3">
                 <template x-for="item in request.request_items" :key="item.id">
                   <li class="space-y-1">
@@ -289,7 +293,7 @@
                     :href="volunteerMode() === 'visitor' ? `/login.html?next=${encodeURIComponent(`/event.html?id=${event.id}&apply=1`)}` : `/event.html?id=${event.id}&apply=1`"
                     :aria-label="`Volunteer at ${event.title}`">Volunteer</a>
                   <a class="btn btn-ghost px-3 text-sm" x-show="ownsContent(event.organization_id)" href="/organization.html#events-heading">Your organization · Manage</a>
-                  <a class="btn btn-ghost px-3 text-sm" x-show="isAdmin()" href="/admin.html?queue=events">Open in admin</a>
+                  <a class="btn btn-ghost px-3 text-sm" x-show="isAdmin()" href="/admin.html#browse/events?view=active">Open in admin</a>
                 </div>
               </article>
             </template>

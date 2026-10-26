@@ -1,5 +1,5 @@
 // @ts-check
-// How many things are waiting for an admin: the admin.html summary cards and the home page's
+// How many things are waiting for an admin, for the home page's
 // "Review queue" button. Only admins get real numbers; the database limits what others can count.
 
 /** @typedef {'organizations' | 'volunteers' | 'requests' | 'events' | 'applications' | 'offers'} QueueKey */

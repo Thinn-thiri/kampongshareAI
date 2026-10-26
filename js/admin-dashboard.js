@@ -1,607 +1,517 @@
 // @ts-check
-// Admin dashboard (admin.html): summary counts and the Organizations review queue.
-// Admins review and moderate; the database refuses anything else.
+// Admin dashboard (admin.html, REQUIREMENTS.md section 7): three sections, Overview · To review · Browse,
+// reached from the top bar (js/auth.js topLinks).
+// UI state only — database calls live in js/admin-data.js and the shared data files.
+// The place is kept in the URL hash (#overview, #review/requests, #browse/offers?view=history),
+// so reloading keeps it and the browser's back / forward move between tabs.
 
-/** Summary cards (REQUIREMENTS.md 7.1). `built` queues have a review list below. */
-const ADMIN_QUEUES = /** @type {{ key: QueueKey, label: string, built: boolean }[]} */ ([
-  { key: "organizations", label: "Organizations waiting", built: true },
-  { key: "volunteers", label: "Volunteer accounts waiting", built: true },
-  { key: "requests", label: "Requests waiting", built: true },
-  { key: "events", label: "Events waiting", built: true },
-  { key: "applications", label: "Volunteer applications waiting", built: true },
-  { key: "offers", label: "Offers in progress", built: true },
+/** @typedef {'overview' | 'review' | 'browse'} AdminTab */
+
+const ADMIN_TABS = /** @type {{ value: AdminTab, label: string }[]} */ ([
+  { value: "overview", label: "Overview" },
+  { value: "review", label: "To review" },
+  { value: "browse", label: "Browse" },
 ]);
 
-const ORG_TABS = /** @type {{ value: Approval, label: string, empty: string }[]} */ ([
-  { value: "pending", label: "Waiting", empty: "No organizations waiting for review." },
-  { value: "approved", label: "Approved", empty: "No approved organizations yet." },
-  { value: "rejected", label: "Rejected", empty: "No rejected organizations." },
+const BROWSE_VIEWS = /** @type {{ value: BrowseView, label: string }[]} */ ([
+  { value: "active", label: "Active" },
+  { value: "history", label: "History" },
+  { value: "all", label: "All" },
 ]);
+
+/** Days shown in "Recently closed or cancelled". */
+const RECENT_DAYS = 7;
+
+/**
+ * Reads the hash: "#review/requests?item=<id>" → { tab, sub, params }.
+ * Old links (?queue=requests&tab=open, from before the redesign) are turned into hashes.
+ * @returns {{ tab: AdminTab, sub: string, params: URLSearchParams }}
+ */
+function readAdminRoute() {
+  const legacy = new URLSearchParams(location.search);
+  const queue = legacy.get("queue");
+  if (queue && !location.hash) {
+    const tab = legacy.get("tab");
+    const hash =
+      queue === "offers" || (queue === "requests" && tab === "open") || (queue === "organizations" && tab === "approved")
+        ? `#browse/${queue}?view=active`
+        : `#review/${queue === "applications" ? "volunteers" : queue}`;
+    history.replaceState(null, "", location.pathname + hash);
+  }
+  const [path, query = ""] = location.hash.replace(/^#/, "").split("?");
+  const [tab, sub = ""] = path.split("/");
+  const known = ADMIN_TABS.some((t) => t.value === tab);
+  return { tab: known ? /** @type {AdminTab} */ (tab) : "overview", sub, params: new URLSearchParams(query) };
+}
 
 document.addEventListener("alpine:init", () => {
   const Alpine = /** @type {any} */ (window).Alpine;
-  Alpine.data("adminDashboard", () => ({
-    queues: ADMIN_QUEUES,
-    orgTabs: ORG_TABS,
-    /** @type {Record<QueueKey, number> | null} */
-    counts: null,
-    countsError: "",
-    /** @type {QueueKey} */
-    activeQueue: "organizations",
+  Alpine.data("adminDashboard", () => {
+    // Kept outside Alpine's reactive state: Leaflet doesn't work through proxies.
+    /** @type {HTMLElement | null} the button that opened the details panel (focus goes back to it) */
+    let panelOpener = null;
+    /** @type {ReturnType<typeof setTimeout> | undefined} */
+    let searchTimer;
 
-    /** @type {Approval} */
-    orgTab: "pending",
-    /** @type {Organization[]} */
-    orgs: [],
-    loadingOrgs: true,
-    orgsError: "",
-    /** @type {string | null} id of the organization being worked on */
-    busyId: null,
-    /** @type {string | null} id of the organization whose reject note is open */
-    rejectingId: null,
-    rejectNote: "",
-    rejectError: "",
+    return {
+      reviewKinds: REVIEW_KINDS,
+      browseKinds: BROWSE_KINDS,
+      browseViews: BROWSE_VIEWS,
+      statCards: STAT_CARDS,
+      urgencies: URGENCY_OPTIONS,
 
-    /** @type {DonationRequest[]} */
-    reqs: [],
-    loadingReqs: false,
-    reqsLoaded: false,
-    reqsError: "",
+      /** @type {AdminTab} */
+      tab: "overview",
+      /** @type {ReviewKind} */
+      reviewKind: "organizations",
+      /** @type {BrowseKind} */
+      browseKind: "organizations",
+      /** @type {BrowseView} */
+      browseView: "active",
+      browseSearch: "",
 
-    /** @type {VolunteerEvent[]} */
-    evs: [],
-    loadingEvs: false,
-    evsLoaded: false,
-    evsError: "",
-    formatEventTime,
+      /** Everything waiting for review, per kind (counts come from these lists). */
+      /** @type {Record<ReviewKind, ReviewItem[]>} */
+      review: { organizations: [], requests: [], events: [], volunteers: [] },
+      reviewLoading: true,
+      reviewError: "",
 
-    /** Requests queue tab: waiting for approval, or open (monitoring, 7.3). */
-    /** @type {'waiting' | 'open'} */
-    reqTab: "waiting",
-    /** @type {DonationRequest[]} */
-    openReqs: [],
-    loadingOpenReqs: false,
-    openReqsError: "",
-    /** @type {string | null} open request being edited */
-    editingReqId: null,
-    /** @type {{ title: string, description: string, urgency: Urgency, deadline: string }} */
-    reqForm: { title: "", description: "", urgency: "medium", deadline: "" },
-    /** @type {Record<string, string>} */
-    reqFormErrors: {},
-    savingReq: false,
-    urgencies: URGENCY_OPTIONS,
+      /** @type {BrowseRow[]} */
+      recent: [],
+      recentLoading: true,
+      recentError: "",
 
-    /** Offers monitor (7.3) */
-    /** @type {AdminOffer[]} */
-    adminOffers: [],
-    /** @type {'active' | OfferStatus | 'all'} */
-    offerFilter: "active",
-    loadingOffers: false,
-    offersLoaded: false,
-    offersError: "",
-    offerFilters: [
-      { value: "active", label: "In progress" },
-      { value: "delivered", label: "Delivered" },
-      { value: "rejected", label: "Rejected" },
-      { value: "cancelled", label: "Cancelled" },
-      { value: "all", label: "All" },
-    ],
+      /** @type {Record<string, number> | null} */
+      stats: null,
+      statsError: "",
 
-    /** @type {VolunteerAccount[]} */
-    vols: [],
-    loadingVols: false,
-    volsLoaded: false,
-    volsError: "",
+      /** @type {HistoryPager<BrowseRow>} */
+      browse: historyPager(),
 
-    /** @type {Application[]} */
-    apps: [],
-    loadingApps: false,
-    appsLoaded: false,
-    appsError: "",
-    formatAvailability,
-
-    async init() {
-      // Deep links from public pages ("Open in admin"): ?queue=requests&tab=open, ?queue=organizations&tab=approved
-      const params = new URLSearchParams(location.search);
-      const queue = /** @type {QueueKey | null} */ (params.get("queue"));
-      const tab = params.get("tab");
-      const orgTab = queue === "organizations" && ORG_TABS.some((t) => t.value === tab) ? /** @type {Approval} */ (tab) : null;
-      if (orgTab) this.orgTab = orgTab;
-      await Promise.all([this.loadCounts(), this.loadOrgs()]);
-      if (queue && queue !== "organizations" && ADMIN_QUEUES.some((q) => q.key === queue)) {
-        this.openQueue(queue);
-        if (queue === "requests" && tab === "open") await this.showReqTab("open");
-      }
-      if (queue) setTimeout(() => document.getElementById(`${{ organizations: "orgs", volunteers: "vols", requests: "reqs", events: "evs", applications: "apps", offers: "offers" }[queue] ?? "orgs"}-heading`)?.scrollIntoView({ block: "start" }), 0);
-    },
-
-    get activeLabel() {
-      return ADMIN_QUEUES.find((queue) => queue.key === this.activeQueue)?.label ?? "";
-    },
-
-    get emptyText() {
-      return ORG_TABS.find((tab) => tab.value === this.orgTab)?.empty ?? "";
-    },
-
-    async loadCounts() {
-      this.countsError = "";
-      try {
-        this.counts = await getAdminCounts();
-      } catch (error) {
-        this.countsError = friendlyError(error);
-      }
-    },
-
-    async loadOrgs() {
-      this.loadingOrgs = true;
-      this.orgsError = "";
-      try {
-        this.orgs = await listOrganizationsForReview(this.orgTab);
-      } catch (error) {
-        this.orgsError = friendlyError(error);
-      } finally {
-        this.loadingOrgs = false;
-      }
-    },
-
-    /** @param {QueueKey} key */
-    openQueue(key) {
-      this.activeQueue = key;
-      this.cancelReject();
-      if (key === "requests" && !this.reqsLoaded) this.loadRequests();
-      if (key === "events" && !this.evsLoaded) this.loadEvents();
-      if (key === "applications" && !this.appsLoaded) this.loadApplications();
-      if (key === "volunteers" && !this.volsLoaded) this.loadVolunteers();
-      if (key === "offers" && !this.offersLoaded) this.loadAdminOffers();
-    },
-
-    // ---- Offers monitor (7.3) ----
-
-    async loadAdminOffers() {
-      this.loadingOffers = true;
-      this.offersError = "";
-      try {
-        this.adminOffers = await listAllOffersForAdmin(this.offerFilter);
-        this.offersLoaded = true;
-      } catch (error) {
-        this.offersError = friendlyError(error);
-      } finally {
-        this.loadingOffers = false;
-      }
-    },
-
-    /** @param {'active' | OfferStatus | 'all'} filter */
-    async showOfferFilter(filter) {
-      this.offerFilter = filter;
-      await this.loadAdminOffers();
-    },
-
-    /** @param {AdminOffer} offer */
-    async cancelSuspiciousOffer(offer) {
-      const what = offer.item ? `${offer.quantity} ${offer.item.unit} of ${offer.item.name}` : `this offer`;
-      const ok = await confirmDialog(
-        `Cancel ${what}${offer.donor ? ` from ${offer.donor.full_name}` : ""}? The donor and the organization will see it as cancelled, and the item is needed again.`,
-        { title: "Cancel this offer?", confirmText: "Cancel offer", cancelText: "Keep it", danger: true },
-      );
-      if (!ok) return;
-      this.busyId = offer.id;
-      try {
-        await cancelOffer(offer.id);
-        toast("The offer was cancelled.");
-        focusHeading("offers-heading"); // the card may be gone: keep keyboard users in this section
-        if (offer.item?.request_id) await scoreRequest(offer.item.request_id);
-        await Promise.all([this.loadAdminOffers(), this.loadCounts()]);
-      } catch (error) {
-        toast(friendlyError(error), "error");
-      } finally {
-        this.busyId = null;
-      }
-    },
-
-    // ---- Open requests: close or edit (7.3) ----
-
-    /** @param {'waiting' | 'open'} tab */
-    async showReqTab(tab) {
-      this.reqTab = tab;
-      this.cancelReject();
-      this.editingReqId = null;
-      if (tab === "open") await this.loadOpenRequests();
-      else await this.loadRequests();
-    },
-
-    async loadOpenRequests() {
-      this.loadingOpenReqs = true;
-      this.openReqsError = "";
-      try {
-        this.openReqs = await listOpenRequests();
-      } catch (error) {
-        this.openReqsError = friendlyError(error);
-      } finally {
-        this.loadingOpenReqs = false;
-      }
-    },
-
-    /** @param {DonationRequest} request */
-    startEditRequest(request) {
-      this.editingReqId = request.id;
-      this.reqForm = {
-        title: request.title,
-        description: request.description ?? "",
-        urgency: request.urgency,
-        deadline: request.deadline ?? "",
-      };
-      this.reqFormErrors = {};
-      setTimeout(() => document.getElementById(`admin-req-title-${request.id}`)?.focus(), 0);
-    },
-
-    /** @param {DonationRequest} request */
-    async saveRequestEdit(request) {
+      /** @type {ReviewItem | null} the item in the details panel */
+      panelItem: null,
+      /** @type {BrowseRow | null} the request being edited in the panel */
+      editRow: null,
+      /** @type {{ title: string, description: string, urgency: Urgency, deadline: string }} */
+      reqForm: { title: "", description: "", urgency: "medium", deadline: "" },
       /** @type {Record<string, string>} */
-      const errors = {};
-      const title = this.reqForm.title.trim();
-      if (!title) errors.title = "Please keep a title.";
-      else if (title.length > 100) errors.title = "Please keep the title under 100 characters.";
-      if (this.reqForm.description.trim().length > 1000) errors.description = "Please keep the description under 1,000 characters.";
-      this.reqFormErrors = errors;
-      if (Object.keys(errors).length) return;
-      this.savingReq = true;
-      try {
-        await adminUpdateRequest(request.id, this.reqForm);
-        toast("The request was updated.");
-        this.editingReqId = null;
-        await scoreRequest(request.id); // the database cleared the score when the text or deadline changed
-        await this.loadOpenRequests();
-      } catch (error) {
-        toast(friendlyError(error), "error");
-      } finally {
-        this.savingReq = false;
-      }
-    },
+      reqFormErrors: {},
+      savingReq: false,
 
-    /** @param {DonationRequest} request */
-    async closeRequestAsAdmin(request) {
-      const reason = await reasonDialog(
-        `"${request.title}" will stop taking donations. Waiting offers are declined automatically; accepted offers carry on.`,
-        {
-          title: "Close this request?",
-          label: "Reason the organization and donors will see",
-          maxLength: REASON_MAX_LENGTH,
-          confirmText: "Close request",
-          danger: true,
-        },
-      );
-      if (reason === null) return;
-      this.busyId = request.id;
-      try {
-        await closeRequest(request.id, reason);
-        toast("The request was closed.");
-        focusHeading("reqs-heading"); // the card may be gone: keep keyboard users in this section
-        await Promise.all([this.loadOpenRequests(), this.loadCounts()]);
-      } catch (error) {
-        toast(friendlyError(error), "error");
-      } finally {
-        this.busyId = null;
-      }
-    },
+      /** @type {string | null} id of the item or row being worked on */
+      busyId: null,
 
-    async loadVolunteers() {
-      this.loadingVols = true;
-      this.volsError = "";
-      try {
-        this.vols = await listVolunteerAccountsForReview();
-        this.volsLoaded = true;
-      } catch (error) {
-        this.volsError = friendlyError(error);
-      } finally {
-        this.loadingVols = false;
-      }
-    },
+      async init() {
+        window.addEventListener("hashchange", () => this.applyRoute());
+        // the top bar shows the waiting count next to "To review"
+        /** @type {any} */ (this).$watch("totalWaiting", (/** @type {number} */ total) => window.dispatchEvent(new CustomEvent("admin-waiting", { detail: total })));
+        this.applyRoute();
+        await Promise.all([this.loadReview(), this.loadRecent(), this.loadStats()]);
+        window.dispatchEvent(new CustomEvent("admin-waiting", { detail: this.totalWaiting }));
+        this.openItemFromRoute();
+      },
 
-    /** @param {VolunteerAccount} account */
-    async approveVolunteer(account) {
-      this.busyId = account.id;
-      try {
-        await setVolunteerApproval(account.id, "approved");
-        toast(`${account.full_name || "The volunteer"} can now apply to events.`);
-        focusHeading("vols-heading"); // the card may be gone: keep keyboard users in this section
-        await Promise.all([this.loadVolunteers(), this.loadCounts()]);
-      } catch (error) {
-        toast(friendlyError(error), "error");
-      } finally {
-        this.busyId = null;
-      }
-    },
+      // ---------- tabs and the URL hash ----------
 
-    /** @param {VolunteerAccount} account */
-    async confirmRejectVolunteer(account) {
-      const note = this.rejectNote.trim();
-      if (!note) {
-        this.rejectError = "Please write a short note so the volunteer knows why.";
-        document.getElementById(`reject-note-${account.id}`)?.focus();
-        return;
-      }
-      if (note.length > 500) {
-        this.rejectError = "Please keep the note under 500 characters.";
-        return;
-      }
-      const name = account.full_name || "This volunteer";
-      const ok = await confirmDialog(`${name} won't be able to apply to events. They'll see your note and can ask for another review.`, {
-        title: "Reject this volunteer account?",
-        confirmText: "Reject",
-        danger: true,
-      });
-      if (!ok) return;
-      this.busyId = account.id;
-      try {
-        await setVolunteerApproval(account.id, "rejected", note);
-        toast(`${name} was not approved. They can see your note.`);
-        focusHeading("vols-heading"); // the card may be gone: keep keyboard users in this section
-        this.cancelReject();
-        await Promise.all([this.loadVolunteers(), this.loadCounts()]);
-      } catch (error) {
-        toast(friendlyError(error), "error");
-      } finally {
-        this.busyId = null;
-      }
-    },
+      /** Shows whatever the hash says (also runs on back / forward). */
+      applyRoute() {
+        const { tab, sub, params } = readAdminRoute();
+        this.tab = tab;
+        if (tab === "review" && REVIEW_KINDS.some((k) => k.value === sub)) this.reviewKind = /** @type {ReviewKind} */ (sub);
+        if (tab === "browse") {
+          // older links: #browse/volunteers?type=applications is now its own sub-tab
+          const target = sub === "volunteers" && params.get("type") === "applications" ? "applications" : sub;
+          const kind = BROWSE_KINDS.some((k) => k.value === target) ? /** @type {BrowseKind} */ (target) : this.browseKind;
+          const view = BROWSE_VIEWS.some((v) => v.value === params.get("view")) ? /** @type {BrowseView} */ (params.get("view")) : "active";
+          const search = params.get("q") ?? "";
+          const changed = kind !== this.browseKind || view !== this.browseView || search !== this.browseSearch || !this.browse.loaded;
+          Object.assign(this, { browseKind: kind, browseView: view, browseSearch: search });
+          if (changed) this.reloadBrowse();
+        }
+        if (tab === "review") this.openItemFromRoute();
+      },
 
-    async loadApplications() {
-      this.loadingApps = true;
-      this.appsError = "";
-      try {
-        this.apps = await listApplicationsForReview();
-        this.appsLoaded = true;
-      } catch (error) {
-        this.appsError = friendlyError(error);
-      } finally {
-        this.loadingApps = false;
-      }
-    },
+      /**
+       * Moves to a tab by changing the hash (a new history entry, so Back works).
+       * @param {AdminTab} tab
+       * @param {string} [sub]
+       * @param {Record<string, string>} [params]
+       */
+      go(tab, sub = "", params = {}) {
+        const query = new URLSearchParams(Object.entries(params).filter(([, v]) => v)).toString();
+        const hash = `#${tab}${sub ? `/${sub}` : ""}${query ? `?${query}` : ""}`;
+        if (location.hash !== hash) location.hash = hash;
+        else this.applyRoute();
+      },
 
-    /**
-     * @param {Application} application
-     * @param {'approved' | 'rejected'} status
-     */
-    async decideApplication(application, status) {
-      const name = application.volunteer?.full_name || "This volunteer";
-      const title = application.event?.title ?? "the event";
-      const ok = await confirmDialog(
-        status === "approved" ? `${name} will be confirmed for "${title}".` : `${name} will see they weren't selected for "${title}".`,
-        {
-          title: status === "approved" ? "Approve this application?" : "Reject this application?",
-          confirmText: status === "approved" ? "Approve" : "Reject",
-          danger: status === "rejected",
-        },
-      );
-      if (!ok) return;
-      this.busyId = application.id;
-      try {
-        await setApplicationStatus(application.id, status);
-        toast(status === "approved" ? "Application approved." : "Application rejected.");
-        focusHeading("apps-heading"); // the card may be gone: keep keyboard users in this section
-        await Promise.all([this.loadApplications(), this.loadCounts()]);
-      } catch (error) {
-        toast(friendlyError(error), "error");
-      } finally {
-        this.busyId = null;
-      }
-    },
+      browseParams() {
+        return { view: this.browseView, q: this.browseSearch.trim() };
+      },
 
-    async loadEvents() {
-      this.loadingEvs = true;
-      this.evsError = "";
-      try {
-        this.evs = await listEventsForReview();
-        this.evsLoaded = true;
-      } catch (error) {
-        this.evsError = friendlyError(error);
-      } finally {
-        this.loadingEvs = false;
-      }
-    },
+      /**
+       * Tabs pattern: ← → move and select, Home / End jump to the ends (roving tabindex).
+       * @param {KeyboardEvent} event
+       */
+      onTabKey(event) {
+        const keys = ["ArrowLeft", "ArrowRight", "Home", "End"];
+        if (!keys.includes(event.key)) return;
+        event.preventDefault();
+        const list = /** @type {HTMLElement} */ (event.currentTarget);
+        const tabs = /** @type {HTMLElement[]} */ ([...list.querySelectorAll('[role="tab"]')]);
+        const at = tabs.indexOf(/** @type {HTMLElement} */ (document.activeElement));
+        const next =
+          event.key === "Home" ? 0 : event.key === "End" ? tabs.length - 1 : (at + (event.key === "ArrowRight" ? 1 : -1) + tabs.length) % tabs.length;
+        tabs[next].focus();
+        tabs[next].click();
+      },
 
-    /** @param {VolunteerEvent} event */
-    async approveEvent(event) {
-      this.busyId = event.id;
-      try {
-        await setEventApproval(event.id, "approved");
-        toast(`"${event.title}" is approved. It's now on the map and can be shared.`);
-        focusHeading("evs-heading"); // the card may be gone: keep keyboard users in this section
-        await Promise.all([this.loadEvents(), this.loadCounts()]);
-      } catch (error) {
-        toast(friendlyError(error), "error");
-      } finally {
-        this.busyId = null;
-      }
-    },
+      // ---------- counts ----------
 
-    /** @param {VolunteerEvent} event */
-    async confirmRejectEvent(event) {
-      const note = this.rejectNote.trim();
-      if (!note) {
-        this.rejectError = "Please write a short note so the organization knows what to change.";
-        document.getElementById(`reject-note-${event.id}`)?.focus();
-        return;
-      }
-      if (note.length > 500) {
-        this.rejectError = "Please keep the note under 500 characters.";
-        return;
-      }
-      const ok = await confirmDialog(`"${event.title}" won't appear on the map. The organization will see your note.`, {
-        title: "Reject this event?",
-        confirmText: "Reject event",
-        danger: true,
-      });
-      if (!ok) return;
+      /** @param {ReviewKind} kind */
+      reviewCount(kind) {
+        return this.review[kind].length;
+      },
 
-      this.busyId = event.id;
-      try {
-        await setEventApproval(event.id, "rejected", note);
-        toast(`"${event.title}" was rejected. The organization can see your note.`);
-        focusHeading("evs-heading"); // the card may be gone: keep keyboard users in this section
-        this.cancelReject();
-        await Promise.all([this.loadEvents(), this.loadCounts()]);
-      } catch (error) {
-        toast(friendlyError(error), "error");
-      } finally {
-        this.busyId = null;
-      }
-    },
+      get totalWaiting() {
+        return REVIEW_KINDS.reduce((sum, kind) => sum + this.review[kind.value].length, 0);
+      },
 
-    async loadRequests() {
-      this.loadingReqs = true;
-      this.reqsError = "";
-      try {
-        this.reqs = await listRequestsForReview();
-        this.reqsLoaded = true;
-      } catch (error) {
-        this.reqsError = friendlyError(error);
-      } finally {
-        this.loadingReqs = false;
-      }
-    },
+      /** The 5 oldest things waiting, of any kind. */
+      get waitingLongest() {
+        return REVIEW_KINDS.flatMap((kind) => this.review[kind.value])
+          .sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime())
+          .slice(0, 5);
+      },
 
-    /** @param {DonationRequest} request */
-    async approveRequest(request) {
-      this.busyId = request.id;
-      try {
-        await setRequestApproval(request.id, "open");
-        toast(`"${request.title}" is approved. Donors can see it now.`);
-        focusHeading("reqs-heading"); // the card may be gone: keep keyboard users in this section
-        await scoreRequest(request.id); // urgency score for sorting and "Why this score?"
-        await Promise.all([this.loadRequests(), this.loadCounts()]);
-      } catch (error) {
-        toast(friendlyError(error), "error");
-      } finally {
-        this.busyId = null;
-      }
-    },
+      waitingText,
+      urgencyName,
+      categoryName,
+      formatAvailability,
+      formatEventTime,
 
-    /** @param {DonationRequest} request */
-    async confirmRejectRequest(request) {
-      const note = this.rejectNote.trim();
-      if (!note) {
-        this.rejectError = "Please write a short note so the organization knows what to change.";
-        document.getElementById(`reject-note-${request.id}`)?.focus();
-        return;
-      }
-      if (note.length > 500) {
-        this.rejectError = "Please keep the note under 500 characters.";
-        return;
-      }
-      const ok = await confirmDialog(`"${request.title}" won't be shown to donors. The organization will see your note.`, {
-        title: "Reject this request?",
-        confirmText: "Reject request",
-        danger: true,
-      });
-      if (!ok) return;
+      // ---------- loading ----------
 
-      this.busyId = request.id;
-      try {
-        await setRequestApproval(request.id, "rejected", note);
-        toast(`"${request.title}" was rejected. The organization can see your note.`);
-        focusHeading("reqs-heading"); // the card may be gone: keep keyboard users in this section
-        this.cancelReject();
-        await Promise.all([this.loadRequests(), this.loadCounts()]);
-      } catch (error) {
-        toast(friendlyError(error), "error");
-      } finally {
-        this.busyId = null;
-      }
-    },
+      async loadReview() {
+        this.reviewLoading = true;
+        this.reviewError = "";
+        try {
+          const lists = await Promise.all(REVIEW_KINDS.map((kind) => loadReviewItems(kind.value)));
+          REVIEW_KINDS.forEach((kind, index) => (this.review[kind.value] = lists[index]));
+        } catch (error) {
+          this.reviewError = friendlyError(error);
+        } finally {
+          this.reviewLoading = false;
+        }
+      },
 
-    /**
-     * @param {string} value
-     * @returns {string}
-     */
-    categoryLabel(value) {
-      return ITEM_CATEGORIES.find((option) => option.value === value)?.label ?? value;
-    },
+      async loadRecent() {
+        this.recentLoading = true;
+        this.recentError = "";
+        try {
+          this.recent = (await listRecentlyClosed(RECENT_DAYS)).slice(0, 10);
+        } catch (error) {
+          this.recentError = friendlyError(error);
+        } finally {
+          this.recentLoading = false;
+        }
+      },
 
-    /**
-     * @param {string} value
-     * @returns {string}
-     */
-    urgencyLabel(value) {
-      return URGENCY_OPTIONS.find((option) => option.value === value)?.label ?? value;
-    },
+      async loadStats() {
+        this.statsError = "";
+        try {
+          this.stats = await getPublicStats();
+        } catch (error) {
+          this.statsError = friendlyError(error);
+        }
+      },
 
-    /** @param {Approval} tab */
-    async showTab(tab) {
-      this.orgTab = tab;
-      this.cancelReject();
-      await this.loadOrgs();
-    },
+      // ---------- To review ----------
 
-    /**
-     * Draws a small read-only map for one organization or event (called from x-init).
-     * @param {HTMLElement} element
-     * @param {{ latitude: number | null, longitude: number | null, name?: string, title?: string }} place
-     */
-    showPin(element, place) {
-      if (place.latitude == null || place.longitude == null) return;
-      createPinMap(element, { lat: place.latitude, lng: place.longitude, label: place.name ?? place.title ?? "Location" });
-    },
+      /** "Waiting longest" links here with ?item=<id>: open that item's panel. */
+      openItemFromRoute() {
+        const { tab, params } = readAdminRoute();
+        const id = params.get("item");
+        if (tab !== "review" || !id || this.reviewLoading) return;
+        const item = this.review[this.reviewKind].find((i) => i.id === id);
+        history.replaceState(null, "", `#review/${this.reviewKind}`);
+        if (item) setTimeout(() => this.openPanel(item, document.getElementById(`view-${item.key}`)), 0);
+      },
 
-    /** @param {Organization} org */
-    async approve(org) {
-      this.busyId = org.id;
-      try {
-        await setOrganizationApproval(org.id, "approved");
-        toast(`${org.name} is approved. It can now post requests and events.`);
-        focusHeading("orgs-heading"); // the card may be gone: keep keyboard users in this section
-        await Promise.all([this.loadOrgs(), this.loadCounts()]);
-      } catch (error) {
-        toast(friendlyError(error), "error");
-      } finally {
-        this.busyId = null;
-      }
-    },
+      /**
+       * @param {ReviewItem} item
+       * @param {HTMLElement | null} opener
+       */
+      openPanel(item, opener) {
+        panelOpener = opener;
+        this.editRow = null;
+        this.panelItem = item;
+        const dialog = /** @type {HTMLDialogElement} */ (document.getElementById("details-panel"));
+        if (!dialog.open) dialog.showModal();
+        setTimeout(() => {
+          document.getElementById("panel-title")?.focus();
+          const place = item.raw;
+          const element = document.getElementById("panel-map");
+          if (element && place.latitude != null && place.longitude != null) {
+            createPinMap(element, { lat: place.latitude, lng: place.longitude, label: item.title });
+          }
+        }, 50);
+      },
 
-    /** @param {{ id: string }} item an organization or a request */
-    startReject(item) {
-      this.rejectingId = item.id;
-      this.rejectNote = "";
-      this.rejectError = "";
-      setTimeout(() => document.getElementById(`reject-note-${item.id}`)?.focus(), 0);
-    },
+      closePanel() {
+        const dialog = /** @type {HTMLDialogElement} */ (document.getElementById("details-panel"));
+        if (dialog.open) dialog.close();
+      },
 
-    cancelReject() {
-      this.rejectingId = null;
-      this.rejectNote = "";
-      this.rejectError = "";
-    },
+      /** Runs when the panel closes (button, Escape or backdrop): clear it and put focus back. */
+      onPanelClosed() {
+        this.panelItem = null;
+        this.editRow = null;
+        if (panelOpener?.isConnected) panelOpener.focus();
+        panelOpener = null;
+      },
 
-    /** @param {Organization} org */
-    async confirmReject(org) {
-      const note = this.rejectNote.trim();
-      if (!note) {
-        this.rejectError = "Please write a short note so the organization knows what to fix.";
-        document.getElementById(`reject-note-${org.id}`)?.focus();
-        return;
-      }
-      if (note.length > 500) {
-        this.rejectError = "Please keep the note under 500 characters.";
-        return;
-      }
-      const ok = await confirmDialog(
-        `${org.name} won't be able to post requests or events, and any it has will be hidden from the public. The organization will see your note.`,
-        { title: "Reject this organization?", confirmText: "Reject organization", danger: true },
-      );
-      if (!ok) return;
+      /** Clicking the dimmed area outside the panel closes it. @param {MouseEvent} event */
+      onPanelClick(event) {
+        if (event.target === event.currentTarget) this.closePanel();
+      },
 
-      this.busyId = org.id;
-      try {
-        await setOrganizationApproval(org.id, "rejected", note);
-        toast(`${org.name} was rejected. The organization can see your note.`);
-        focusHeading("orgs-heading"); // the card may be gone: keep keyboard users in this section
-        this.cancelReject();
-        await Promise.all([this.loadOrgs(), this.loadCounts()]);
-      } catch (error) {
-        toast(friendlyError(error), "error");
-      } finally {
-        this.busyId = null;
-      }
-    },
-  }));
+      /** @param {ReviewItem} item */
+      async approve(item) {
+        this.busyId = item.id;
+        try {
+          toast(await approveReviewItem(item));
+          this.removeReviewed(item);
+        } catch (error) {
+          toast(friendlyError(error), "error");
+        } finally {
+          this.busyId = null;
+        }
+      },
+
+      /** @param {ReviewItem} item */
+      async reject(item) {
+        const wording = rejectWording(item);
+        let note = "";
+        if (item.subkind === "application") {
+          // the rules have no note for event applications
+          const ok = await confirmDialog(wording.message, { title: wording.title, confirmText: "Reject", danger: true });
+          if (!ok) return;
+        } else {
+          const reason = await reasonDialog(wording.message, {
+            title: wording.title,
+            label: "Note for them (required)",
+            required: true,
+            maxLength: ADMIN_NOTE_MAX,
+            quickReasons: QUICK_REJECT_REASONS,
+            confirmText: "Reject",
+            danger: true,
+          });
+          if (reason === null) return;
+          note = reason;
+        }
+        this.busyId = item.id;
+        try {
+          toast(await rejectReviewItem(item, note));
+          this.removeReviewed(item);
+        } catch (error) {
+          toast(friendlyError(error), "error");
+        } finally {
+          this.busyId = null;
+        }
+      },
+
+      /**
+       * After Approve / Reject: the card goes, counts update, focus moves on.
+       * @param {ReviewItem} item
+       */
+      removeReviewed(item) {
+        const list = this.review[item.kind];
+        const index = list.findIndex((i) => i.key === item.key);
+        this.review[item.kind] = list.filter((i) => i.key !== item.key);
+        this.closePanel();
+        const left = this.review[item.kind];
+        announce(left.length ? `${left.length} left in ${item.kind}.` : `All caught up in ${item.kind}.`);
+        setTimeout(() => {
+          const next = left[Math.min(index, left.length - 1)];
+          const button = next ? document.getElementById(`view-${next.key}`) : null;
+          if (button) button.focus();
+          else focusHeading("review-heading");
+        }, 0);
+        this.loadRecent();
+      },
+
+      // ---------- Browse ----------
+
+      reloadBrowse() {
+        this.browse = historyPager(
+          (from, to) => listAdminBrowse(this.browseKind, this.browseView, this.browseSearch, from, to),
+          () => `${this.browseView === "all" ? "" : `${this.browseView} `}${this.browseKind === "volunteers" ? "volunteer accounts" : this.browseKind}`,
+        );
+        this.browse.load();
+      },
+
+      /** @param {BrowseKind} kind */
+      showBrowseKind(kind) {
+        this.go("browse", kind, { view: this.browseView, q: "" });
+      },
+
+      /** @param {BrowseView} view */
+      showBrowseView(view) {
+        this.browseView = view;
+        this.go("browse", this.browseKind, this.browseParams());
+      },
+
+      onSearchInput() {
+        clearTimeout(searchTimer);
+        searchTimer = setTimeout(() => {
+          // replace, not push: typing shouldn't fill the Back history
+          const query = new URLSearchParams(Object.entries(this.browseParams()).filter(([, v]) => v)).toString();
+          history.replaceState(null, "", `#browse/${this.browseKind}${query ? `?${query}` : ""}`);
+          this.reloadBrowse();
+        }, 300);
+      },
+
+      /** Which occasional actions a Browse row offers. @param {BrowseRow} row @returns {string[]} */
+      rowActions(row) {
+        if (this.browseKind === "organizations") return row.status === "approved" ? ["reject-org"] : row.status === "rejected" ? ["approve-org"] : [];
+        if (this.browseKind === "requests") return row.status === "open" ? ["edit-request", "close-request"] : [];
+        if (this.browseKind === "events") return row.status === "upcoming" || row.status === "ongoing" ? ["cancel-event"] : [];
+        if (this.browseKind === "offers") return row.status === "pending" || row.status === "accepted" ? ["cancel-offer"] : [];
+        return [];
+      },
+
+      /** @param {string} action */
+      actionLabel(action) {
+        return /** @type {Record<string, string>} */ ({
+          "reject-org": "Reject",
+          "approve-org": "Approve",
+          "edit-request": "Edit",
+          "close-request": "Close",
+          "cancel-event": "Cancel event",
+          "cancel-offer": "Cancel offer",
+        })[action];
+      },
+
+      /** @param {string} action */
+      actionClass(action) {
+        return action === "edit-request" ? "btn btn-secondary min-h-11 px-3" : action === "approve-org" ? "btn btn-primary min-h-11 px-3" : "btn btn-danger min-h-11 px-3";
+      },
+
+      /**
+       * The occasional actions, each with its confirm dialog (REQUIREMENTS.md 7.3).
+       * @param {string} action
+       * @param {BrowseRow} row
+       * @param {HTMLElement} button
+       */
+      async runAction(action, row, button) {
+        if (action === "edit-request") return this.startEditRequest(row, button);
+        /** @type {() => Promise<string>} */
+        let work;
+        if (action === "reject-org") {
+          const note = await reasonDialog(
+            `${row.title} won't be able to post requests or events, and any it has will be hidden from the public. The organization will see your note.`,
+            { title: "Reject this organization?", label: "Note for them (required)", required: true, maxLength: ADMIN_NOTE_MAX, quickReasons: QUICK_REJECT_REASONS, confirmText: "Reject organization", danger: true },
+          );
+          if (note === null) return;
+          work = async () => (await setOrganizationApproval(row.id, "rejected", note), `${row.title} was rejected. Its requests and events are hidden.`);
+        } else if (action === "approve-org") {
+          const ok = await confirmDialog(`${row.title} will be able to post requests and events again.`, { title: "Approve this organization?", confirmText: "Approve" });
+          if (!ok) return;
+          work = async () => (await setOrganizationApproval(row.id, "approved"), `${row.title} is approved.`);
+        } else if (action === "close-request") {
+          const reason = await reasonDialog(
+            `"${row.title}" will stop taking donations. Waiting offers are declined automatically; accepted offers carry on.`,
+            { title: "Close this request?", label: "Reason the organization and donors will see", maxLength: REASON_MAX_LENGTH, confirmText: "Close request", danger: true },
+          );
+          if (reason === null) return;
+          work = async () => (await closeRequest(row.id, reason), "The request was closed.");
+        } else if (action === "cancel-event") {
+          const reason = await reasonDialog(`"${row.title}" won't take new volunteers and will disappear from the map.`, {
+            title: "Cancel this event?",
+            label: "Why is it cancelled?",
+            required: true,
+            maxLength: REASON_MAX_LENGTH,
+            warning: "Approved volunteers will see this reason, and so will anyone who opens the event's link.",
+            confirmText: "Cancel event",
+            cancelText: "Keep it",
+            danger: true,
+          });
+          if (reason === null) return;
+          work = async () => (await cancelEvent(row.id, reason), "The event was cancelled. Volunteers can see the reason.");
+        } else {
+          const ok = await confirmDialog(`Cancel ${row.title}? The donor and the organization will see it as cancelled, and the item is needed again.`, {
+            title: "Cancel this offer?",
+            confirmText: "Cancel offer",
+            cancelText: "Keep it",
+            danger: true,
+          });
+          if (!ok) return;
+          work = async () => {
+            await cancelOffer(row.id);
+            if (row.raw.item?.request_id) await scoreRequest(row.raw.item.request_id); // how much is still needed changed
+            return "The offer was cancelled.";
+          };
+        }
+        this.busyId = row.id;
+        try {
+          toast(await work());
+          focusHeading("browse-heading"); // the row may move to History: keep keyboard users in this section
+          await this.browse.load();
+          this.loadRecent();
+        } catch (error) {
+          toast(friendlyError(error), "error");
+        } finally {
+          this.busyId = null;
+        }
+      },
+
+      /**
+       * Edit an open request's title, description, urgency and deadline in the side panel.
+       * @param {BrowseRow} row
+       * @param {HTMLElement} button
+       */
+      startEditRequest(row, button) {
+        panelOpener = button;
+        this.panelItem = null;
+        this.editRow = row;
+        this.reqForm = {
+          title: row.raw.title,
+          description: row.raw.description ?? "",
+          urgency: row.raw.urgency,
+          deadline: row.raw.deadline ?? "",
+        };
+        this.reqFormErrors = {};
+        /** @type {HTMLDialogElement} */ (document.getElementById("details-panel")).showModal();
+        setTimeout(() => document.getElementById("admin-req-title")?.focus(), 50);
+      },
+
+      async saveRequestEdit() {
+        const row = this.editRow;
+        if (!row) return;
+        /** @type {Record<string, string>} */
+        const errors = {};
+        const title = this.reqForm.title.trim();
+        if (!title) errors.title = "Please keep a title.";
+        else if (title.length > 100) errors.title = "Please keep the title under 100 characters.";
+        if (this.reqForm.description.trim().length > 1000) errors.description = "Please keep the description under 1,000 characters.";
+        this.reqFormErrors = errors;
+        if (Object.keys(errors).length) {
+          document.getElementById(errors.title ? "admin-req-title" : "admin-req-desc")?.focus();
+          return;
+        }
+        this.savingReq = true;
+        try {
+          await adminUpdateRequest(row.id, this.reqForm);
+          toast("The request was updated.");
+          this.closePanel();
+          await scoreRequest(row.id); // the database cleared the score when the text or deadline changed
+          await this.browse.load();
+        } catch (error) {
+          toast(friendlyError(error), "error");
+        } finally {
+          this.savingReq = false;
+        }
+      },
+    };
+  });
 });

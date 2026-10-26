@@ -586,24 +586,39 @@ Admins **review and moderate**; they do not create content. Admins cannot create
 
 **Becoming admin:** sign up normally, then run the update at the bottom of the schema file. Nobody can sign up as admin.
 
+**Layout:** three sections, **Overview · To review · Browse**, linked from the top bar next to Home (they replace "My dashboard" for admins; on phones the bottom bar shows them plus Profile, and "To review" shows the number waiting). Sub-tabs inside a section use the tabs pattern (`role="tablist"` / `"tab"` / `"tabpanel"`, `aria-selected`, roving tabindex, ← → Home End). The place is kept in the URL hash, e.g. `#review/requests`, `#review/requests?item=<id>` (opens that item), `#browse/offers?view=history&q=…`, so reloading keeps it and back / forward move between tabs. Code: `js/admin-dashboard.js` (UI) and `js/admin-data.js` (data, reusing the existing database functions). Phones: main tabs stay at the top, sub-tabs scroll sideways, one column.
+
 ### 7.1 Overview
 
-- Summary cards: organizations waiting, volunteer accounts waiting, requests waiting, events waiting, volunteer applications waiting, offers in progress.
-- Each card opens its review queue below. Show the oldest items first.
+- Four count cards: Organizations, Requests, Events, Volunteers waiting (volunteer accounts + event applications). Each links to its "To review" sub-tab.
+- "Waiting longest": the 5 oldest pending items of any kind, each linking to it.
+- "Recently closed or cancelled" (last 7 days) and the public impact numbers (`public_stats`).
 
-### 7.2 Review queues (Approve / Reject, reject always asks for an `admin_note`)
+### 7.2 To review (Approve / Reject; reject asks for an `admin_note`)
+
+- Sub-tabs Organizations · Requests · Events · Volunteers, each with a count; the "To review" tab shows the total waiting. Oldest first.
+- **One shared review card** for every kind: type, title, who sent it, "Waiting 2 days", 2–3 key details, and View details · Reject · Approve (primary).
+- **View details** opens a side panel (`<dialog class="side-panel">`: a sheet on the right on desktop, full screen on phones) with everything needed to decide, plus Approve / Reject. Closes with the button, Escape or the backdrop; focus returns to the card.
+- **Reject** opens a dialog with quick reasons ("Missing details", "Couldn't verify the organization", "Not suitable for the platform", "Duplicate") that fill the note, plus a text box; the note is required (event applications have no note, so they get a plain confirm).
+- After an action: a toast, the card disappears, every count updates. Empty sub-tab: "All caught up ✓".
+
+The kinds and what the panel shows:
 
 1. **Organizations** — `organizations.approval = 'pending'`: name, description, address, map pin, phone, owner's name and phone (emails live in Supabase's auth system and aren't readable from the browser). Approve → it can post requests and events.
 2. **Donation requests** — `status = 'pending_approval'`: organization, title, items and quantities, deadline, urgency. Approve → `status = 'open'`; Reject → `status = 'rejected'`.
 3. **Events** — `approval = 'pending'`: organization, title, place, date and time, linked request. Approve → appears on the map and can be shared.
-4. **Volunteer applications** — `status = 'pending'`: volunteer's name, event, message, availability and interests.
+4. **Volunteers** — both **volunteer accounts** waiting for approval (`profiles.volunteer_approval = 'pending'`: phone, area, availability, interests, skills) and **event applications** (`status = 'pending'`: volunteer's name, event, message, availability and interests). Each card says "Account" or "Application".
 
-### 7.3 Monitoring
+### 7.3 Browse (replaces the old monitoring and History sections)
 
-- **Offers:** list all offers with filters by status; admin can cancel a suspicious offer (confirm dialog first).
-- **Requests:** admin can close a request or edit its title, description, urgency and deadline.
-- **Organizations:** admin can reject an approved organization later (e.g. after a complaint) — this hides its requests and events from the public automatically.
-- Show personal data (phones, postal codes) only on screens where admins need it for a review.
+- Sub-tabs Organizations · Requests · Events · Offers · Volunteers (accounts) · Applications (event applications), each with the same filter chips **Active · History · All** and a search box (name / title).
+- A compact table on wide screens, cards on phones; newest first, 20 at a time with "Show more"; shared status badges.
+- The occasional actions, each with a confirm dialog:
+  - **Organizations:** reject an approved organization later (e.g. after a complaint) — this hides its requests and events from the public automatically; approve a rejected one again.
+  - **Requests:** close a request (optional reason) or edit its title, description, urgency and deadline (in the side panel).
+  - **Events:** cancel an event (required reason, volunteers see it).
+  - **Offers:** cancel a suspicious offer.
+- Show personal data (phones, postal codes) only on screens where admins need it for a review (the details panel, and donor / volunteer names in Browse for moderation).
 
 ### 7.4 Not in the MVP (later)
 

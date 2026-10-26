@@ -1,28 +1,7 @@
 // @ts-check
 // Home page (index.html): impact numbers and the most urgent needs (REQUIREMENTS.md 6.2).
-// Works without logging in. The events map is js/public-events.js; the matching box is js/match.js.
-
-/** Impact numbers from public_stats(), with friendly text when a number is still 0. */
-const STAT_CARDS = [
-  { key: "items_delivered", label: "Items delivered", empty: "Be the first to give" },
-  { key: "completed_donations", label: "Completed donations", empty: "Be the first to give" },
-  { key: "open_requests", label: "Open requests", empty: "No needs right now" },
-  { key: "upcoming_events", label: "Upcoming events", empty: "Coming soon" },
-  { key: "organizations", label: "Organizations", empty: "Be the first to join" },
-];
-
-/**
- * Totals for the home page. Returns only counts — never who gave what.
- * @returns {Promise<Record<string, number>>}
- */
-async function getPublicStats() {
-  const { data, error } = await db().rpc("public_stats").single();
-  if (error) throw error;
-  /** @type {Record<string, number>} */
-  const stats = {};
-  for (const card of STAT_CARDS) stats[card.key] = Number(/** @type {any} */ (data)?.[card.key] ?? 0);
-  return stats;
-}
+// Works without logging in. The events map is js/public-events.js; the matching box is js/match.js;
+// the impact numbers come from js/stats.js.
 
 document.addEventListener("alpine:init", () => {
   const Alpine = /** @type {any} */ (window).Alpine;
@@ -66,7 +45,7 @@ document.addEventListener("alpine:init", () => {
       else if (viewer.role === "admin") {
         const waiting = this.adminWaiting;
         const count = waiting === null ? "" : waiting === 0 ? " (nothing waiting)" : ` (${waiting} waiting)`;
-        links.push({ href: "/admin.html", label: `Review queue${count}` });
+        links.push({ href: "/admin.html#review", label: `Review queue${count}` });
       } else {
         if (viewer.isDonor) links.push({ href: "/needs.html", label: "Browse needs" });
         if (viewer.isVolunteer) links.push({ href: "/volunteer.html#events-heading", label: "Find events" });

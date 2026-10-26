@@ -39,7 +39,10 @@
         <!-- Desktop links (phones use the bottom navigation) -->
         <nav class="hidden items-center gap-1 sm:flex" aria-label="Site" x-show="ready" x-cloak>
           <template x-for="link in topLinks" :key="link.href">
-            <a :href="link.href" class="top-link" :aria-current="isCurrent(link.href) ? 'page' : null" x-text="link.label"></a>
+            <a :href="link.href" class="top-link gap-2" :aria-current="isCurrent(link.href) ? 'page' : null">
+              <span x-text="link.label"></span>
+              <span class="badge badge-warning" x-show="link.badge" x-text="link.badge" :aria-label="`${link.badge} waiting`"></span>
+            </a>
           </template>
         </nav>
         <nav class="segmented order-last w-full sm:order-none sm:w-auto" aria-label="Switch between donating and volunteering" x-show="canSwitch" x-cloak>
@@ -115,7 +118,7 @@
           <span class="badge badge-neutral mt-2" x-show="isOver && event?.status !== 'cancelled'">This event has ended</span>
           <div class="mt-1 flex flex-wrap gap-2">
             <a class="btn btn-ghost -ml-3 px-3 text-sm" x-show="ownsContent(event?.organization_id)" href="/organization.html#events-heading">Your organization · Manage</a>
-            <a class="btn btn-ghost -ml-3 px-3 text-sm" x-show="isAdmin()" href="/admin.html?queue=events">Open in admin</a>
+            <a class="btn btn-ghost -ml-3 px-3 text-sm" x-show="isAdmin()" href="/admin.html#browse/events?view=active">Open in admin</a>
           </div>
         </div>
 

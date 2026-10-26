@@ -161,7 +161,7 @@ async function showMoreAndFocus(pager, list) {
   await pager.more();
   // wait for Alpine to draw the new rows
   await new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve)));
-  const item = list?.querySelectorAll(":scope > li")[before];
+  const item = list?.querySelectorAll(":scope > li, :scope > tr")[before];
   if (item instanceof HTMLElement) {
     item.setAttribute("tabindex", "-1");
     item.focus();
@@ -206,7 +206,8 @@ function confirmDialog(message, options = {}) {
  * Like confirmDialog, but also asks for a reason (e.g. why a request is closed or an event cancelled).
  * Resolves with the trimmed reason ("" when optional and left empty), or null when cancelled.
  * @param {string} message
- * @param {{ title?: string, label?: string, required?: boolean, maxLength?: number, confirmText?: string, cancelText?: string, danger?: boolean, warning?: string }} [options]
+ * quickReasons: optional one-tap reasons ("Missing details"…) that fill the note; the text box stays editable.
+ * @param {{ title?: string, label?: string, required?: boolean, maxLength?: number, confirmText?: string, cancelText?: string, danger?: boolean, warning?: string, quickReasons?: string[] }} [options]
  * @returns {Promise<string | null>}
  */
 function reasonDialog(message, options = {}) {
@@ -219,15 +220,22 @@ function reasonDialog(message, options = {}) {
     cancelText = "Cancel",
     danger = false,
     warning = "",
+    quickReasons = [],
   } = options;
   const dialog = document.createElement("dialog");
   dialog.className = "dialog";
   dialog.setAttribute("aria-labelledby", "reason-dialog-title");
+  const chips = quickReasons.length
+    ? `<div class="mt-4 flex flex-wrap gap-2" role="group" aria-label="Quick reasons">${quickReasons
+        .map((reason) => `<button type="button" class="chip" data-reason="${escapeHtml(reason)}" aria-pressed="false">${escapeHtml(reason)}</button>`)
+        .join("")}</div>`
+    : "";
   dialog.innerHTML = `
     <form method="dialog" novalidate>
       <h2 id="reason-dialog-title" class="text-lg font-semibold">${escapeHtml(title)}</h2>
       <p class="mt-2 text-muted">${escapeHtml(message)}</p>
       ${warning ? `<p class="mt-3 rounded-md bg-warning-soft p-3 text-sm text-warning">${escapeHtml(warning)}</p>` : ""}
+      ${chips}
       <div class="mt-4">
         <label for="reason-dialog-input" class="label">${escapeHtml(label)}${
           required ? ' <span class="text-danger" aria-hidden="true">*</span>' : ' <span class="font-normal text-muted">(optional)</span>'
@@ -246,8 +254,17 @@ function reasonDialog(message, options = {}) {
   const input = /** @type {HTMLTextAreaElement} */ (dialog.querySelector("textarea"));
   const count = /** @type {HTMLElement} */ (dialog.querySelector("#reason-dialog-count"));
   const error = /** @type {HTMLElement} */ (dialog.querySelector("#reason-dialog-error"));
+  const updateCount = () => (count.textContent = `${input.value.length} / ${maxLength} characters`);
+  for (const chip of dialog.querySelectorAll("[data-reason]")) {
+    chip.addEventListener("click", () => {
+      input.value = (chip.getAttribute("data-reason") ?? "").slice(0, maxLength);
+      for (const other of dialog.querySelectorAll("[data-reason]")) other.setAttribute("aria-pressed", String(other === chip));
+      input.dispatchEvent(new Event("input"));
+      input.focus();
+    });
+  }
   input.addEventListener("input", () => {
-    count.textContent = `${input.value.length} / ${maxLength} characters`;
+    updateCount();
     if (input.value.trim()) {
       error.hidden = true;
       input.removeAttribute("aria-invalid");
@@ -346,7 +363,7 @@ function historyPager(fetchPage = async () => [], noun = "past items") {
   };
 }
 
-/** @typedef {'request' | 'offer' | 'event' | 'application'} StatusKind */
+/** @typedef {'request' | 'offer' | 'event' | 'application' | 'approval'} StatusKind */
 
 /** One badge per status for every kind of record (full class names, so Tailwind finds them). */
 /** @type {Record<StatusKind, Record<string, { className: string, label: string }>>} */
@@ -370,6 +387,11 @@ const STATUS_BADGE = {
     ongoing: { className: "badge badge-success", label: "Happening now" },
     completed: { className: "badge badge-neutral", label: "Completed" },
     cancelled: { className: "badge badge-neutral", label: "Cancelled" },
+  },
+  approval: {
+    pending: { className: "badge badge-warning", label: "Waiting for review" },
+    approved: { className: "badge badge-success", label: "Approved" },
+    rejected: { className: "badge badge-danger", label: "Rejected" },
   },
   application: {
     pending: { className: "badge badge-warning", label: "Waiting" },
