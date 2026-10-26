@@ -73,14 +73,17 @@ async function copyText(text) {
 }
 
 /**
- * A theme colour from src/input.css (Tailwind puts them on :root), with a fallback.
- * @param {string} name e.g. "primary"
- * @param {string} fallback
- * @returns {string}
+ * Poster colours: downloads and prints are always light, whatever theme the page is in.
+ * Same values as the light theme in src/input.css.
  */
-function themeColor(name, fallback) {
-  return getComputedStyle(document.documentElement).getPropertyValue(`--color-${name}`).trim() || fallback;
-}
+const POSTER_COLORS = {
+  primary: "#0f766e",
+  soft: "#ccfbf1",
+  ink: "#0f172a",
+  muted: "#64748b",
+  accent: "#f59e0b",
+  paper: "#ffffff",
+};
 
 /**
  * Splits text into lines that fit the given width.
@@ -133,11 +136,7 @@ async function downloadPoster(event, orgName) {
   } catch {
     // system font fallback is fine
   }
-  const primary = themeColor("primary", "#0f766e");
-  const soft = themeColor("primary-soft", "#ccfbf1");
-  const ink = themeColor("ink", "#0f172a");
-  const muted = themeColor("muted", "#64748b");
-  const accent = themeColor("accent", "#f59e0b");
+  const { primary, soft, ink, muted, accent, paper } = POSTER_COLORS;
 
   // Background and header band
   ctx.fillStyle = soft;
@@ -146,7 +145,7 @@ async function downloadPoster(event, orgName) {
   ctx.fillRect(0, 0, W, 260);
 
   // Logo: white rounded square with "K"
-  ctx.fillStyle = "#ffffff";
+  ctx.fillStyle = paper;
   ctx.beginPath();
   ctx.roundRect(80, 80, 100, 100, 24);
   ctx.fill();
@@ -157,12 +156,12 @@ async function downloadPoster(event, orgName) {
   ctx.fillText("K", 130, 134);
   ctx.textAlign = "left";
   ctx.textBaseline = "alphabetic";
-  ctx.fillStyle = "#ffffff";
+  ctx.fillStyle = paper;
   ctx.font = `700 52px ${font}`;
   ctx.fillText("KampongShare", 210, 148);
 
   // Card
-  ctx.fillStyle = "#ffffff";
+  ctx.fillStyle = paper;
   ctx.beginPath();
   ctx.roundRect(60, 320, W - 120, 860, 40);
   ctx.fill();

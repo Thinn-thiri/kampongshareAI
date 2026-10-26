@@ -3,6 +3,8 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <!-- sets light / dark before anything is drawn (no white flash) -->
+    <script src="/js/theme.js"></script>
     <title>Log in · KampongShare</title>
     <link rel="icon" href="/img/favicon.svg" type="image/svg+xml" />
     <link rel="preconnect" href="https://fonts.googleapis.com" />
@@ -31,6 +33,26 @@
           <a href="/donor.html" class="segmented-link" :aria-current="here('/donor.html') ? 'page' : null">Donating</a>
           <a href="/volunteer.html" class="segmented-link" :aria-current="here('/volunteer.html') ? 'page' : null">Volunteering</a>
         </nav>
+        <!-- Theme: System / Light / Dark (js/theme.js) -->
+        <div class="relative" x-data="themeMenu" @keydown.escape="close(true)" @click.outside="close(false)">
+          <button type="button" x-ref="themeButton" class="btn btn-ghost size-11 px-0" :aria-label="`Theme: ${label}`" aria-label="Theme"
+            aria-haspopup="menu" :aria-expanded="open.toString()" aria-controls="theme-menu" @click="toggle()">
+            <span x-show="choice === 'system'"><i data-lucide="monitor" class="size-5" aria-hidden="true"></i></span>
+            <span x-show="choice === 'light'" x-cloak><i data-lucide="sun" class="size-5" aria-hidden="true"></i></span>
+            <span x-show="choice === 'dark'" x-cloak><i data-lucide="moon" class="size-5" aria-hidden="true"></i></span>
+          </button>
+          <div id="theme-menu" class="menu w-40" role="menu" aria-label="Theme" x-show="open" x-cloak @keydown.down.prevent="move(1)" @keydown.up.prevent="move(-1)">
+            <template x-for="option in options" :key="option.value">
+              <button type="button" class="menu-item gap-2" role="menuitemradio" :aria-checked="(choice === option.value).toString()" @click="pick(option.value)">
+                <span x-show="option.icon === 'monitor'"><i data-lucide="monitor" class="size-4" aria-hidden="true"></i></span>
+                <span x-show="option.icon === 'sun'"><i data-lucide="sun" class="size-4" aria-hidden="true"></i></span>
+                <span x-show="option.icon === 'moon'"><i data-lucide="moon" class="size-4" aria-hidden="true"></i></span>
+                <span class="flex-1" x-text="option.label"></span>
+                <span class="text-primary" x-show="choice === option.value"><i data-lucide="check" class="size-4" aria-hidden="true"></i></span>
+              </button>
+            </template>
+          </div>
+        </div>
         <nav class="flex items-center gap-1" aria-label="Account" x-show="ready && !profile" x-cloak>
           <a href="/login.html" class="btn btn-ghost px-3">Log in</a>
           <a href="/signup.html" class="btn btn-primary px-4">Sign up</a>

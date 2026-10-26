@@ -394,12 +394,20 @@ function friendlyError(error) {
 function startIcons() {
   const lucide = /** @type {any} */ (window).lucide;
   if (!lucide?.createIcons) return;
-  const draw = () => lucide.createIcons({ attrs: { "aria-hidden": "true", focusable: "false" } });
+  const draw = () => {
+    lucide.createIcons({ attrs: { "aria-hidden": "true", focusable: "false" } });
+    // Lucide keeps data-lucide on the <svg> it draws. Remove it, so a drawn icon is never
+    // drawn again: redrawing swapped the icon under the pointer and could swallow clicks,
+    // and each redraw looked like a "new icon" to the observer below (an endless loop).
+    for (const svg of document.querySelectorAll("svg[data-lucide]")) svg.removeAttribute("data-lucide");
+  };
   draw();
   let queued = false;
+  /** Only <i data-lucide> placeholders still need drawing. @param {Node} node */
+  const hasPlaceholder = (node) => node instanceof Element && (node.matches("i[data-lucide]") || node.querySelector("i[data-lucide]") !== null);
   new MutationObserver((mutations) => {
     if (queued) return;
-    const added = mutations.some((m) => [...m.addedNodes].some((n) => n instanceof Element && (n.matches("[data-lucide]") || n.querySelector("[data-lucide]"))));
+    const added = mutations.some((m) => [...m.addedNodes].some(hasPlaceholder));
     if (!added) return;
     queued = true;
     requestAnimationFrame(() => {

@@ -80,6 +80,7 @@ js/config.js           → Supabase URL + anon key only
 js/supabase.js         → creates the client
 js/auth.js             → getProfile(), requireAccess('donor' | 'volunteer' | 'organization' | 'admin'), logout
 js/ui.js               → toast(), confirmDialog(), formatDate(), statusBadge(), escapeHtml()
+js/theme.js            → light / dark mode: sets data-theme first thing in <head>, theme menu (section 3)
 js/share.js            → share links, poster image, copy caption (section 5)
 js/geocode.js          → lookupPostalCode(): postal code → { address, latitude, longitude } via geocode-postal
 jsconfig.json          → turns on type checking for all .js files
@@ -87,7 +88,7 @@ img/og-default.png     → 1200×630 default preview image for shared links
 netlify/functions/     → server code: score-request (AI urgency), match-items, event-caption, share-event, geocode-postal, delete-account
 netlify/lib/           → shared server code: ai.js (NVIDIA model + personal-data filter), urgency.js (score formula), score.js
 supabase/migrations/   → database schema and changes (Supabase CLI)
-scripts/               → check-supabase.js, seed.js, score-requests.js (run with node)
+scripts/               → check-supabase.js, check-contrast.js, seed.js, score-requests.js (run with node)
 ```
 
 ### 2.1 Tailwind setup
@@ -152,12 +153,18 @@ Define everything once here. Tailwind turns each `--color-*` into classes, e.g. 
 ```css
 @import "tailwindcss";
 
+/* dark: utilities follow data-theme on <html> (set by js/theme.js) */
+@custom-variant dark (&:where([data-theme=dark], [data-theme=dark] *));
+
 @theme {
   /* brand */
   --color-primary: #0f766e; /* teal — buttons, links */
   --color-primary-hover: #115e59;
   --color-primary-soft: #ccfbf1; /* tinted backgrounds */
   --color-accent: #f59e0b; /* warm amber — highlights only */
+  --color-on-primary: #ffffff; /* text on primary buttons */
+  --color-on-danger: #ffffff; /* text on danger buttons */
+  --color-overlay: rgb(15 23 42 / 0.4); /* behind dialogs */
 
   /* neutrals:  bg-canvas, bg-surface, border-line, text-ink, text-muted */
   --color-canvas: #f8faf9;
@@ -187,6 +194,41 @@ Define everything once here. Tailwind turns each `--color-*` into classes, e.g. 
   --font-sans: "Plus Jakarta Sans", system-ui, sans-serif;
 }
 
+/* the @theme values above are the light theme */
+:root {
+  color-scheme: light;
+}
+
+/* dark theme: same tokens, dark values (not in a layer, so it wins) */
+:root[data-theme="dark"],
+[data-theme="dark"] {
+  color-scheme: dark; /* form controls and scrollbars match */
+  --color-canvas: #0b1120;
+  --color-surface: #111827;
+  --color-line: #1f2a3d;
+  --color-ink: #f1f5f9;
+  --color-muted: #94a3b8;
+  --color-primary: #2dd4bf;
+  --color-primary-hover: #5eead4;
+  --color-primary-soft: #042f2e;
+  --color-on-primary: #042f2e;
+  --color-accent: #fbbf24;
+  --color-success: #4ade80;
+  --color-success-soft: #052e16;
+  --color-warning: #fbbf24;
+  --color-warning-soft: #3a2405;
+  --color-danger: #f87171;
+  --color-danger-soft: #3b0d0d;
+  --color-on-danger: #3b0d0d;
+  --color-info: #93c5fd;
+  --color-info-soft: #0c1e3e;
+  --color-overlay: rgb(0 0 0 / 0.6);
+  --shadow-sm: 0 1px 2px rgb(0 0 0 / 0.4); /* a little stronger on dark */
+  --shadow-md: 0 4px 16px rgb(0 0 0 / 0.5);
+}
+/* (src/input.css also has a [data-theme="light"] copy of the light values, so a light
+   panel inside a dark page stays light, plus the Leaflet control styles.) */
+
 @layer base {
   body {
     @apply bg-canvas font-sans text-ink antialiased;
@@ -199,13 +241,13 @@ Define everything once here. Tailwind turns each `--color-*` into classes, e.g. 
     @apply inline-flex min-h-11 items-center justify-center gap-2 rounded-md px-5 text-sm font-semibold transition-colors duration-200 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary disabled:cursor-not-allowed disabled:opacity-60;
   }
   .btn-primary {
-    @apply bg-primary text-white hover:bg-primary-hover;
+    @apply bg-primary text-on-primary hover:bg-primary-hover;
   }
   .btn-secondary {
     @apply border border-line bg-surface text-ink hover:bg-canvas;
   }
   .btn-danger {
-    @apply bg-danger text-white hover:opacity-90;
+    @apply bg-danger text-on-danger hover:opacity-90;
   }
   .btn-ghost {
     @apply text-primary hover:bg-primary-soft;
@@ -263,6 +305,17 @@ Define everything once here. Tailwind turns each `--color-*` into classes, e.g. 
 ```
 
 Use Tailwind's built-in spacing (`p-4`, `gap-6`…) and text sizes (`text-sm`, `text-2xl`…); don't invent new ones.
+
+**Never use fixed colours; always theme tokens.** No `bg-white`, `text-white`, `text-black`, `bg-black`, `gray-*` / `slate-*` / `blue-*`… classes, hex codes or inline colour styles in HTML or JS: they stay the same in dark mode. Use the tokens (`bg-surface`, `text-ink`, `text-on-primary`…), or `dark:` for a one-off. The only exception is anything downloaded or printed (the Instagram poster in `js/share.js`), which always uses the fixed light palette.
+
+### Light and dark mode
+
+- **Theme control** in the top bar of every page: a 44 × 44 px button (Lucide `monitor` / `sun` / `moon`, `aria-label="Theme: …"`) that opens a menu with three `menuitemradio` choices: **System** (default, follows the device), **Light** and **Dark**. Keyboard: Enter opens it, Up / Down move, Escape closes and returns focus.
+- The choice is saved in `localStorage` under `ks-theme`; every read and write is wrapped in try/catch, so with storage blocked the page still works and follows the device. "System" follows `prefers-color-scheme` live (no reload).
+- **No white flash:** `js/theme.js` is the first script in every page's `<head>`, before the stylesheets. It sets `data-theme="light" | "dark"` on `<html>` before anything is drawn. Every page loads the same file.
+- No colour transition on first load; a 150 ms transition only when the user switches (off with `prefers-reduced-motion`).
+- Leaflet: tiles stay as they are; popups, zoom buttons and the attribution use the theme colours (attribution stays readable).
+- **Contrast check:** `node scripts/check-contrast.js` reads both themes from `src/input.css` and checks the text pairs reach 4.5:1 (ink and muted on canvas and surface, primary on both, on-primary on primary, on-danger on danger, each status colour on its soft background). Run it after changing any colour.
 
 ### Components (classes above, reused everywhere)
 

@@ -1,0 +1,113 @@
+// @ts-check
+// Checks that text colours have enough contrast (WCAG 2.1 AA: at least 4.5:1) in both themes.
+// Reads the colours straight from src/input.css: light from the @theme block, dark from the
+// [data-theme="dark"] block. Run with: node scripts/check-contrast.js
+
+import { readFileSync } from "node:fs";
+
+/** [text, background] pairs that must reach 4.5:1. */
+const PAIRS = [
+  ["ink", "canvas"],
+  ["ink", "surface"],
+  ["muted", "canvas"],
+  ["muted", "surface"],
+  ["primary", "canvas"],
+  ["primary", "surface"],
+  ["on-primary", "primary"],
+  ["on-primary", "primary-hover"],
+  ["on-danger", "danger"],
+  ["success", "success-soft"],
+  ["warning", "warning-soft"],
+  ["danger", "danger-soft"],
+  ["info", "info-soft"],
+  ["primary", "primary-soft"],
+];
+
+const MIN_RATIO = 4.5;
+
+/**
+ * The --color-* hex values inside the first block that starts with `opening`.
+ * @param {string} css
+ * @param {string} opening e.g. "@theme {"
+ * @returns {Record<string, string>}
+ */
+function readColors(css, opening) {
+  const start = css.indexOf(opening);
+  if (start < 0) throw new Error(`Couldn't find "${opening}" in src/input.css`);
+  const block = css.slice(start, css.indexOf("}", start));
+  /** @type {Record<string, string>} */
+  const colors = {};
+  for (const [, name, hex] of block.matchAll(/--color-([a-z-]+):\s*(#[0-9a-fA-F]{6})\b/g)) colors[name] = hex.toLowerCase();
+  return colors;
+}
+
+/**
+ * Relative luminance of a #rrggbb colour (WCAG 2.1).
+ * @param {string} hex
+ * @returns {number}
+ */
+function luminance(hex) {
+  const [r, g, b] = [1, 3, 5].map((i) => {
+    const value = parseInt(hex.slice(i, i + 2), 16) / 255;
+    return value <= 0.03928 ? value / 12.92 : ((value + 0.055) / 1.055) ** 2.4;
+  });
+  return 0.2126 * r + 0.7152 * g + 0.0722 * b;
+}
+
+/**
+ * @param {string} a
+ * @param {string} b
+ * @returns {number}
+ */
+function contrast(a, b) {
+  const [light, dark] = [luminance(a), luminance(b)].sort((x, y) => y - x);
+  return (light + 0.05) / (dark + 0.05);
+}
+
+/**
+ * Prints the table for one theme and returns how many pairs failed.
+ * @param {string} name
+ * @param {Record<string, string>} colors
+ * @returns {number}
+ */
+function checkTheme(name, colors) {
+  console.log(`\n${name} theme`);
+  let failures = 0;
+  for (const [text, background] of PAIRS) {
+    const a = colors[text];
+    const b = colors[background];
+    if (!a || !b) {
+      console.log(`  MISSING  ${text} on ${background} (colour not found in src/input.css)`);
+      failures += 1;
+      continue;
+    }
+    const ratio = contrast(a, b);
+    const ok = ratio >= MIN_RATIO;
+    if (!ok) failures += 1;
+    console.log(`  ${ok ? "OK  " : "FAIL"}  ${`${text} on ${background}`.padEnd(28)} ${ratio.toFixed(2)}:1  (${a} on ${b})`);
+  }
+  return failures;
+}
+
+/** Reads both themes, prints the results and exits with 1 if anything is below 4.5:1. */
+function main() {
+  const css = readFileSync(new URL("../src/input.css", import.meta.url), "utf8");
+  const light = readColors(css, "@theme {");
+  // the dark block only lists what changes; anything it leaves out keeps the light value
+  const dark = { ...light, ...readColors(css, ':root[data-theme="dark"]') };
+  const lightCopy = readColors(css, '[data-theme="light"] {');
+
+  let failures = checkTheme("Light", light) + checkTheme("Dark", dark);
+
+  // the [data-theme="light"] copy (used inside dark pages) must match @theme
+  const different = Object.keys(light).filter((key) => lightCopy[key] && lightCopy[key] !== light[key]);
+  if (different.length) {
+    console.log(`\nThe [data-theme="light"] block differs from @theme for: ${different.join(", ")}`);
+    failures += different.length;
+  }
+
+  console.log(failures ? `\n${failures} problem(s) found — adjust the colours in src/input.css.` : `\nAll pairs reach ${MIN_RATIO}:1 in both themes.`);
+  process.exitCode = failures ? 1 : 0;
+}
+
+main();

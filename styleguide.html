@@ -3,6 +3,8 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <!-- sets light / dark before anything is drawn (no white flash) -->
+    <script src="/js/theme.js"></script>
     <title>Style guide · KampongShare</title>
     <link rel="icon" href="/img/favicon.svg" type="image/svg+xml" />
     <link rel="preconnect" href="https://fonts.googleapis.com" />
@@ -30,6 +32,26 @@
           <a href="/donor.html" class="segmented-link" :aria-current="here('/donor.html') ? 'page' : null">Donating</a>
           <a href="/volunteer.html" class="segmented-link" :aria-current="here('/volunteer.html') ? 'page' : null">Volunteering</a>
         </nav>
+        <!-- Theme: System / Light / Dark (js/theme.js) -->
+        <div class="relative" x-data="themeMenu" @keydown.escape="close(true)" @click.outside="close(false)">
+          <button type="button" x-ref="themeButton" class="btn btn-ghost size-11 px-0" :aria-label="`Theme: ${label}`" aria-label="Theme"
+            aria-haspopup="menu" :aria-expanded="open.toString()" aria-controls="theme-menu" @click="toggle()">
+            <span x-show="choice === 'system'"><i data-lucide="monitor" class="size-5" aria-hidden="true"></i></span>
+            <span x-show="choice === 'light'" x-cloak><i data-lucide="sun" class="size-5" aria-hidden="true"></i></span>
+            <span x-show="choice === 'dark'" x-cloak><i data-lucide="moon" class="size-5" aria-hidden="true"></i></span>
+          </button>
+          <div id="theme-menu" class="menu w-40" role="menu" aria-label="Theme" x-show="open" x-cloak @keydown.down.prevent="move(1)" @keydown.up.prevent="move(-1)">
+            <template x-for="option in options" :key="option.value">
+              <button type="button" class="menu-item gap-2" role="menuitemradio" :aria-checked="(choice === option.value).toString()" @click="pick(option.value)">
+                <span x-show="option.icon === 'monitor'"><i data-lucide="monitor" class="size-4" aria-hidden="true"></i></span>
+                <span x-show="option.icon === 'sun'"><i data-lucide="sun" class="size-4" aria-hidden="true"></i></span>
+                <span x-show="option.icon === 'moon'"><i data-lucide="moon" class="size-4" aria-hidden="true"></i></span>
+                <span class="flex-1" x-text="option.label"></span>
+                <span class="text-primary" x-show="choice === option.value"><i data-lucide="check" class="size-4" aria-hidden="true"></i></span>
+              </button>
+            </template>
+          </div>
+        </div>
         <nav class="flex items-center gap-1" aria-label="Account" x-show="ready && !profile" x-cloak>
           <a href="/login.html" class="btn btn-ghost px-3">Log in</a>
           <a href="/signup.html" class="btn btn-primary px-4">Sign up</a>
@@ -62,17 +84,82 @@
       </div>
 
       <!-- Colours -->
+      <!-- Light and dark -->
+      <section aria-labelledby="sg-themes" class="space-y-4">
+        <h2 id="sg-themes" class="text-xl font-semibold">Light and dark</h2>
+        <p class="text-muted">
+          Switch the whole page with the theme button in the top bar: <strong class="text-ink">System</strong> follows your device's setting,
+          or choose <strong class="text-ink">Light</strong> or <strong class="text-ink">Dark</strong>. The panels below always show one theme each.
+        </p>
+        <div class="grid gap-4 md:grid-cols-2">
+          <div data-theme="light" class="space-y-4 rounded-lg border border-line bg-canvas p-4">
+            <p class="text-sm font-semibold text-muted">Light theme</p>
+            <div class="card space-y-3">
+              <div class="flex flex-wrap gap-2">
+                <span class="badge badge-warning">Pending</span>
+                <span class="badge badge-info">Open</span>
+                <span class="badge badge-success">Delivered</span>
+                <span class="badge badge-danger">Rejected</span>
+                <span class="badge badge-neutral">Closed</span>
+                <span class="badge badge-ai">AI-suggested</span>
+              </div>
+              <p class="font-semibold">Rice 5kg</p>
+              <p class="text-sm text-muted">6 of 10 bags received</p>
+              <div>
+                <label for="sg-theme-input-light" class="label">Quantity</label>
+                <input id="sg-theme-input-light" class="input" type="number" value="4" />
+              </div>
+              <div class="flex flex-wrap gap-2">
+                <button type="button" class="btn btn-primary">Offer</button>
+                <button type="button" class="btn btn-secondary">Cancel</button>
+                <button type="button" class="btn btn-danger">Delete</button>
+                <button type="button" class="btn btn-ghost">Why this score?</button>
+              </div>
+            </div>
+            <div class="toast toast-success">Your offer was sent.</div>
+            <div class="toast toast-error">We couldn't reach the server.</div>
+          </div>
+          <div data-theme="dark" class="space-y-4 rounded-lg border border-line bg-canvas p-4">
+            <p class="text-sm font-semibold text-muted">Dark theme</p>
+            <div class="card space-y-3">
+              <div class="flex flex-wrap gap-2">
+                <span class="badge badge-warning">Pending</span>
+                <span class="badge badge-info">Open</span>
+                <span class="badge badge-success">Delivered</span>
+                <span class="badge badge-danger">Rejected</span>
+                <span class="badge badge-neutral">Closed</span>
+                <span class="badge badge-ai">AI-suggested</span>
+              </div>
+              <p class="font-semibold">Rice 5kg</p>
+              <p class="text-sm text-muted">6 of 10 bags received</p>
+              <div>
+                <label for="sg-theme-input-dark" class="label">Quantity</label>
+                <input id="sg-theme-input-dark" class="input" type="number" value="4" />
+              </div>
+              <div class="flex flex-wrap gap-2">
+                <button type="button" class="btn btn-primary">Offer</button>
+                <button type="button" class="btn btn-secondary">Cancel</button>
+                <button type="button" class="btn btn-danger">Delete</button>
+                <button type="button" class="btn btn-ghost">Why this score?</button>
+              </div>
+            </div>
+            <div class="toast toast-success">Your offer was sent.</div>
+            <div class="toast toast-error">We couldn't reach the server.</div>
+          </div>
+        </div>
+      </section>
+
       <section aria-labelledby="sg-colours" class="space-y-4">
         <h2 id="sg-colours" class="text-xl font-semibold">Colours</h2>
         <div class="grid grid-cols-2 gap-3 sm:grid-cols-4 lg:grid-cols-6">
-          <div class="rounded-md bg-primary p-4 text-sm font-semibold text-white">primary</div>
-          <div class="rounded-md bg-primary-hover p-4 text-sm font-semibold text-white">primary-hover</div>
+          <div class="rounded-md bg-primary p-4 text-sm font-semibold text-on-primary">primary</div>
+          <div class="rounded-md bg-primary-hover p-4 text-sm font-semibold text-on-primary">primary-hover</div>
           <div class="rounded-md bg-primary-soft p-4 text-sm font-semibold text-primary">primary-soft</div>
-          <div class="rounded-md bg-accent p-4 text-sm font-semibold text-ink">accent</div>
+          <div class="rounded-md bg-accent p-4 text-sm font-semibold text-ink dark:text-canvas">accent</div>
           <div class="rounded-md border border-line bg-canvas p-4 text-sm font-semibold text-ink">canvas</div>
           <div class="rounded-md border border-line bg-surface p-4 text-sm font-semibold text-ink">surface</div>
-          <div class="rounded-md bg-ink p-4 text-sm font-semibold text-white">ink</div>
-          <div class="rounded-md bg-muted p-4 text-sm font-semibold text-white">muted</div>
+          <div class="rounded-md bg-ink p-4 text-sm font-semibold text-canvas">ink</div>
+          <div class="rounded-md bg-muted p-4 text-sm font-semibold text-canvas">muted</div>
           <div class="rounded-md bg-success-soft p-4 text-sm font-semibold text-success">success</div>
           <div class="rounded-md bg-warning-soft p-4 text-sm font-semibold text-warning">warning</div>
           <div class="rounded-md bg-danger-soft p-4 text-sm font-semibold text-danger">danger</div>

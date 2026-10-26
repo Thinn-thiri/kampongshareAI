@@ -1,11 +1,17 @@
 @import "tailwindcss";
 
+/* dark: utilities follow data-theme on <html> (set by js/theme.js), not only the device setting */
+@custom-variant dark (&:where([data-theme=dark], [data-theme=dark] *));
+
 @theme {
   /* brand */
   --color-primary: #0f766e; /* teal — buttons, links */
   --color-primary-hover: #115e59;
   --color-primary-soft: #ccfbf1; /* tinted backgrounds */
   --color-accent: #f59e0b; /* warm amber — highlights only */
+  --color-on-primary: #ffffff; /* text on primary buttons */
+  --color-on-danger: #ffffff; /* text on danger buttons */
+  --color-overlay: rgb(15 23 42 / 0.4); /* behind dialogs */
 
   /* neutrals:  bg-canvas, bg-surface, border-line, text-ink, text-muted */
   --color-canvas: #f8faf9;
@@ -35,6 +41,125 @@
   --font-sans: "Plus Jakarta Sans", system-ui, sans-serif;
 }
 
+/* Light theme is the @theme above. Dark theme: the same tokens with dark values.
+   Not in a layer, so it wins over the defaults. [data-theme] on any element works too
+   (styleguide.html shows both themes side by side). */
+:root,
+[data-theme="light"] {
+  color-scheme: light;
+}
+[data-theme="light"] {
+  --color-canvas: #f8faf9;
+  --color-surface: #ffffff;
+  --color-line: #e2e8f0;
+  --color-ink: #0f172a;
+  --color-muted: #64748b;
+  --color-primary: #0f766e;
+  --color-primary-hover: #115e59;
+  --color-primary-soft: #ccfbf1;
+  --color-on-primary: #ffffff;
+  --color-accent: #f59e0b;
+  --color-success: #15803d;
+  --color-success-soft: #dcfce7;
+  --color-warning: #b45309;
+  --color-warning-soft: #fef3c7;
+  --color-danger: #b91c1c;
+  --color-danger-soft: #fee2e2;
+  --color-on-danger: #ffffff;
+  --color-info: #1d4ed8;
+  --color-info-soft: #dbeafe;
+  --color-overlay: rgb(15 23 42 / 0.4);
+  --shadow-sm: 0 1px 2px rgb(15 23 42 / 0.06);
+  --shadow-md: 0 4px 16px rgb(15 23 42 / 0.08);
+}
+:root[data-theme="dark"],
+[data-theme="dark"] {
+  color-scheme: dark;
+  --color-canvas: #0b1120;
+  --color-surface: #111827;
+  --color-line: #1f2a3d;
+  --color-ink: #f1f5f9;
+  --color-muted: #94a3b8;
+  --color-primary: #2dd4bf;
+  --color-primary-hover: #5eead4;
+  --color-primary-soft: #042f2e;
+  --color-on-primary: #042f2e;
+  --color-accent: #fbbf24;
+  --color-success: #4ade80;
+  --color-success-soft: #052e16;
+  --color-warning: #fbbf24;
+  --color-warning-soft: #3a2405;
+  --color-danger: #f87171;
+  --color-danger-soft: #3b0d0d;
+  --color-on-danger: #3b0d0d;
+  --color-info: #93c5fd;
+  --color-info-soft: #0c1e3e;
+  --color-overlay: rgb(0 0 0 / 0.6);
+  /* a little stronger, so cards still lift off the dark background */
+  --shadow-sm: 0 1px 2px rgb(0 0 0 / 0.4);
+  --shadow-md: 0 4px 16px rgb(0 0 0 / 0.5);
+}
+/* themed panels set their own text and background (the page body does this for <html>) */
+[data-theme] {
+  color: var(--color-ink);
+}
+
+/* Short colour change only when the user switches theme (js/theme.js adds the class);
+   never on first load. Turned off with prefers-reduced-motion below. */
+html.theme-changing,
+html.theme-changing * {
+  transition:
+    background-color 150ms,
+    color 150ms,
+    border-color 150ms,
+    fill 150ms !important;
+}
+
+/* Leaflet maps: tiles stay as they are; controls and popups use the theme.
+   Not in a layer, because leaflet.css isn't either (layered styles would lose). */
+.leaflet-container {
+  background: var(--color-canvas);
+  font: inherit;
+}
+.leaflet-popup-content-wrapper,
+.leaflet-popup-tip {
+  background: var(--color-surface);
+  color: var(--color-ink);
+  box-shadow: var(--shadow-md);
+}
+.leaflet-container a.leaflet-popup-close-button {
+  color: var(--color-muted);
+}
+.leaflet-container a.leaflet-popup-close-button:hover {
+  color: var(--color-ink);
+}
+.leaflet-bar a,
+.leaflet-bar a:hover {
+  background-color: var(--color-surface);
+  color: var(--color-ink);
+  border-bottom-color: var(--color-line);
+}
+.leaflet-bar a:hover {
+  background-color: var(--color-canvas);
+}
+.leaflet-bar a:focus-visible {
+  outline: 2px solid var(--color-primary);
+  outline-offset: -2px;
+}
+.leaflet-bar {
+  border-color: var(--color-line) !important;
+}
+.leaflet-touch .leaflet-bar {
+  border-color: var(--color-line);
+}
+.leaflet-container .leaflet-control-attribution {
+  background: color-mix(in srgb, var(--color-surface) 90%, transparent);
+  color: var(--color-ink);
+}
+.leaflet-container .leaflet-control-attribution a {
+  color: var(--color-primary);
+}
+
 @layer base {
   body {
     @apply bg-canvas font-sans text-ink antialiased;
@@ -61,13 +186,13 @@
     @apply inline-flex min-h-11 items-center justify-center gap-2 rounded-md px-5 text-sm font-semibold transition-colors duration-200 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary disabled:cursor-not-allowed disabled:opacity-60;
   }
   .btn-primary {
-    @apply bg-primary text-white hover:bg-primary-hover;
+    @apply bg-primary text-on-primary hover:bg-primary-hover;
   }
   .btn-secondary {
     @apply border border-line bg-surface text-ink hover:bg-canvas;
   }
   .btn-danger {
-    @apply bg-danger text-white hover:opacity-90;
+    @apply bg-danger text-on-danger hover:opacity-90;
   }
   .btn-ghost {
     @apply text-primary hover:bg-primary-soft;
@@ -205,7 +330,7 @@
 
   /* confirm dialog (native <dialog>) */
   .dialog {
-    @apply m-auto w-[calc(100%-2rem)] max-w-md rounded-lg border border-line bg-surface p-6 text-ink shadow-md backdrop:bg-ink/40;
+    @apply m-auto w-[calc(100%-2rem)] max-w-md rounded-lg border border-line bg-surface p-6 text-ink shadow-md backdrop:bg-overlay;
   }
 
   /* button spinner */
