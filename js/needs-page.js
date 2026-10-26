@@ -19,6 +19,7 @@ document.addEventListener("alpine:init", () => {
     itemBarLabel,
 
     /** @type {DonationRequest[]} */
+    ...publicViewer(),
     requests: [],
     loading: true,
     error: "",
@@ -38,7 +39,6 @@ document.addEventListener("alpine:init", () => {
     offerErrors: {},
     offerError: "",
     sending: false,
-    turningOn: false,
     /** @type {string | null} item highlighted from ?item= */
     focusItemId: null,
 
@@ -48,7 +48,7 @@ document.addEventListener("alpine:init", () => {
       this.focusItemId = params.get("item");
 
       try {
-        const [requests, profile] = await Promise.all([listOpenRequests(), getProfile().catch(() => null)]);
+        const [requests, profile] = await Promise.all([listOpenRequests(), getProfile().catch(() => null), this.loadViewer()]);
         this.requests = requests;
         this.profile = profile;
         if (profile?.is_donor) this.myOffers = await listMyOffers(profile.id);
@@ -107,15 +107,11 @@ document.addEventListener("alpine:init", () => {
 
     /**
      * What the Offer button does for whoever is looking (REQUIREMENTS.md 6.3 / 6.6a).
-     * @returns {'visitor' | 'not_individual' | 'turn_on' | 'consent' | 'donor'}
+     * "staff" (organizations and admins) see what donors see, without Offer buttons.
+     * @returns {'visitor' | 'staff' | 'turn_on' | 'consent' | 'donor'}
      */
-    get viewer() {
-      const profile = this.profile;
-      if (!profile) return "visitor";
-      if (profile.role === "organization" || profile.role === "admin") return "not_individual";
-      if (!profile.is_donor) return "turn_on";
-      if (!profile.consented_at || !profile.age_confirmed) return "consent";
-      return "donor";
+    get mode() {
+      return this.donorMode();
     },
 
     /**
@@ -146,7 +142,7 @@ document.addEventListener("alpine:init", () => {
         toast("That item isn't open for donations any more.", "error");
         return;
       }
-      if (this.viewer === "donor" && item.quantity_remaining > 0 && !this.activeOfferFor(item)) this.openOffer(item);
+      if (this.mode === "donor" && item.quantity_remaining > 0 && !this.activeOfferFor(item)) this.openOffer(item);
       setTimeout(() => document.getElementById(`item-${itemId}`)?.scrollIntoView({ behavior: "smooth", block: "center" }), 50);
     },
 
@@ -189,9 +185,9 @@ document.addEventListener("alpine:init", () => {
     async turnOnDonating() {
       this.turningOn = true;
       try {
-        this.profile = await enableRole("donor");
+        this.viewer = await turnOnRole("donor");
+        this.profile = await getProfile();
         if (this.profile) this.myOffers = await listMyOffers(this.profile.id);
-        window.dispatchEvent(new CustomEvent("profile-changed"));
         toast("Donating is turned on. You can offer items now.");
       } catch (error) {
         toast(friendlyError(error), "error");

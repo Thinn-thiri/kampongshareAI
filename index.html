@@ -22,6 +22,8 @@
     <script src="/js/map.js"></script>
     <script src="/js/events.js"></script>
     <script src="/js/public-events.js"></script>
+    <script src="/js/volunteering.js"></script>
+    <script src="/js/admin-counts.js"></script>
     <script src="/js/requests.js"></script>
     <script src="/js/offers.js"></script>
     <script src="/js/match.js"></script>
@@ -29,6 +31,7 @@
     <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3/dist/cdn.min.js"></script>
   </head>
   <body>
+    <a href="#main" class="skip-link">Skip to main content</a>
     <header class="topbar" x-data="topBar">
       <div class="container-page flex min-h-16 flex-wrap items-center gap-x-3 gap-y-2 py-2">
         <a href="/" class="flex items-center gap-2 rounded-sm font-bold text-primary focus-visible:outline-2 focus-visible:outline-primary" aria-label="KampongShare home">
@@ -37,6 +40,12 @@
         </a>
         <span class="text-line" aria-hidden="true">/</span>
         <span class="min-w-0 flex-1 truncate font-semibold">Home</span>
+        <!-- Desktop links (phones use the bottom navigation) -->
+        <nav class="hidden items-center gap-1 sm:flex" aria-label="Site" x-show="ready" x-cloak>
+          <template x-for="link in topLinks" :key="link.href">
+            <a :href="link.href" class="top-link" :aria-current="isCurrent(link.href) ? 'page' : null" x-text="link.label"></a>
+          </template>
+        </nav>
         <nav class="segmented order-last w-full sm:order-none sm:w-auto" aria-label="Switch between donating and volunteering" x-show="canSwitch" x-cloak>
           <a href="/donor.html" class="segmented-link" :aria-current="here('/donor.html') ? 'page' : null">Donating</a>
           <a href="/volunteer.html" class="segmented-link" :aria-current="here('/volunteer.html') ? 'page' : null">Volunteering</a>
@@ -70,7 +79,7 @@
             Account
           </button>
           <div id="account-menu" class="menu" x-show="open" x-cloak>
-            <a :href="dashboard" href="/" class="menu-item">My dashboard</a>
+            <a :href="dashboard" href="/" class="menu-item sm:hidden">My dashboard</a>
             <a href="/profile.html" class="menu-item">My profile</a>
             <button type="button" class="menu-item" @click="logout()">Log out</button>
           </div>
@@ -86,7 +95,7 @@
         </nav>
     </header>
 
-    <main class="container-page space-y-12 py-8 sm:py-12" x-data="homePage" @offer-item.window="goOffer($event.detail.itemId)">
+    <main id="main" tabindex="-1" class="container-page space-y-12 py-8 sm:py-12 focus:outline-none" x-data="homePage" @offer-item.window="goOffer($event.detail.itemId)">
       <!-- Hero -->
       <section class="max-w-2xl">
         <h1 class="text-3xl font-bold sm:text-4xl">Give where it's needed most</h1>
@@ -94,10 +103,27 @@
           KampongShare connects people in Singapore with local organizations that need items and volunteers — and shows what's most urgent first.
         </p>
         <div class="mt-6 flex flex-wrap gap-3">
-          <a href="/needs.html" class="btn btn-primary">Browse needs</a>
-          <a href="/signup.html?roles=donor" class="btn btn-secondary">Sign up to donate</a>
-          <a href="/signup.html?roles=volunteer" class="btn btn-secondary">Volunteer</a>
-          <a href="/signup.html?role=organization" class="btn btn-ghost">Register your organization</a>
+          <!-- until we know who is looking (no visitor buttons flashing for logged-in people) -->
+          <template x-if="!viewerReady">
+            <div class="flex flex-wrap gap-3" role="status"><span class="sr-only">Loading…</span>
+              <div class="skeleton h-11 w-36"></div><div class="skeleton h-11 w-40"></div>
+            </div>
+          </template>
+          <template x-if="viewerReady && !viewer">
+            <div class="flex flex-wrap gap-3">
+              <a href="/needs.html" class="btn btn-primary">Browse needs</a>
+              <a href="/signup.html?roles=donor" class="btn btn-secondary">Sign up to donate</a>
+              <a href="/signup.html?roles=volunteer" class="btn btn-secondary">Volunteer</a>
+              <a href="/signup.html?role=organization" class="btn btn-ghost">Register your organization</a>
+            </div>
+          </template>
+          <template x-if="viewerReady && viewer">
+            <div class="flex flex-wrap gap-3">
+              <template x-for="(link, index) in heroLinks()" :key="link.label">
+                <a :href="link.href" :class="index === 0 ? 'btn btn-primary' : 'btn btn-secondary'" x-text="link.label"></a>
+              </template>
+            </div>
+          </template>
         </div>
       </section>
 
@@ -131,7 +157,17 @@
           <a href="/needs.html" class="btn btn-secondary">See all needs</a>
         </div>
 
-        <div class="grid gap-4 md:grid-cols-2 lg:grid-cols-3" x-show="loadingUrgent" aria-busy="true" aria-label="Loading needs">
+        <!-- what the Offer buttons do for this viewer -->
+        <p class="rounded-md bg-canvas p-3 text-sm text-muted" x-show="viewerReady && donorMode() === 'staff'" x-cloak>This is what donors see.</p>
+        <div class="flex flex-wrap items-center gap-3 rounded-md border border-line bg-surface p-3 text-sm" x-show="viewerReady && donorMode() === 'turn_on'" x-cloak>
+          <p class="flex-1">Turn on donating in your profile to offer items.</p>
+          <button id="turn-on-donating" type="button" class="btn btn-primary" :disabled="turningOn" @click="turnOn('donor')">
+            <span class="spinner" x-show="turningOn" x-cloak aria-hidden="true"></span>
+            Turn on donating
+          </button>
+        </div>
+
+        <div class="grid gap-4 md:grid-cols-2 lg:grid-cols-3" x-show="loadingUrgent" role="status"><span class="sr-only">Loading needs…</span>
           <div class="card space-y-3"><div class="skeleton h-5 w-24"></div><div class="skeleton h-6 w-3/4"></div><div class="skeleton h-2.5 w-full"></div></div>
           <div class="card space-y-3"><div class="skeleton h-5 w-24"></div><div class="skeleton h-6 w-2/3"></div><div class="skeleton h-2.5 w-full"></div></div>
           <div class="card space-y-3"><div class="skeleton h-5 w-24"></div><div class="skeleton h-6 w-3/4"></div><div class="skeleton h-2.5 w-full"></div></div>
@@ -177,6 +213,9 @@
                 <p class="text-sm text-muted break-words" x-show="request.organization?.address" x-text="request.organization?.address"></p>
                 <p class="text-sm text-muted" x-text="request.deadline ? `Needed by ${formatDate(request.deadline)}` : 'No deadline'"></p>
               </div>
+              <!-- the organization's own request / admins -->
+              <a class="btn btn-ghost -ml-3 self-start px-3 text-sm" x-show="viewerReady && ownsContent(request.organization_id)" x-cloak href="/organization.html#requests-heading">Your organization · Manage</a>
+              <a class="btn btn-ghost -ml-3 self-start px-3 text-sm" x-show="viewerReady && isAdmin()" x-cloak href="/admin.html?queue=requests&amp;tab=open">Open in admin</a>
               <ul class="space-y-3">
                 <template x-for="item in request.request_items" :key="item.id">
                   <li class="space-y-1">
@@ -190,7 +229,8 @@
                     </div>
                     <div class="flex items-center justify-between gap-2">
                       <p class="text-xs text-muted" x-text="item.quantity_remaining > 0 ? `${item.quantity_remaining} ${item.unit} still needed` : 'Fully promised'"></p>
-                      <button type="button" class="btn btn-ghost min-h-11 px-3" x-show="item.quantity_remaining > 0"
+                      <button type="button" class="btn btn-ghost min-h-11 px-3"
+                        x-show="item.quantity_remaining > 0 && viewerReady && ['visitor', 'donor', 'consent'].includes(donorMode())" x-cloak
                         @click="goOffer(item.id)" :aria-label="`Offer ${item.name}`">Offer</button>
                     </div>
                   </li>
@@ -210,11 +250,11 @@
 
         <div class="grid gap-4 lg:grid-cols-[3fr_2fr]">
           <div class="isolate overflow-hidden rounded-lg border border-line bg-surface">
-            <div id="events-map" class="h-72 w-full sm:h-96" aria-label="Map of upcoming volunteer events"></div>
+            <div id="events-map" class="h-72 w-full sm:h-96" role="region" aria-label="Map of upcoming volunteer events (the same events are listed below)"></div>
           </div>
 
           <div class="space-y-3">
-            <div class="card space-y-3" x-show="loading" aria-busy="true" aria-label="Loading events">
+            <div class="card space-y-3" x-show="loading" role="status"><span class="sr-only">Loading events…</span>
               <div class="skeleton h-5 w-3/4"></div><div class="skeleton h-4 w-1/2"></div>
             </div>
             <p class="card text-danger" x-show="!loading && error" x-cloak role="alert" x-text="error"></p>
@@ -222,13 +262,36 @@
               <i data-lucide="calendar" class="size-10 text-primary" aria-hidden="true"></i>
               <p class="text-muted">No upcoming events yet. Check back soon!</p>
             </div>
+            <!-- what volunteering looks like for this viewer -->
+            <p class="rounded-md bg-canvas p-3 text-sm text-muted" x-show="viewerReady && volunteerMode() === 'staff'" x-cloak>This is what volunteers see.</p>
+            <div class="flex flex-wrap items-center gap-3 rounded-md border border-line bg-surface p-3 text-sm" x-show="viewerReady && volunteerMode() === 'turn_on'" x-cloak>
+              <p class="flex-1">Turn on volunteering in your profile to apply to events.</p>
+              <button type="button" class="btn btn-primary" :disabled="turningOn" @click="turnOn('volunteer')">
+                <span class="spinner" x-show="turningOn" x-cloak aria-hidden="true"></span>
+                Turn on volunteering
+              </button>
+            </div>
+            <p class="rounded-md bg-warning-soft p-3 text-sm text-warning" x-show="viewerReady && volunteerMode() === 'pending'" x-cloak>
+              Your volunteer account is waiting for admin approval. You can look at events in the meantime.
+            </p>
             <template x-for="event in nextThree" :key="event.id">
-              <a :href="`/event.html?id=${event.id}`" class="card block focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary">
-                <p class="font-semibold break-words" x-text="event.title"></p>
+              <article class="card space-y-2">
+                <a :href="`/event.html?id=${event.id}`" class="block rounded-sm font-semibold break-words text-ink underline-offset-2 hover:underline focus-visible:outline-2 focus-visible:outline-primary" x-text="event.title"></a>
                 <p class="text-sm text-primary" x-text="event.organization?.name"></p>
-                <p class="mt-1 text-sm text-muted" x-text="formatEventTime(event.starts_at, event.ends_at)"></p>
+                <p class="text-sm text-muted" x-text="formatEventTime(event.starts_at, event.ends_at)"></p>
                 <p class="text-sm text-muted break-words" x-text="event.location_name"></p>
-              </a>
+                <div class="flex flex-wrap items-center gap-2" x-show="viewerReady" x-cloak>
+                  <template x-if="applicationFor(event.id)">
+                    <span :class="statusInfo(applicationFor(event.id).status, 'application').className"
+                      x-text="`Your application: ${statusInfo(applicationFor(event.id).status, 'application').label}`"></span>
+                  </template>
+                  <a class="btn btn-secondary" x-show="!applicationFor(event.id) && ['visitor', 'volunteer', 'consent'].includes(volunteerMode())"
+                    :href="volunteerMode() === 'visitor' ? `/login.html?next=${encodeURIComponent(`/event.html?id=${event.id}&apply=1`)}` : `/event.html?id=${event.id}&apply=1`"
+                    :aria-label="`Volunteer at ${event.title}`">Volunteer</a>
+                  <a class="btn btn-ghost px-3 text-sm" x-show="ownsContent(event.organization_id)" href="/organization.html#events-heading">Your organization · Manage</a>
+                  <a class="btn btn-ghost px-3 text-sm" x-show="isAdmin()" href="/admin.html?queue=events">Open in admin</a>
+                </div>
+              </article>
             </template>
             <p class="text-sm text-muted" x-show="events.length > 3" x-text="`+ ${events.length - 3} more on the map`"></p>
           </div>
@@ -236,7 +299,7 @@
       </section>
 
       <!-- What can you give? (6.4) -->
-      <section class="card space-y-4" x-data="matchBox" aria-labelledby="match-heading">
+      <section class="card space-y-4" x-data="matchBox" aria-labelledby="match-heading" x-show="!viewerReady || donorMode() !== 'staff'">
         <div class="flex flex-wrap items-center gap-2">
           <h2 id="match-heading" class="text-xl font-semibold sm:text-2xl">What can you give?</h2>
           <span class="badge badge-ai">AI-suggested</span>

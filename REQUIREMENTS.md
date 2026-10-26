@@ -349,6 +349,14 @@ Use Tailwind's built-in spacing (`p-4`, `gap-6`…) and text sizes (`text-sm`, `
 - Images and icons that carry meaning have text alternatives; decorative icons have `aria-hidden="true"`.
 - Respect `prefers-reduced-motion`: keep animations subtle (150–250 ms) and turn them off when requested.
 - Touch targets at least 44 × 44 px.
+- Every page starts with a **"Skip to main content"** link (`.skip-link`) to `<main id="main" tabindex="-1">`.
+- **Loading placeholders** are `role="status"` with hidden text (`<span class="sr-only">Loading your offers…</span>`), never `aria-label` on a plain `<div>`.
+- **In-page tabs** (Active / History, filters) are buttons with `aria-pressed`; `aria-current="page"` is only for links to other pages.
+- **Toasts:** success messages hide after 4 s (paused on hover or focus); **error messages stay until closed** (close button, 44 × 44 px).
+- **Focus never gets lost:** "Show more" moves focus to the first new item (`showMoreAndFocus()`); after an action removes a card (delete, cancel, close, approve, reject), focus moves to the section heading (`focusHeading()`).
+- **Announce changes people can't see:** History lists say "Showing 12 past offers" through `announce()` (a hidden live region).
+- Maps have `role="region"` and an `aria-label`; everything on a map is also in the list next to it.
+- Test pages with axe-core and with VoiceOver; text must reflow at 320 px with no sideways scrolling.
 
 ### Tone of voice
 
@@ -553,6 +561,18 @@ Visitors should understand the app, see real needs and try the AI **before** sig
 - **Turning a role on later:** `profile.html` has toggles for "Donate" and "Volunteer". Turning on volunteering asks for the volunteer fields. At least one toggle must stay on (the database refuses otherwise; show its message).
 - If a user who can't donate presses **Offer**, or one who can't volunteer presses **Volunteer**, show: "Turn on donating/volunteering in your profile to do this", with a button that switches it on.
 - `donor.html` requires `is_donor`; `volunteer.html` requires `is_volunteer`.
+
+### 6.6b Logged-in viewers on public pages
+
+`index.html`, `needs.html`, `event.html` and `org.html` adapt to who is looking. Logged-in users can always open them and are never redirected away; after login they still go to `?next=` or their dashboard.
+
+- `getViewer()` (js/auth.js) returns `null` for visitors, or `{ role, isDonor, isVolunteer, hasConsent, volunteerApproved, dashboardUrl, orgId }` from the `profiles` table (never `user_metadata`), with no personal details. Public pages mix in `publicViewer()` and show skeletons until `viewerReady`, so the visitor version never flashes.
+- **Top bar (desktop):** visitors see Home · Browse needs · Log in · Sign up; logged in: Home · My dashboard (or the Donating / Volunteering switch) · theme · Account menu (profile, log out). Current page has `aria-current="page"`. Phones use the bottom navigation.
+- **Home hero:** visitors see the sign-up buttons; logged-in users see "Go to my dashboard" plus Browse needs (donors), Find events (volunteers), Post a request (organizations, opens the form via `organization.html?new=request`) or Review queue with the number waiting (admins).
+- **Offer / Donate** (`donorView()`): visitors log in first (`?next=`); donors offer directly; individuals without donating get "Turn on donating in your profile" with a button; organizations and admins see no AI box, Offer or Donate buttons, just "This is what donors see."
+- **Volunteer** (`volunteerView()`): visitors log in first; volunteers apply directly (`event.html?id=…&apply=1` opens the form) or see their application status; individuals without volunteering get "Turn on volunteering"; pending accounts see the approval note; organizations and admins see "This is what volunteers see."
+- **Own content:** an organization sees "Your organization · Manage" on its own requests, events and org page; admins see "Open in admin" (`admin.html?queue=…&tab=…`).
+- Never show anyone's personal data on these pages, logged in or not (6.1); a user only sees their own offers and applications.
 
 ### 6.7 No guest donations
 

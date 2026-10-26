@@ -5,6 +5,7 @@
 document.addEventListener("alpine:init", () => {
   const Alpine = /** @type {any} */ (window).Alpine;
   Alpine.data("eventPage", () => ({
+    ...publicViewer(),
     /** @type {VolunteerEvent | null} */
     event: null,
     loading: true,
@@ -37,7 +38,7 @@ document.addEventListener("alpine:init", () => {
         return;
       }
       try {
-        const [event, profile] = await Promise.all([getPublicEvent(id), getProfile().catch(() => null)]);
+        const [event, profile] = await Promise.all([getPublicEvent(id), getProfile().catch(() => null), this.loadViewer()]);
         this.event = event;
         this.profile = profile;
         this.notFound = !event;
@@ -47,6 +48,11 @@ document.addEventListener("alpine:init", () => {
         this.error = friendlyError(error);
       } finally {
         this.loading = false;
+      }
+      // "Volunteer" on an event card (or after logging in from one) opens the apply form straight away
+      if (new URLSearchParams(location.search).get("apply") === "1") {
+        history.replaceState(null, "", `${location.pathname}?id=${encodeURIComponent(id)}`);
+        if (this.volunteerState === "can_apply" && this.myApplication?.status !== "withdrawn") this.openApply();
       }
       if (this.event) {
         const event = this.event;
@@ -101,7 +107,9 @@ document.addEventListener("alpine:init", () => {
 
     /** Login link that brings the visitor back to this event (relative path only, REQUIREMENTS.md 5.1). */
     get loginHref() {
-      return "/login.html?next=" + encodeURIComponent(location.pathname + location.search);
+      // come back with the apply form open
+      const id = this.event?.id ?? new URLSearchParams(location.search).get("id") ?? "";
+      return "/login.html?next=" + encodeURIComponent(`/event.html?id=${id}&apply=1`);
     },
 
     /** Donate → the linked request if it's open, otherwise the organization's open requests. */

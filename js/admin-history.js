@@ -259,8 +259,8 @@ document.addEventListener("alpine:init", () => {
     recentPage: historyPager(),
 
     async init() {
-      this.history = historyPager((from, to) => listAdminHistory(this.kind, this.filter, from, to));
-      this.recentPage = historyPager(async (from, to) => this.recent.slice(from, to + 1));
+      this.history = historyPager((from, to) => listAdminHistory(this.kind, this.filter, from, to), () => `past ${this.kind}`);
+      this.recentPage = historyPager(async (from, to) => this.recent.slice(from, to + 1), "recently closed or cancelled items");
       await Promise.all([this.history.load(), this.loadRecent()]);
     },
 

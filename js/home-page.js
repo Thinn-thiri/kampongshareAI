@@ -27,6 +27,7 @@ async function getPublicStats() {
 document.addEventListener("alpine:init", () => {
   const Alpine = /** @type {any} */ (window).Alpine;
   Alpine.data("homePage", () => ({
+    ...publicViewer(),
     statCards: STAT_CARDS,
     /** @type {Record<string, number> | null} */
     stats: null,
@@ -37,18 +38,40 @@ document.addEventListener("alpine:init", () => {
     loadingUrgent: true,
     urgentError: "",
 
-    /** @type {Profile | null} */
-    profile: null,
+    /** @type {number | null} admins only: everything waiting for review */
+    adminWaiting: null,
 
     requestUrgency,
     itemBarStyles,
     itemBarLabel,
 
     async init() {
-      getProfile()
-        .then((profile) => (this.profile = profile))
-        .catch(() => (this.profile = null));
-      await Promise.all([this.loadStats(), this.loadUrgent()]);
+      const viewerLoaded = this.loadViewer().then(async () => {
+        if (this.isAdmin()) this.adminWaiting = await getAdminWaitingTotal().catch(() => null);
+        if (this.volunteerMode() !== "visitor" && this.volunteerMode() !== "staff") await this.loadMyApplications().catch(() => {});
+      });
+      await Promise.all([viewerLoaded, this.loadStats(), this.loadUrgent()]);
+    },
+
+    /**
+     * Hero buttons for logged-in people: their dashboard plus one helpful next step per role.
+     * @returns {{ href: string, label: string }[]}
+     */
+    heroLinks() {
+      const viewer = this.viewer;
+      if (!viewer) return [];
+      /** @type {{ href: string, label: string }[]} */
+      const links = [{ href: viewer.dashboardUrl, label: "Go to my dashboard" }];
+      if (viewer.role === "organization") links.push({ href: "/organization.html?new=request", label: "Post a request" });
+      else if (viewer.role === "admin") {
+        const waiting = this.adminWaiting;
+        const count = waiting === null ? "" : waiting === 0 ? " (nothing waiting)" : ` (${waiting} waiting)`;
+        links.push({ href: "/admin.html", label: `Review queue${count}` });
+      } else {
+        if (viewer.isDonor) links.push({ href: "/needs.html", label: "Browse needs" });
+        if (viewer.isVolunteer) links.push({ href: "/volunteer.html#events-heading", label: "Find events" });
+      }
+      return links;
     },
 
     async loadStats() {
@@ -77,7 +100,12 @@ document.addEventListener("alpine:init", () => {
      * @param {string} itemId
      */
     goOffer(itemId) {
-      location.href = offerHref(itemId, this.profile);
+      if (this.donorMode() === "turn_on") {
+        document.getElementById("turn-on-donating")?.focus();
+        toast("Turn on donating first — it's one tap.", "error");
+        return;
+      }
+      location.href = offerHref(itemId, this.viewer);
     },
   }));
 });

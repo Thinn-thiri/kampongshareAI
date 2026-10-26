@@ -2,8 +2,6 @@
 // Admin dashboard (admin.html): summary counts and the Organizations review queue.
 // Admins review and moderate; the database refuses anything else.
 
-/** @typedef {'organizations' | 'volunteers' | 'requests' | 'events' | 'applications' | 'offers'} QueueKey */
-
 /** Summary cards (REQUIREMENTS.md 7.1). `built` queues have a review list below. */
 const ADMIN_QUEUES = /** @type {{ key: QueueKey, label: string, built: boolean }[]} */ ([
   { key: "organizations", label: "Organizations waiting", built: true },
@@ -19,32 +17,6 @@ const ORG_TABS = /** @type {{ value: Approval, label: string, empty: string }[]}
   { value: "approved", label: "Approved", empty: "No approved organizations yet." },
   { value: "rejected", label: "Rejected", empty: "No rejected organizations." },
 ]);
-
-/**
- * Counts for the summary cards. Uses head requests, so no rows are downloaded.
- * @returns {Promise<Record<QueueKey, number>>}
- */
-async function getAdminCounts() {
-  const client = db();
-  const count = { count: /** @type {const} */ ("exact"), head: true };
-  /** @type {[QueueKey, PromiseLike<{ count: number | null, error: unknown }>][]} */
-  const queries = [
-    ["organizations", client.from("organizations").select("*", count).eq("approval", "pending")],
-    ["volunteers", client.from("profiles").select("*", count).eq("is_volunteer", true).eq("volunteer_approval", "pending")],
-    ["requests", client.from("donation_requests").select("*", count).eq("status", "pending_approval")],
-    ["events", client.from("events").select("*", count).eq("approval", "pending")],
-    ["applications", client.from("volunteer_applications").select("*", count).eq("status", "pending")],
-    ["offers", client.from("donation_offers").select("*", count).in("status", ["pending", "accepted"])],
-  ];
-  const results = await Promise.all(
-    queries.map(async ([key, query]) => {
-      const { count: total, error } = await query;
-      if (error) throw error;
-      return /** @type {[QueueKey, number]} */ ([key, total ?? 0]);
-    }),
-  );
-  return /** @type {Record<QueueKey, number>} */ (Object.fromEntries(results));
-}
 
 document.addEventListener("alpine:init", () => {
   const Alpine = /** @type {any} */ (window).Alpine;
@@ -129,7 +101,18 @@ document.addEventListener("alpine:init", () => {
     formatAvailability,
 
     async init() {
+      // Deep links from public pages ("Open in admin"): ?queue=requests&tab=open, ?queue=organizations&tab=approved
+      const params = new URLSearchParams(location.search);
+      const queue = /** @type {QueueKey | null} */ (params.get("queue"));
+      const tab = params.get("tab");
+      const orgTab = queue === "organizations" && ORG_TABS.some((t) => t.value === tab) ? /** @type {Approval} */ (tab) : null;
+      if (orgTab) this.orgTab = orgTab;
       await Promise.all([this.loadCounts(), this.loadOrgs()]);
+      if (queue && queue !== "organizations" && ADMIN_QUEUES.some((q) => q.key === queue)) {
+        this.openQueue(queue);
+        if (queue === "requests" && tab === "open") await this.showReqTab("open");
+      }
+      if (queue) setTimeout(() => document.getElementById(`${{ organizations: "orgs", volunteers: "vols", requests: "reqs", events: "evs", applications: "apps", offers: "offers" }[queue] ?? "orgs"}-heading`)?.scrollIntoView({ block: "start" }), 0);
     },
 
     get activeLabel() {
@@ -205,6 +188,7 @@ document.addEventListener("alpine:init", () => {
       try {
         await cancelOffer(offer.id);
         toast("The offer was cancelled.");
+        focusHeading("offers-heading"); // the card may be gone: keep keyboard users in this section
         if (offer.item?.request_id) await scoreRequest(offer.item.request_id);
         await Promise.all([this.loadAdminOffers(), this.loadCounts()]);
       } catch (error) {
@@ -291,6 +275,7 @@ document.addEventListener("alpine:init", () => {
       try {
         await closeRequest(request.id, reason);
         toast("The request was closed.");
+        focusHeading("reqs-heading"); // the card may be gone: keep keyboard users in this section
         await Promise.all([this.loadOpenRequests(), this.loadCounts()]);
       } catch (error) {
         toast(friendlyError(error), "error");
@@ -318,6 +303,7 @@ document.addEventListener("alpine:init", () => {
       try {
         await setVolunteerApproval(account.id, "approved");
         toast(`${account.full_name || "The volunteer"} can now apply to events.`);
+        focusHeading("vols-heading"); // the card may be gone: keep keyboard users in this section
         await Promise.all([this.loadVolunteers(), this.loadCounts()]);
       } catch (error) {
         toast(friendlyError(error), "error");
@@ -349,6 +335,7 @@ document.addEventListener("alpine:init", () => {
       try {
         await setVolunteerApproval(account.id, "rejected", note);
         toast(`${name} was not approved. They can see your note.`);
+        focusHeading("vols-heading"); // the card may be gone: keep keyboard users in this section
         this.cancelReject();
         await Promise.all([this.loadVolunteers(), this.loadCounts()]);
       } catch (error) {
@@ -391,6 +378,7 @@ document.addEventListener("alpine:init", () => {
       try {
         await setApplicationStatus(application.id, status);
         toast(status === "approved" ? "Application approved." : "Application rejected.");
+        focusHeading("apps-heading"); // the card may be gone: keep keyboard users in this section
         await Promise.all([this.loadApplications(), this.loadCounts()]);
       } catch (error) {
         toast(friendlyError(error), "error");
@@ -418,6 +406,7 @@ document.addEventListener("alpine:init", () => {
       try {
         await setEventApproval(event.id, "approved");
         toast(`"${event.title}" is approved. It's now on the map and can be shared.`);
+        focusHeading("evs-heading"); // the card may be gone: keep keyboard users in this section
         await Promise.all([this.loadEvents(), this.loadCounts()]);
       } catch (error) {
         toast(friendlyError(error), "error");
@@ -449,6 +438,7 @@ document.addEventListener("alpine:init", () => {
       try {
         await setEventApproval(event.id, "rejected", note);
         toast(`"${event.title}" was rejected. The organization can see your note.`);
+        focusHeading("evs-heading"); // the card may be gone: keep keyboard users in this section
         this.cancelReject();
         await Promise.all([this.loadEvents(), this.loadCounts()]);
       } catch (error) {
@@ -477,6 +467,7 @@ document.addEventListener("alpine:init", () => {
       try {
         await setRequestApproval(request.id, "open");
         toast(`"${request.title}" is approved. Donors can see it now.`);
+        focusHeading("reqs-heading"); // the card may be gone: keep keyboard users in this section
         await scoreRequest(request.id); // urgency score for sorting and "Why this score?"
         await Promise.all([this.loadRequests(), this.loadCounts()]);
       } catch (error) {
@@ -509,6 +500,7 @@ document.addEventListener("alpine:init", () => {
       try {
         await setRequestApproval(request.id, "rejected", note);
         toast(`"${request.title}" was rejected. The organization can see your note.`);
+        focusHeading("reqs-heading"); // the card may be gone: keep keyboard users in this section
         this.cancelReject();
         await Promise.all([this.loadRequests(), this.loadCounts()]);
       } catch (error) {
@@ -557,6 +549,7 @@ document.addEventListener("alpine:init", () => {
       try {
         await setOrganizationApproval(org.id, "approved");
         toast(`${org.name} is approved. It can now post requests and events.`);
+        focusHeading("orgs-heading"); // the card may be gone: keep keyboard users in this section
         await Promise.all([this.loadOrgs(), this.loadCounts()]);
       } catch (error) {
         toast(friendlyError(error), "error");
@@ -601,6 +594,7 @@ document.addEventListener("alpine:init", () => {
       try {
         await setOrganizationApproval(org.id, "rejected", note);
         toast(`${org.name} was rejected. The organization can see your note.`);
+        focusHeading("orgs-heading"); // the card may be gone: keep keyboard users in this section
         this.cancelReject();
         await Promise.all([this.loadOrgs(), this.loadCounts()]);
       } catch (error) {

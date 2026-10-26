@@ -23,6 +23,7 @@
     <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3/dist/cdn.min.js"></script>
   </head>
   <body>
+    <a href="#main" class="skip-link">Skip to main content</a>
     <header class="topbar" x-data="topBar">
       <div class="container-page flex min-h-16 flex-wrap items-center gap-x-3 gap-y-2 py-2">
         <a href="/" class="flex items-center gap-2 rounded-sm font-bold text-primary focus-visible:outline-2 focus-visible:outline-primary" aria-label="KampongShare home">
@@ -31,6 +32,12 @@
         </a>
         <span class="text-line" aria-hidden="true">/</span>
         <span class="min-w-0 flex-1 truncate font-semibold">Browse needs</span>
+        <!-- Desktop links (phones use the bottom navigation) -->
+        <nav class="hidden items-center gap-1 sm:flex" aria-label="Site" x-show="ready" x-cloak>
+          <template x-for="link in topLinks" :key="link.href">
+            <a :href="link.href" class="top-link" :aria-current="isCurrent(link.href) ? 'page' : null" x-text="link.label"></a>
+          </template>
+        </nav>
         <nav class="segmented order-last w-full sm:order-none sm:w-auto" aria-label="Switch between donating and volunteering" x-show="canSwitch" x-cloak>
           <a href="/donor.html" class="segmented-link" :aria-current="here('/donor.html') ? 'page' : null">Donating</a>
           <a href="/volunteer.html" class="segmented-link" :aria-current="here('/volunteer.html') ? 'page' : null">Volunteering</a>
@@ -64,7 +71,7 @@
             Account
           </button>
           <div id="account-menu" class="menu" x-show="open" x-cloak>
-            <a :href="dashboard" href="/" class="menu-item">My dashboard</a>
+            <a :href="dashboard" href="/" class="menu-item sm:hidden">My dashboard</a>
             <a href="/profile.html" class="menu-item">My profile</a>
             <button type="button" class="menu-item" @click="logout()">Log out</button>
           </div>
@@ -80,7 +87,7 @@
         </nav>
     </header>
 
-    <main class="container-page space-y-6 py-8" x-data="needsPage">
+    <main id="main" tabindex="-1" class="container-page space-y-6 py-8 focus:outline-none" x-data="needsPage">
       <div>
         <h1 class="text-2xl font-bold sm:text-3xl">Browse needs</h1>
         <p class="mt-1 text-muted">Every open request from approved organizations, most urgent first. Offer exactly what's needed.</p>
@@ -127,24 +134,24 @@
       </form>
 
       <!-- Who's looking -->
-      <div class="rounded-md bg-info-soft p-3 text-sm text-info" x-show="!loading && viewer === 'visitor'" x-cloak>
+      <div class="rounded-md bg-info-soft p-3 text-sm text-info" x-show="!loading && mode === 'visitor'" x-cloak>
         You can browse without an account. To offer an item, you'll log in or sign up first — then we bring you back here.
       </div>
-      <div class="flex flex-wrap items-center justify-between gap-3 rounded-md border border-line bg-canvas p-3 text-sm" x-show="!loading && viewer === 'turn_on'" x-cloak>
+      <div class="flex flex-wrap items-center justify-between gap-3 rounded-md border border-line bg-canvas p-3 text-sm" x-show="!loading && mode === 'turn_on'" x-cloak>
         <p>Turn on donating in your profile to do this.</p>
         <button type="button" class="btn btn-secondary" :disabled="turningOn" @click="turnOnDonating()">
           <span class="spinner" x-show="turningOn" x-cloak aria-hidden="true"></span>
           Turn on donating
         </button>
       </div>
-      <div class="flex flex-wrap items-center justify-between gap-3 rounded-md border border-warning bg-warning-soft p-3 text-sm text-warning" x-show="!loading && viewer === 'consent'" x-cloak>
+      <div class="flex flex-wrap items-center justify-between gap-3 rounded-md border border-warning bg-warning-soft p-3 text-sm text-warning" x-show="!loading && mode === 'consent'" x-cloak>
         <p>Please confirm the privacy consent and that you're 18 or older before offering.</p>
         <a href="/profile.html" class="btn btn-secondary">Go to my profile</a>
       </div>
-      <p class="rounded-md bg-canvas p-3 text-sm text-muted" x-show="!loading && viewer === 'not_individual'" x-cloak>Organization and admin accounts can't donate.</p>
+      <p class="rounded-md bg-canvas p-3 text-sm text-muted" x-show="!loading && mode === 'staff'" x-cloak>This is what donors see.</p>
 
       <!-- Loading / error / empty -->
-      <div class="grid gap-4 md:grid-cols-2" x-show="loading" aria-busy="true" aria-label="Loading needs">
+      <div class="grid gap-4 md:grid-cols-2" x-show="loading" role="status"><span class="sr-only">Loading needs…</span>
         <div class="card space-y-3"><div class="skeleton h-5 w-24"></div><div class="skeleton h-6 w-3/4"></div><div class="skeleton h-2.5 w-full"></div></div>
         <div class="card space-y-3"><div class="skeleton h-5 w-24"></div><div class="skeleton h-6 w-2/3"></div><div class="skeleton h-2.5 w-full"></div></div>
       </div>
@@ -190,6 +197,8 @@
               <p class="text-sm text-muted break-words" x-show="request.organization?.address" x-text="request.organization?.address"></p>
               <p class="text-sm text-muted" x-text="request.deadline ? `Needed by ${formatDate(request.deadline)}` : 'No deadline'"></p>
               <p class="mt-2 text-sm whitespace-pre-line break-words" x-show="request.description" x-text="request.description"></p>
+              <a class="btn btn-ghost -ml-3 mt-1 px-3 text-sm" x-show="viewerReady && ownsContent(request.organization_id)" x-cloak href="/organization.html#requests-heading">Your organization · Manage</a>
+              <a class="btn btn-ghost -ml-3 mt-1 px-3 text-sm" x-show="viewerReady && isAdmin()" x-cloak href="/admin.html?queue=requests&amp;tab=open">Open in admin</a>
             </div>
             <div class="rounded-md bg-canvas p-3 text-sm" x-show="request.dropoff_instructions">
               <p class="font-medium">Drop-off</p>
@@ -215,9 +224,9 @@
                     </template>
                     <template x-if="item.quantity_remaining > 0 && !activeOfferFor(item) && offerItemId !== item.id">
                       <span>
-                        <a class="btn btn-primary min-h-11 px-4" x-show="viewer === 'visitor'" :href="loginHref(item.id)" :aria-label="`Offer ${item.name}`">Offer</a>
-                        <button type="button" class="btn btn-primary min-h-11 px-4" x-show="viewer !== 'visitor'"
-                          :disabled="viewer !== 'donor'" @click="openOffer(item)" :aria-label="`Offer ${item.name}`">Offer</button>
+                        <a class="btn btn-primary min-h-11 px-4" x-show="mode === 'visitor'" :href="loginHref(item.id)" :aria-label="`Offer ${item.name}`">Offer</a>
+                        <button type="button" class="btn btn-primary min-h-11 px-4" x-show="mode === 'donor' || mode === 'consent'"
+                          :disabled="mode !== 'donor'" @click="openOffer(item)" :aria-label="`Offer ${item.name}`">Offer</button>
                       </span>
                     </template>
                   </div>

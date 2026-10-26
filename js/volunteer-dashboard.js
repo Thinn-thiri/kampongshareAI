@@ -53,8 +53,8 @@ document.addEventListener("alpine:init", () => {
         this.profile = null;
       }
       if (!this.profile?.is_volunteer) return; // the page guard is redirecting
-      this.appHistory = historyPager(async (from, to) => this.pastApplications.slice(from, to + 1));
-      this.taskHistory = historyPager(async (from, to) => this.pastTasks.slice(from, to + 1));
+      this.appHistory = historyPager(async (from, to) => this.pastApplications.slice(from, to + 1), "past applications");
+      this.taskHistory = historyPager(async (from, to) => this.pastTasks.slice(from, to + 1), "past tasks");
       await Promise.all([this.loadEvents(), this.loadApplications(), this.loadTasks()]);
     },
 
@@ -278,6 +278,7 @@ document.addEventListener("alpine:init", () => {
       try {
         await withdrawApplication(application.id);
         toast("Your application was withdrawn. You can apply again if there's room.");
+        focusHeading("apps-heading"); // the card may be gone: keep keyboard users in this section
         await this.reloadAll();
       } catch (error) {
         toast(friendlyError(error), "error");

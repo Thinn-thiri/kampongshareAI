@@ -24,6 +24,7 @@
     <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3/dist/cdn.min.js"></script>
   </head>
   <body data-require="donor">
+    <a href="#main" class="skip-link">Skip to main content</a>
     <header class="topbar" x-data="topBar">
       <div class="container-page flex min-h-16 flex-wrap items-center gap-x-3 gap-y-2 py-2">
         <a href="/" class="flex items-center gap-2 rounded-sm font-bold text-primary focus-visible:outline-2 focus-visible:outline-primary" aria-label="KampongShare home">
@@ -32,6 +33,12 @@
         </a>
         <span class="text-line" aria-hidden="true">/</span>
         <span class="min-w-0 flex-1 truncate font-semibold">Donating</span>
+        <!-- Desktop links (phones use the bottom navigation) -->
+        <nav class="hidden items-center gap-1 sm:flex" aria-label="Site" x-show="ready" x-cloak>
+          <template x-for="link in topLinks" :key="link.href">
+            <a :href="link.href" class="top-link" :aria-current="isCurrent(link.href) ? 'page' : null" x-text="link.label"></a>
+          </template>
+        </nav>
         <nav class="segmented order-last w-full sm:order-none sm:w-auto" aria-label="Switch between donating and volunteering" x-show="canSwitch" x-cloak>
           <a href="/donor.html" class="segmented-link" :aria-current="here('/donor.html') ? 'page' : null">Donating</a>
           <a href="/volunteer.html" class="segmented-link" :aria-current="here('/volunteer.html') ? 'page' : null">Volunteering</a>
@@ -65,7 +72,7 @@
             Account
           </button>
           <div id="account-menu" class="menu" x-show="open" x-cloak>
-            <a :href="dashboard" href="/" class="menu-item">My dashboard</a>
+            <a :href="dashboard" href="/" class="menu-item sm:hidden">My dashboard</a>
             <a href="/profile.html" class="menu-item">My profile</a>
             <button type="button" class="menu-item" @click="logout()">Log out</button>
           </div>
@@ -81,7 +88,7 @@
         </nav>
     </header>
 
-    <main class="container-page space-y-10 py-8" x-data="donorDashboard" @offer-item.window="offerFromMatch($event.detail.itemId)">
+    <main id="main" tabindex="-1" class="container-page space-y-10 py-8 focus:outline-none" x-data="donorDashboard" @offer-item.window="offerFromMatch($event.detail.itemId)">
       <div>
         <h1 class="text-2xl font-bold sm:text-3xl">Donor dashboard</h1>
         <p class="mt-1 text-muted">Give exactly what's needed. Choose an item, offer an amount, and the organization will confirm.</p>
@@ -189,7 +196,7 @@
           <button type="button" class="btn btn-secondary min-h-9 px-3" @click="clearFilter()">Show all requests</button>
         </div>
 
-        <div class="grid gap-4 md:grid-cols-2" x-show="loadingRequests" aria-busy="true" aria-label="Loading requests">
+        <div class="grid gap-4 md:grid-cols-2" x-show="loadingRequests" role="status"><span class="sr-only">Loading requests…</span>
           <div class="card space-y-3"><div class="skeleton h-5 w-24"></div><div class="skeleton h-6 w-3/4"></div><div class="skeleton h-4 w-1/2"></div><div class="skeleton h-2.5 w-full"></div></div>
           <div class="card space-y-3"><div class="skeleton h-5 w-24"></div><div class="skeleton h-6 w-2/3"></div><div class="skeleton h-4 w-1/2"></div><div class="skeleton h-2.5 w-full"></div></div>
         </div>
@@ -323,13 +330,13 @@
         <div class="flex flex-wrap items-center justify-between gap-3">
           <h2 id="offers-heading" class="text-xl font-semibold">My offers</h2>
           <div class="segmented w-full sm:w-auto" role="group" aria-label="Show offers">
-            <button type="button" class="segmented-link" :aria-current="offerTab === 'active' ? 'page' : null" @click="showOfferTab('active')">Active</button>
-            <button type="button" class="segmented-link" :aria-current="offerTab === 'history' ? 'page' : null" @click="showOfferTab('history')">History</button>
+            <button type="button" class="segmented-link" :aria-pressed="(offerTab === 'active').toString()" @click="showOfferTab('active')">Active</button>
+            <button type="button" class="segmented-link" :aria-pressed="(offerTab === 'history').toString()" @click="showOfferTab('history')">History</button>
           </div>
         </div>
 
         <div class="space-y-4" x-show="offerTab === 'active'">
-          <div class="card space-y-3" x-show="loadingOffers" aria-busy="true" aria-label="Loading your offers">
+          <div class="card space-y-3" x-show="loadingOffers" role="status"><span class="sr-only">Loading your offers…</span>
             <div class="skeleton h-5 w-24"></div><div class="skeleton h-5 w-2/3"></div><div class="skeleton h-4 w-1/2"></div>
           </div>
           <div class="card text-center" x-show="!loadingOffers && offersError" x-cloak role="alert">
@@ -379,7 +386,7 @@
 
         <!-- History: delivered, cancelled, rejected (newest first, 20 at a time) -->
         <div class="space-y-4" x-show="offerTab === 'history'" x-cloak>
-          <div class="card space-y-3" x-show="history.loading && history.items.length === 0" aria-busy="true" aria-label="Loading past offers">
+          <div class="card space-y-3" x-show="history.loading && history.items.length === 0" role="status"><span class="sr-only">Loading past offers…</span>
             <div class="skeleton h-5 w-24"></div><div class="skeleton h-5 w-2/3"></div><div class="skeleton h-4 w-1/2"></div>
           </div>
           <div class="card text-center" x-show="!history.loading && history.error" x-cloak role="alert">
@@ -392,7 +399,7 @@
             <p class="text-muted">No past donations yet. Delivered, cancelled and closed offers will appear here.</p>
           </div>
 
-          <ul class="space-y-3" x-show="history.items.length > 0">
+          <ul class="space-y-3" x-show="history.items.length > 0" x-ref="historyList">
             <template x-for="offer in history.items" :key="offer.id">
               <li class="card space-y-2">
                 <div class="flex flex-wrap items-start justify-between gap-3">
@@ -411,7 +418,7 @@
             </template>
           </ul>
           <div x-show="history.hasMore" x-cloak>
-            <button type="button" class="btn btn-secondary w-full sm:w-auto" :disabled="history.loading" @click="history.more()">
+            <button type="button" class="btn btn-secondary w-full sm:w-auto" :disabled="history.loading" @click="showMoreAndFocus(history, $refs.historyList)">
               <span class="spinner" x-show="history.loading" x-cloak aria-hidden="true"></span>
               Show more
             </button>

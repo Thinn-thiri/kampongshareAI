@@ -81,17 +81,91 @@ function getToastRegion() {
 }
 
 /**
- * Shows a short message that hides itself after 4 seconds.
+ * Shows a short message. Success messages hide themselves after 4 seconds (paused while the
+ * pointer or focus is on them); error messages stay until closed, so nobody misses them
+ * (WCAG 2.2.1).
  * @param {string} message
  * @param {'success' | 'error'} [type]
  * @returns {void}
  */
 function toast(message, type = "success") {
   const item = document.createElement("div");
-  item.className = TOAST_CLASS[type];
-  item.textContent = message;
+  item.className = `${TOAST_CLASS[type]} flex items-start gap-2`;
+  const text = document.createElement("p");
+  text.className = "flex-1 py-1";
+  text.textContent = message;
+  const close = document.createElement("button");
+  close.type = "button";
+  close.className = "toast-close";
+  close.setAttribute("aria-label", "Close message");
+  close.textContent = "×";
+  close.addEventListener("click", () => item.remove());
+  item.append(text, close);
   getToastRegion().append(item);
-  setTimeout(() => item.remove(), 4000);
+  if (type === "error") return;
+  /** @type {ReturnType<typeof setTimeout> | undefined} */
+  let timer;
+  const start = () => (timer = setTimeout(() => item.remove(), 4000));
+  const pause = () => clearTimeout(timer);
+  item.addEventListener("mouseenter", pause);
+  item.addEventListener("mouseleave", start);
+  item.addEventListener("focusin", pause);
+  item.addEventListener("focusout", start);
+  start();
+}
+
+/**
+ * Tells screen-reader users about a change they can't see happening, e.g. "Showing 12 past offers".
+ * Uses its own hidden live region, separate from toasts.
+ * @param {string} message
+ * @returns {void}
+ */
+function announce(message) {
+  let region = document.getElementById("sr-announcer");
+  if (!region) {
+    region = document.createElement("div");
+    region.id = "sr-announcer";
+    region.className = "sr-only";
+    region.setAttribute("role", "status");
+    region.setAttribute("aria-live", "polite");
+    document.body.append(region);
+  }
+  // clear first, so the same message twice is still read out
+  region.textContent = "";
+  const target = region;
+  setTimeout(() => (target.textContent = message), 50);
+}
+
+/**
+ * Moves keyboard focus to a section heading, e.g. after the card someone was working on
+ * disappeared (deleted, cancelled, moved to History), so they don't lose their place.
+ * @param {string} id the heading's id
+ * @returns {void}
+ */
+function focusHeading(id) {
+  const heading = document.getElementById(id);
+  if (!heading) return;
+  heading.setAttribute("tabindex", "-1");
+  heading.focus();
+}
+
+/**
+ * "Show more": loads the next page, then moves focus to the first new item, because the
+ * button itself may disappear when there's nothing more to load.
+ * @param {HistoryPager<any>} pager
+ * @param {HTMLElement | undefined} list the <ul> holding the items (x-ref)
+ * @returns {Promise<void>}
+ */
+async function showMoreAndFocus(pager, list) {
+  const before = pager.items.length;
+  await pager.more();
+  // wait for Alpine to draw the new rows
+  await new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve)));
+  const item = list?.querySelectorAll(":scope > li")[before];
+  if (item instanceof HTMLElement) {
+    item.setAttribute("tabindex", "-1");
+    item.focus();
+  }
 }
 
 /**
@@ -226,11 +300,13 @@ const HISTORY_PAGE_SIZE = 20;
  * `this.history = historyPager((from, to) => listSomething(id, from, to))`, then call `history.load()`.
  * fetchPage(from, to) returns rows from..to inclusive; we ask for one extra row to know if there's more.
  * Without fetchPage it stays empty (a placeholder until the page knows who is logged in).
+ * After each load it tells screen-reader users what's shown, e.g. "Showing 12 past offers".
  * @template T
  * @param {(from: number, to: number) => Promise<T[]>} [fetchPage]
+ * @param {string | (() => string)} [noun] what the items are, e.g. "past offers"
  * @returns {HistoryPager<T>}
  */
-function historyPager(fetchPage = async () => []) {
+function historyPager(fetchPage = async () => [], noun = "past items") {
   return {
     /** @type {T[]} */
     items: [],
@@ -254,8 +330,15 @@ function historyPager(fetchPage = async () => []) {
         const rows = await fetchPage(from, from + HISTORY_PAGE_SIZE);
         this.hasMore = rows.length > HISTORY_PAGE_SIZE;
         this.items = [...this.items, ...rows.slice(0, HISTORY_PAGE_SIZE)];
+        const what = typeof noun === "function" ? noun() : noun;
+        announce(
+          this.items.length
+            ? `Showing ${this.items.length} ${what}${this.hasMore ? ". More can be loaded." : "."}`
+            : `No ${what} yet.`,
+        );
       } catch (error) {
         this.error = friendlyError(error);
+        announce(this.error);
       } finally {
         this.loading = false;
       }

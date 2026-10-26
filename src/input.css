@@ -115,6 +115,12 @@ html.theme-changing * {
     fill 150ms !important;
 }
 
+/* A selected choice card has the primary-soft background, where muted text is too faint (4.2:1).
+   Not in a layer, so it wins over the text-muted utility. */
+.choice-card:has(:checked) .text-muted {
+  color: var(--color-ink);
+}
+
 /* Leaflet maps: tiles stay as they are; controls and popups use the theme.
    Not in a layer, because leaflet.css isn't either (layered styles would lose). */
 .leaflet-container {
@@ -266,11 +272,15 @@ html.theme-changing * {
     @apply flex min-h-14 flex-1 flex-col items-center justify-center gap-0.5 text-xs font-medium text-muted hover:text-primary focus-visible:outline-2 focus-visible:outline-primary aria-[current=page]:text-primary aria-[current=page]:font-semibold;
   }
   /* Donating / Volunteering switch */
+  /* desktop top bar links (Home · Browse needs · My dashboard) */
+  .top-link {
+    @apply inline-flex min-h-11 items-center rounded-md px-3 text-sm font-semibold text-muted hover:bg-primary-soft hover:text-primary focus-visible:outline-2 focus-visible:outline-primary aria-[current=page]:text-primary aria-[current=page]:underline aria-[current=page]:underline-offset-4;
+  }
   .segmented {
     @apply flex rounded-md border border-line bg-canvas p-1;
   }
   .segmented-link {
-    @apply flex min-h-11 flex-1 items-center justify-center rounded-sm px-3 text-sm font-semibold text-muted hover:text-ink focus-visible:outline-2 focus-visible:outline-primary aria-[current=page]:bg-surface aria-[current=page]:text-primary aria-[current=page]:shadow-sm;
+    @apply flex min-h-11 flex-1 items-center justify-center rounded-sm px-3 text-sm font-semibold text-muted hover:text-ink focus-visible:outline-2 focus-visible:outline-primary aria-[current=page]:bg-surface aria-[current=page]:text-primary aria-[current=page]:shadow-sm aria-pressed:bg-surface aria-pressed:text-primary aria-pressed:shadow-sm;
   }
 
   /* selectable cards (account type, donate / volunteer) and pills (days, interests…) */
@@ -326,6 +336,14 @@ html.theme-changing * {
   }
   .toast-error {
     @apply border-danger bg-danger-soft text-danger;
+  }
+  .toast-close {
+    @apply -my-2 -mr-2 inline-flex size-11 shrink-0 items-center justify-center rounded-sm text-xl leading-none opacity-80 hover:opacity-100 focus-visible:outline-2 focus-visible:outline-current;
+  }
+
+  /* "Skip to main content": hidden until a keyboard user tabs to it */
+  .skip-link {
+    @apply sr-only focus:not-sr-only focus:fixed focus:top-2 focus:left-2 focus:z-50 focus:inline-flex focus:min-h-11 focus:items-center focus:rounded-md focus:bg-primary focus:px-4 focus:font-semibold focus:text-on-primary focus:shadow-md;
   }
 
   /* confirm dialog (native <dialog>) */

@@ -299,6 +299,172 @@ function isApprovedVolunteer(profile) {
 }
 
 /**
+ * Who is looking at a public page, without any personal details (REQUIREMENTS.md 6.1).
+ * @typedef {Object} Viewer
+ * @property {Role} role
+ * @property {boolean} isDonor
+ * @property {boolean} isVolunteer
+ * @property {boolean} hasConsent         privacy consent + 18 or older
+ * @property {boolean} volunteerApproved  the admin approved their volunteer account
+ * @property {'pending' | 'approved' | 'rejected'} volunteerApproval
+ * @property {string} dashboardUrl
+ * @property {string | null} orgId       the organization this account runs (organizations only)
+ */
+
+/** @type {Promise<Viewer | null> | null} */
+let viewerRequest = null;
+
+/**
+ * The logged-in viewer for public pages, or null for visitors. Read from the profiles table
+ * (never user_metadata) and cached per page. Public pages never redirect logged-in users.
+ * @returns {Promise<Viewer | null>}
+ */
+function getViewer() {
+  viewerRequest ??= (async () => {
+    const profile = await getProfile().catch(() => null);
+    if (!profile) return null;
+    let orgId = null;
+    if (profile.role === "organization") {
+      const { data } = await db().from("organizations").select("id").eq("owner_id", profile.id).maybeSingle();
+      orgId = data?.id ?? null;
+    }
+    return {
+      role: profile.role,
+      isDonor: profile.is_donor,
+      isVolunteer: profile.is_volunteer,
+      hasConsent: Boolean(profile.consented_at && profile.age_confirmed),
+      volunteerApproved: isApprovedVolunteer(profile),
+      volunteerApproval: profile.volunteer_approval ?? "pending",
+      dashboardUrl: dashboardFor(profile),
+      orgId,
+    };
+  })();
+  return viewerRequest;
+}
+
+/** Forget the cached viewer, e.g. after turning on donating or volunteering. */
+function forgetViewer() {
+  viewerRequest = null;
+}
+
+/**
+ * What the donating parts of a public page show for this viewer.
+ * "staff" = organization or admin accounts: they see what donors see, without Offer buttons.
+ * @param {Viewer | null} viewer
+ * @returns {'visitor' | 'staff' | 'turn_on' | 'consent' | 'donor'}
+ */
+function donorView(viewer) {
+  if (!viewer) return "visitor";
+  if (viewer.role === "organization" || viewer.role === "admin") return "staff";
+  if (!viewer.isDonor) return "turn_on";
+  if (!viewer.hasConsent) return "consent";
+  return "donor";
+}
+
+/**
+ * What the volunteering parts of a public page show for this viewer.
+ * @param {Viewer | null} viewer
+ * @returns {'visitor' | 'staff' | 'turn_on' | 'rejected' | 'pending' | 'consent' | 'volunteer'}
+ */
+function volunteerView(viewer) {
+  if (!viewer) return "visitor";
+  if (viewer.role === "organization" || viewer.role === "admin") return "staff";
+  if (!viewer.isVolunteer) return "turn_on";
+  if (viewer.volunteerApproval === "rejected") return "rejected";
+  if (!viewer.volunteerApproved) return "pending";
+  if (!viewer.hasConsent) return "consent";
+  return "volunteer";
+}
+
+/**
+ * Turns on donating or volunteering from a public page, then tells the rest of the page.
+ * @param {'donor' | 'volunteer'} kind
+ * @returns {Promise<Viewer | null>}
+ */
+async function turnOnRole(kind) {
+  await enableRole(kind);
+  forgetViewer();
+  window.dispatchEvent(new CustomEvent("profile-changed"));
+  return getViewer();
+}
+
+/**
+ * Shared state for the public pages (index, needs, event, org), spread into their Alpine
+ * components: `Alpine.data("homePage", () => ({ ...publicViewer(), ... }))`, then `await this.loadViewer()`.
+ * Methods, not getters, so spreading keeps them live. Nothing personal is kept (REQUIREMENTS.md 6.1).
+ */
+function publicViewer() {
+  return {
+    /** @type {Viewer | null} */
+    viewer: null,
+    /** false until we know who is looking, so the visitor version never flashes for logged-in users */
+    viewerReady: false,
+    turningOn: false,
+    /** @type {MyApplication[]} this volunteer's own applications (for "Waiting" / "Approved" on event cards) */
+    myApplications: [],
+
+    async loadViewer() {
+      this.viewer = await getViewer();
+      this.viewerReady = true;
+    },
+
+    /** @returns {ReturnType<typeof donorView>} */
+    donorMode() {
+      return donorView(this.viewer);
+    },
+
+    /** @returns {ReturnType<typeof volunteerView>} */
+    volunteerMode() {
+      return volunteerView(this.viewer);
+    },
+
+    /** True when the logged-in organization runs this content. @param {string | null | undefined} organizationId */
+    ownsContent(organizationId) {
+      return Boolean(this.viewer?.orgId && organizationId && this.viewer.orgId === organizationId);
+    },
+
+    isAdmin() {
+      return this.viewer?.role === "admin";
+    },
+
+    /** Loads the volunteer's own applications (only for volunteers). */
+    async loadMyApplications() {
+      const profile = this.viewer?.isVolunteer ? await getProfile() : null;
+      this.myApplications = profile ? await listMyApplications(profile.id) : [];
+    },
+
+    /**
+     * The volunteer's application for an event, unless they withdrew it.
+     * @param {string} eventId
+     * @returns {MyApplication | undefined}
+     */
+    applicationFor(eventId) {
+      return this.myApplications.find((a) => a.event_id === eventId && a.status !== "withdrawn");
+    },
+
+    /** @param {'donor' | 'volunteer'} kind */
+    async turnOn(kind) {
+      this.turningOn = true;
+      try {
+        this.viewer = await turnOnRole(kind);
+        if (kind === "volunteer") await this.loadMyApplications();
+        toast(
+          kind === "donor"
+            ? "Donating is turned on. You can offer items now."
+            : this.viewer?.volunteerApproved
+              ? "Volunteering is turned on. You can apply now."
+              : "Volunteering is turned on. An admin will approve your volunteer account before you can apply.",
+        );
+      } catch (error) {
+        toast(friendlyError(error), "error");
+      } finally {
+        this.turningOn = false;
+      }
+    },
+  };
+}
+
+/**
  * The logged-in user's email (kept by Supabase Auth, not in profiles).
  * @returns {Promise<string>}
  */
@@ -387,6 +553,18 @@ document.addEventListener("alpine:init", () => {
 
     get canSwitch() {
       return Boolean(this.profile?.is_donor && this.profile?.is_volunteer);
+    },
+
+    /**
+     * Desktop top bar links. Visitors: Home · Browse needs. Logged in: Home · My dashboard
+     * (people who both donate and volunteer get the Donating / Volunteering switch instead).
+     * @returns {{ href: string, label: string }[]}
+     */
+    get topLinks() {
+      const home = { href: "/", label: "Home" };
+      if (!this.profile) return [home, { href: "/needs.html", label: "Browse needs" }];
+      if (this.canSwitch) return [home];
+      return [home, { href: dashboardFor(this.profile), label: "My dashboard" }];
     },
 
     /**

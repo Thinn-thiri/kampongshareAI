@@ -36,6 +36,7 @@
     <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3/dist/cdn.min.js"></script>
   </head>
   <body data-require="organization">
+    <a href="#main" class="skip-link">Skip to main content</a>
     <header class="topbar" x-data="topBar">
       <div class="container-page flex min-h-16 flex-wrap items-center gap-x-3 gap-y-2 py-2">
         <a href="/" class="flex items-center gap-2 rounded-sm font-bold text-primary focus-visible:outline-2 focus-visible:outline-primary" aria-label="KampongShare home">
@@ -44,6 +45,12 @@
         </a>
         <span class="text-line" aria-hidden="true">/</span>
         <span class="min-w-0 flex-1 truncate font-semibold">Organization</span>
+        <!-- Desktop links (phones use the bottom navigation) -->
+        <nav class="hidden items-center gap-1 sm:flex" aria-label="Site" x-show="ready" x-cloak>
+          <template x-for="link in topLinks" :key="link.href">
+            <a :href="link.href" class="top-link" :aria-current="isCurrent(link.href) ? 'page' : null" x-text="link.label"></a>
+          </template>
+        </nav>
         <nav class="segmented order-last w-full sm:order-none sm:w-auto" aria-label="Switch between donating and volunteering" x-show="canSwitch" x-cloak>
           <a href="/donor.html" class="segmented-link" :aria-current="here('/donor.html') ? 'page' : null">Donating</a>
           <a href="/volunteer.html" class="segmented-link" :aria-current="here('/volunteer.html') ? 'page' : null">Volunteering</a>
@@ -77,7 +84,7 @@
             Account
           </button>
           <div id="account-menu" class="menu" x-show="open" x-cloak>
-            <a :href="dashboard" href="/" class="menu-item">My dashboard</a>
+            <a :href="dashboard" href="/" class="menu-item sm:hidden">My dashboard</a>
             <a href="/profile.html" class="menu-item">My profile</a>
             <button type="button" class="menu-item" @click="logout()">Log out</button>
           </div>
@@ -93,14 +100,14 @@
         </nav>
     </header>
 
-    <main class="container-page space-y-8 py-8" x-data="orgDashboard">
+    <main id="main" tabindex="-1" class="container-page space-y-8 py-8 focus:outline-none" x-data="orgDashboard">
       <div>
         <h1 class="text-2xl font-bold sm:text-3xl">Organization dashboard</h1>
         <p class="mt-1 text-muted" x-show="org" x-text="org?.name"></p>
       </div>
 
       <!-- Loading -->
-      <div class="card space-y-3" x-show="loading" aria-busy="true" aria-label="Loading your organization">
+      <div class="card space-y-3" x-show="loading" role="status"><span class="sr-only">Loading your organization…</span>
         <div class="skeleton h-5 w-40"></div>
         <div class="skeleton h-4 w-3/4"></div>
         <div class="skeleton h-11 w-full"></div>
@@ -211,7 +218,7 @@
               Using a keyboard? Move the map with the arrow keys, then press "Put pin at map centre".
             </p>
             <div class="isolate overflow-hidden rounded-md border border-line">
-              <div id="org-map" class="h-72 w-full" aria-label="Map to choose your organization's location"></div>
+              <div id="org-map" class="h-72 w-full" role="region" aria-label="Map to choose your organization's location"></div>
             </div>
             <div class="mt-2 flex flex-wrap items-center gap-3">
               <button id="org-pin-centre" type="button" class="btn btn-secondary" @click="pinAtCentre()">Put pin at map centre</button>
@@ -268,8 +275,8 @@
             <button type="button" class="btn btn-primary" x-show="!showForm" @click="newRequest()">New donation request</button>
           </div>
           <div class="segmented w-full sm:w-auto sm:self-start" role="group" aria-label="Show requests">
-            <button type="button" class="segmented-link" :aria-current="tab === 'active' ? 'page' : null" @click="showTab('active')">Active</button>
-            <button type="button" class="segmented-link" :aria-current="tab === 'history' ? 'page' : null" @click="showTab('history')">History</button>
+            <button type="button" class="segmented-link" :aria-pressed="(tab === 'active').toString()" @click="showTab('active')">Active</button>
+            <button type="button" class="segmented-link" :aria-pressed="(tab === 'history').toString()" @click="showTab('history')">History</button>
           </div>
 
           <!-- New / edit form -->
@@ -393,7 +400,7 @@
 
           <!-- Active: loading / error / empty -->
           <div class="space-y-4" x-show="tab === 'active'">
-          <div class="grid gap-4 md:grid-cols-2" x-show="loading" aria-busy="true" aria-label="Loading your requests">
+          <div class="grid gap-4 md:grid-cols-2" x-show="loading" role="status"><span class="sr-only">Loading your requests…</span>
             <div class="card space-y-3"><div class="skeleton h-5 w-24"></div><div class="skeleton h-6 w-3/4"></div><div class="skeleton h-2.5 w-full"></div></div>
             <div class="card space-y-3"><div class="skeleton h-5 w-24"></div><div class="skeleton h-6 w-2/3"></div><div class="skeleton h-2.5 w-full"></div></div>
           </div>
@@ -483,7 +490,7 @@
 
           <!-- History: fulfilled, closed, rejected (newest first, 20 at a time) -->
           <div class="space-y-4" x-show="tab === 'history'" x-cloak>
-            <div class="card space-y-3" x-show="history.loading && history.items.length === 0" aria-busy="true" aria-label="Loading past requests">
+            <div class="card space-y-3" x-show="history.loading && history.items.length === 0" role="status"><span class="sr-only">Loading past requests…</span>
               <div class="skeleton h-5 w-24"></div><div class="skeleton h-6 w-2/3"></div>
             </div>
             <div class="card text-center" x-show="!history.loading && history.error" x-cloak role="alert">
@@ -495,7 +502,7 @@
               <i data-lucide="history" class="size-10 text-primary" aria-hidden="true"></i>
               <p class="text-muted">No past requests yet. Fulfilled, closed and rejected requests will appear here.</p>
             </div>
-            <ul class="grid gap-4 md:grid-cols-2" x-show="history.items.length > 0">
+            <ul class="grid gap-4 md:grid-cols-2" x-show="history.items.length > 0" x-ref="historyList">
               <template x-for="request in history.items" :key="request.id">
                 <li class="card space-y-2">
                   <div class="flex flex-wrap items-start justify-between gap-3">
@@ -513,7 +520,7 @@
               </template>
             </ul>
             <div x-show="history.hasMore" x-cloak>
-              <button type="button" class="btn btn-secondary w-full sm:w-auto" :disabled="history.loading" @click="history.more()">
+              <button type="button" class="btn btn-secondary w-full sm:w-auto" :disabled="history.loading" @click="showMoreAndFocus(history, $refs.historyList)">
                 <span class="spinner" x-show="history.loading" x-cloak aria-hidden="true"></span>
                 Show more
               </button>
@@ -531,12 +538,12 @@
               <span class="badge badge-warning" x-show="pendingCount > 0" x-text="`${pendingCount} waiting`"></span>
             </div>
             <div class="segmented w-full sm:w-auto" role="group" aria-label="Show offers">
-              <button type="button" class="segmented-link" :aria-current="filter === 'active' ? 'page' : null" @click="showFilter('active')">Active</button>
-              <button type="button" class="segmented-link" :aria-current="filter === 'history' ? 'page' : null" @click="showFilter('history')">History</button>
+              <button type="button" class="segmented-link" :aria-pressed="(filter === 'active').toString()" @click="showFilter('active')">Active</button>
+              <button type="button" class="segmented-link" :aria-pressed="(filter === 'history').toString()" @click="showFilter('history')">History</button>
             </div>
           </div>
 
-          <div class="card space-y-3" x-show="loading" aria-busy="true" aria-label="Loading offers">
+          <div class="card space-y-3" x-show="loading" role="status"><span class="sr-only">Loading offers…</span>
             <div class="skeleton h-5 w-24"></div><div class="skeleton h-5 w-2/3"></div><div class="skeleton h-4 w-1/2"></div>
           </div>
           <div class="card text-center" x-show="!loading && error" x-cloak role="alert">
@@ -555,7 +562,7 @@
             <p class="text-muted">No past offers yet. Delivered, rejected and cancelled offers will appear here.</p>
           </div>
 
-          <ul class="grid gap-4 md:grid-cols-2" x-show="!loading && !error">
+          <ul class="grid gap-4 md:grid-cols-2" x-show="!loading && !error" x-ref="historyList">
             <template x-for="offer in (filter === 'active' ? activeOffers : history.items)" :key="offer.id">
               <li class="card flex flex-col gap-3">
                 <div class="flex flex-wrap items-start justify-between gap-3">
@@ -609,7 +616,7 @@
             </template>
           </ul>
           <div x-show="filter === 'history' && history.hasMore" x-cloak>
-            <button type="button" class="btn btn-secondary w-full sm:w-auto" :disabled="history.loading" @click="history.more()">
+            <button type="button" class="btn btn-secondary w-full sm:w-auto" :disabled="history.loading" @click="showMoreAndFocus(history, $refs.historyList)">
               <span class="spinner" x-show="history.loading" x-cloak aria-hidden="true"></span>
               Show more
             </button>
@@ -625,8 +632,8 @@
             <button type="button" class="btn btn-primary" x-show="!showForm" @click="newEvent()">New event</button>
           </div>
           <div class="segmented w-full sm:w-auto sm:self-start" role="group" aria-label="Show events">
-            <button type="button" class="segmented-link" :aria-current="tab === 'active' ? 'page' : null" @click="showTab('active')">Upcoming</button>
-            <button type="button" class="segmented-link" :aria-current="tab === 'history' ? 'page' : null" @click="showTab('history')">Past &amp; cancelled</button>
+            <button type="button" class="segmented-link" :aria-pressed="(tab === 'active').toString()" @click="showTab('active')">Upcoming</button>
+            <button type="button" class="segmented-link" :aria-pressed="(tab === 'history').toString()" @click="showTab('history')">Past &amp; cancelled</button>
           </div>
 
           <!-- New / edit form -->
@@ -725,7 +732,7 @@
 
               <p id="help-ev-pin" class="helper-text mt-0">Click the map or drag the pin to the exact spot. Keyboard: move the map with the arrow keys, then "Put pin at map centre".</p>
               <div class="isolate overflow-hidden rounded-md border border-line">
-                <div id="ev-map" class="h-64 w-full"></div>
+                <div id="ev-map" class="h-64 w-full" role="region" aria-label="Map to choose where the event is"></div>
               </div>
               <div class="flex flex-wrap items-center gap-3">
                 <button id="ev-pin-centre" type="button" class="btn btn-secondary" @click="pinAtCentre()">Put pin at map centre</button>
@@ -747,7 +754,7 @@
           </form>
 
           <!-- Loading / error / empty -->
-          <div class="card space-y-3" x-show="tab === 'active' ? loading : history.loading && history.items.length === 0" aria-busy="true" aria-label="Loading events">
+          <div class="card space-y-3" x-show="tab === 'active' ? loading : history.loading && history.items.length === 0" role="status"><span class="sr-only">Loading events…</span>
             <div class="skeleton h-5 w-24"></div><div class="skeleton h-6 w-2/3"></div><div class="skeleton h-4 w-1/2"></div>
           </div>
           <div class="card text-center" x-show="tab === 'active' ? !loading && loadError : !history.loading && history.error" x-cloak role="alert">
@@ -766,7 +773,7 @@
           </div>
 
           <!-- List: the same card for Upcoming and Past & cancelled (past events are read-only) -->
-          <ul class="grid gap-4 md:grid-cols-2" x-show="tab === 'active' ? !loading && !loadError : history.items.length > 0">
+          <ul class="grid gap-4 md:grid-cols-2" x-show="tab === 'active' ? !loading && !loadError : history.items.length > 0" x-ref="historyList">
             <template x-for="event in (tab === 'active' ? activeEvents : history.items)" :key="event.id">
               <li class="card flex flex-col gap-3">
                 <div class="flex flex-wrap items-center gap-2">
@@ -907,7 +914,7 @@
 
                   <div :id="`volunteers-${event.id}`" class="mt-3 space-y-3" x-show="open" x-cloak>
                     <p class="text-sm font-medium" :class="isFull ? 'text-danger' : 'text-muted'" x-show="loaded" x-text="summary"></p>
-                    <div class="space-y-2" x-show="loading" aria-busy="true" aria-label="Loading volunteers">
+                    <div class="space-y-2" x-show="loading" role="status"><span class="sr-only">Loading volunteers…</span>
                       <div class="skeleton h-5 w-2/3"></div><div class="skeleton h-4 w-1/2"></div>
                     </div>
                     <p class="text-sm text-danger" x-show="!loading && error" x-text="error" role="alert"></p>
@@ -1006,7 +1013,7 @@
             </template>
           </ul>
           <div x-show="tab === 'history' && history.hasMore" x-cloak>
-            <button type="button" class="btn btn-secondary w-full sm:w-auto" :disabled="history.loading" @click="history.more()">
+            <button type="button" class="btn btn-secondary w-full sm:w-auto" :disabled="history.loading" @click="showMoreAndFocus(history, $refs.historyList)">
               <span class="spinner" x-show="history.loading" x-cloak aria-hidden="true"></span>
               Show more
             </button>

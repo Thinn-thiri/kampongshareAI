@@ -21,7 +21,7 @@ document.addEventListener("alpine:init", () => {
     busyId: null,
 
     async init() {
-      this.history = historyPager(async (from, to) => this.pastOffers.slice(from, to + 1));
+      this.history = historyPager(async (from, to) => this.pastOffers.slice(from, to + 1), "past offers");
       await this.load();
     },
 
@@ -111,6 +111,8 @@ document.addEventListener("alpine:init", () => {
       try {
         await setOfferStatus(offer.id, status);
         toast(dialog.done);
+        // rejected or delivered offers move to History, so their card is gone: keep keyboard users in this section
+        if (status !== "accepted") focusHeading("offers-heading");
         await scoreRequest(offer.item.request_id); // how much is still needed changed
       } catch (error) {
         toast(friendlyError(error), "error");

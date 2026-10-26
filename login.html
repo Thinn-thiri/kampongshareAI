@@ -21,6 +21,7 @@
     <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3/dist/cdn.min.js"></script>
   </head>
   <body>
+    <a href="#main" class="skip-link">Skip to main content</a>
     <header class="topbar" x-data="topBar">
       <div class="container-page flex min-h-16 flex-wrap items-center gap-x-3 gap-y-2 py-2">
         <a href="/" class="flex items-center gap-2 rounded-sm font-bold text-primary focus-visible:outline-2 focus-visible:outline-primary" aria-label="KampongShare home">
@@ -29,6 +30,12 @@
         </a>
         <span class="text-line" aria-hidden="true">/</span>
         <span class="min-w-0 flex-1 truncate font-semibold">Log in</span>
+        <!-- Desktop links (phones use the bottom navigation) -->
+        <nav class="hidden items-center gap-1 sm:flex" aria-label="Site" x-show="ready" x-cloak>
+          <template x-for="link in topLinks" :key="link.href">
+            <a :href="link.href" class="top-link" :aria-current="isCurrent(link.href) ? 'page' : null" x-text="link.label"></a>
+          </template>
+        </nav>
         <nav class="segmented order-last w-full sm:order-none sm:w-auto" aria-label="Switch between donating and volunteering" x-show="canSwitch" x-cloak>
           <a href="/donor.html" class="segmented-link" :aria-current="here('/donor.html') ? 'page' : null">Donating</a>
           <a href="/volunteer.html" class="segmented-link" :aria-current="here('/volunteer.html') ? 'page' : null">Volunteering</a>
@@ -62,7 +69,7 @@
             Account
           </button>
           <div id="account-menu" class="menu" x-show="open" x-cloak>
-            <a :href="dashboard" href="/" class="menu-item">My dashboard</a>
+            <a :href="dashboard" href="/" class="menu-item sm:hidden">My dashboard</a>
             <a href="/profile.html" class="menu-item">My profile</a>
             <button type="button" class="menu-item" @click="logout()">Log out</button>
           </div>
@@ -78,7 +85,7 @@
         </nav>
     </header>
 
-    <main class="container-page py-12">
+    <main id="main" tabindex="-1" class="container-page py-12 focus:outline-none">
       <div class="mx-auto max-w-md">
         <h1 class="text-2xl font-bold sm:text-3xl">Welcome back</h1>
         <p class="mt-2 text-muted">Log in to give, volunteer or manage your organization.</p>

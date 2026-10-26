@@ -61,7 +61,7 @@ document.addEventListener("alpine:init", () => {
     /** Active (pending approval, open) or History (fulfilled, closed, rejected) */
     tab: "active",
     /** @type {HistoryPager<DonationRequest>} */
-    history: historyPager((from, to) => listMyRequestHistory(orgId, from, to)),
+    history: historyPager((from, to) => listMyRequestHistory(orgId, from, to), "past requests"),
 
     showForm: false,
     /** @type {DonationRequest | null} the request being edited, or null for a new one */
@@ -75,6 +75,13 @@ document.addEventListener("alpine:init", () => {
 
     async init() {
       await this.load();
+      // "Post a request" on the home page: /organization.html?new=request opens the form
+      const params = new URLSearchParams(location.search);
+      if (params.get("new") === "request") {
+        params.delete("new");
+        history.replaceState(null, "", location.pathname + (params.size ? `?${params}` : "") + location.hash);
+        this.newRequest();
+      }
     },
 
     get locked() {
@@ -195,6 +202,7 @@ document.addEventListener("alpine:init", () => {
       try {
         await closeRequest(request.id, reason);
         toast("The request was closed. You'll find it under History.");
+        focusHeading("requests-heading"); // the card may be gone: keep keyboard users in this section
         if (this.editing?.id === request.id) this.cancelForm();
         await this.load();
         // Closing declines waiting offers in the database: refresh "Incoming offers".
@@ -221,6 +229,7 @@ document.addEventListener("alpine:init", () => {
       try {
         await deleteRequest(request.id);
         toast("The request was deleted.");
+        focusHeading("requests-heading"); // the card may be gone: keep keyboard users in this section
         if (this.editing?.id === request.id) this.cancelForm();
         await this.load();
       } catch (error) {

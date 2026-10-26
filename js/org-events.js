@@ -70,7 +70,7 @@ document.addEventListener("alpine:init", () => {
         /** Upcoming (upcoming, ongoing) or Past & cancelled (completed, cancelled) */
         tab: "active",
         /** @type {HistoryPager<VolunteerEvent>} */
-        history: historyPager((from, to) => listMyEventHistory(orgId, from, to)),
+        history: historyPager((from, to) => listMyEventHistory(orgId, from, to), "past events"),
         /** @type {Record<string, boolean>} active events that already have applications (can't be deleted) */
         hasApplications: {},
         /** @type {string | null} completed event whose outcome is being edited */
@@ -300,6 +300,7 @@ document.addEventListener("alpine:init", () => {
           try {
             await completeEvent(event.id, summary);
             toast("Event marked completed. Thank you for running it! You'll find it under Past & cancelled.");
+            focusHeading("events-heading"); // the card may be gone: keep keyboard users in this section
             this.completingId = null;
             await this.load();
           } catch (error) {
@@ -329,6 +330,7 @@ document.addEventListener("alpine:init", () => {
           try {
             await cancelEvent(event.id, reason);
             toast("The event was cancelled. Volunteers can see the reason.");
+            focusHeading("events-heading"); // the card may be gone: keep keyboard users in this section
             if (this.editing?.id === event.id) this.cancelForm();
             await this.load();
           } catch (error) {
@@ -350,6 +352,7 @@ document.addEventListener("alpine:init", () => {
           try {
             await deleteEvent(event.id);
             toast("The event was deleted.");
+            focusHeading("events-heading"); // the card may be gone: keep keyboard users in this section
             if (this.editing?.id === event.id) this.cancelForm();
             await this.load();
           } catch (error) {

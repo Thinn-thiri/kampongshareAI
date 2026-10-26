@@ -27,6 +27,7 @@
     <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3/dist/cdn.min.js"></script>
   </head>
   <body>
+    <a href="#main" class="skip-link">Skip to main content</a>
     <header class="topbar" x-data="topBar">
       <div class="container-page flex min-h-16 flex-wrap items-center gap-x-3 gap-y-2 py-2">
         <a href="/" class="flex items-center gap-2 rounded-sm font-bold text-primary focus-visible:outline-2 focus-visible:outline-primary" aria-label="KampongShare home">
@@ -35,6 +36,12 @@
         </a>
         <span class="text-line" aria-hidden="true">/</span>
         <span class="min-w-0 flex-1 truncate font-semibold">Event</span>
+        <!-- Desktop links (phones use the bottom navigation) -->
+        <nav class="hidden items-center gap-1 sm:flex" aria-label="Site" x-show="ready" x-cloak>
+          <template x-for="link in topLinks" :key="link.href">
+            <a :href="link.href" class="top-link" :aria-current="isCurrent(link.href) ? 'page' : null" x-text="link.label"></a>
+          </template>
+        </nav>
         <nav class="segmented order-last w-full sm:order-none sm:w-auto" aria-label="Switch between donating and volunteering" x-show="canSwitch" x-cloak>
           <a href="/donor.html" class="segmented-link" :aria-current="here('/donor.html') ? 'page' : null">Donating</a>
           <a href="/volunteer.html" class="segmented-link" :aria-current="here('/volunteer.html') ? 'page' : null">Volunteering</a>
@@ -68,7 +75,7 @@
             Account
           </button>
           <div id="account-menu" class="menu" x-show="open" x-cloak>
-            <a :href="dashboard" href="/" class="menu-item">My dashboard</a>
+            <a :href="dashboard" href="/" class="menu-item sm:hidden">My dashboard</a>
             <a href="/profile.html" class="menu-item">My profile</a>
             <button type="button" class="menu-item" @click="logout()">Log out</button>
           </div>
@@ -84,9 +91,9 @@
         </nav>
     </header>
 
-    <main class="container-page py-8" x-data="eventPage">
+    <main id="main" tabindex="-1" class="container-page py-8 focus:outline-none" x-data="eventPage">
       <!-- Loading -->
-      <div class="mx-auto max-w-3xl space-y-4" x-show="loading" aria-busy="true" aria-label="Loading event">
+      <div class="mx-auto max-w-3xl space-y-4" x-show="loading" role="status"><span class="sr-only">Loading event…</span>
         <div class="skeleton h-9 w-2/3"></div>
         <div class="skeleton h-5 w-1/2"></div>
         <div class="skeleton h-64 w-full"></div>
@@ -106,6 +113,10 @@
             x-text="event?.organization?.name"></a>
           <h1 class="text-2xl font-bold break-words sm:text-3xl" x-text="event?.title"></h1>
           <span class="badge badge-neutral mt-2" x-show="isOver && event?.status !== 'cancelled'">This event has ended</span>
+          <div class="mt-1 flex flex-wrap gap-2">
+            <a class="btn btn-ghost -ml-3 px-3 text-sm" x-show="ownsContent(event?.organization_id)" href="/organization.html#events-heading">Your organization · Manage</a>
+            <a class="btn btn-ghost -ml-3 px-3 text-sm" x-show="isAdmin()" href="/admin.html?queue=events">Open in admin</a>
+          </div>
         </div>
 
         <!-- Cancelled: say why, and don't take volunteers -->
@@ -130,7 +141,7 @@
         </dl>
 
         <div class="isolate overflow-hidden rounded-lg border border-line">
-          <div id="event-map" class="h-64 w-full"></div>
+          <div id="event-map" class="h-64 w-full" role="region" aria-label="Map showing where the event is"></div>
         </div>
 
         <section class="space-y-2" x-show="event?.description" aria-labelledby="about-heading">
@@ -141,8 +152,24 @@
         <div class="grid gap-4 sm:grid-cols-2 sm:items-start">
           <!-- Donate -->
           <div class="space-y-1">
-            <a :href="donateHref" href="/donor.html" class="btn btn-primary min-h-14 w-full text-base">Donate</a>
-            <p class="helper-text text-center" x-text="event?.request?.status === 'open' ? `Give to: ${event.request.title}` : 'See what this organization needs'"></p>
+            <template x-if="['visitor', 'donor', 'consent'].includes(donorMode())">
+              <div class="space-y-1">
+                <a :href="donateHref" href="/donor.html" class="btn btn-primary min-h-14 w-full text-base">Donate</a>
+                <p class="helper-text text-center" x-text="event?.request?.status === 'open' ? `Give to: ${event.request.title}` : 'See what this organization needs'"></p>
+              </div>
+            </template>
+            <template x-if="donorMode() === 'turn_on'">
+              <div class="space-y-2 rounded-md border border-line bg-canvas p-3 text-center text-sm">
+                <p>Turn on donating in your profile to give to this event.</p>
+                <button type="button" class="btn btn-primary w-full" :disabled="turningOn" @click="turnOn('donor')">
+                  <span class="spinner" x-show="turningOn" x-cloak aria-hidden="true"></span>
+                  Turn on donating
+                </button>
+              </div>
+            </template>
+            <template x-if="donorMode() === 'staff'">
+              <p class="rounded-md bg-canvas p-3 text-center text-sm text-muted">This is what donors see.</p>
+            </template>
           </div>
 
           <!-- Volunteer -->
@@ -165,7 +192,7 @@
               <button type="button" class="btn btn-secondary min-h-14 w-full text-base" disabled>Event full</button>
             </template>
             <template x-if="volunteerState === 'not_individual'">
-              <p class="rounded-md bg-canvas p-3 text-center text-sm text-muted">Organization and admin accounts can't volunteer.</p>
+              <p class="rounded-md bg-canvas p-3 text-center text-sm text-muted">This is what volunteers see.</p>
             </template>
             <template x-if="volunteerState === 'turn_on'">
               <div class="space-y-2 rounded-md border border-line bg-canvas p-3 text-center text-sm">

@@ -5,14 +5,13 @@
 document.addEventListener("alpine:init", () => {
   const Alpine = /** @type {any} */ (window).Alpine;
   Alpine.data("orgPage", () => ({
+    ...publicViewer(),
     /** @type {Organization | null} */
     org: null,
     /** @type {DonationRequest[]} */
     requests: [],
     /** @type {VolunteerEvent[]} */
     events: [],
-    /** @type {Profile | null} */
-    profile: null,
     loading: true,
     notFound: false,
     error: "",
@@ -30,17 +29,17 @@ document.addEventListener("alpine:init", () => {
         return;
       }
       try {
-        const [org, requests, events, profile] = await Promise.all([
+        const [org, requests, events] = await Promise.all([
           getPublicOrganization(id),
           listOrgOpenRequests(id),
           listOrgUpcomingEvents(id),
-          getProfile().catch(() => null),
+          this.loadViewer(),
         ]);
         this.org = org;
         this.notFound = !org;
         this.requests = org ? requests : [];
         this.events = org ? events : [];
-        this.profile = profile;
+        if (org && !["visitor", "staff"].includes(this.volunteerMode())) await this.loadMyApplications().catch(() => {});
       } catch (error) {
         this.error = friendlyError(error);
       } finally {
@@ -65,7 +64,7 @@ document.addEventListener("alpine:init", () => {
      * @param {string} itemId
      */
     goOffer(itemId) {
-      location.href = offerHref(itemId, this.profile);
+      location.href = offerHref(itemId, this.viewer);
     },
   }));
 });

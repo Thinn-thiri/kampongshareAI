@@ -68,7 +68,7 @@ document.addEventListener("alpine:init", () => {
       }
       if (!this.profile?.is_donor) return; // the page guard is redirecting
       const donorId = this.profile.id;
-      this.history = historyPager((from, to) => listMyOfferHistory(donorId, from, to));
+      this.history = historyPager((from, to) => listMyOfferHistory(donorId, from, to), "past offers");
       await Promise.all([this.loadRequests(), this.loadOffers()]);
     },
 
@@ -188,6 +188,7 @@ document.addEventListener("alpine:init", () => {
       try {
         await cancelOffer(offer.id);
         toast("Your offer was cancelled.");
+        focusHeading("offers-heading"); // the card may be gone: keep keyboard users in this section
         await Promise.all([this.loadRequests(), this.loadOffers()]);
       } catch (error) {
         toast(friendlyError(error), "error");
