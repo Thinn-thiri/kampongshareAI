@@ -68,7 +68,14 @@
           </div>
           <div>
             <label for="li-password" class="label">Password</label>
-            <input id="li-password" class="input" type="password" autocomplete="current-password" required x-model="password" />
+            <div class="password-field" x-data="passwordToggle">
+              <input id="li-password" class="input" type="password" :type="shown ? 'text' : 'password'" x-ref="input" autocomplete="current-password" required x-model="password" />
+              <button type="button" class="password-toggle" @mousedown.prevent @click="toggle($event)" aria-controls="li-password"
+                aria-label="Show password" :aria-label="shown ? 'Hide password' : 'Show password'" :aria-pressed="shown ? 'true' : 'false'">
+                <span x-show="!shown"><i data-lucide="eye" class="size-5" aria-hidden="true"></i></span>
+                <span x-show="shown" x-cloak><i data-lucide="eye-off" class="size-5" aria-hidden="true"></i></span>
+              </button>
+            </div>
           </div>
 
           <div role="alert">

@@ -246,6 +246,18 @@
             <input id="sg-name" class="input" type="text" required autocomplete="name" value="Tan Mei Ling" />
           </div>
           <div>
+            <label for="sg-password" class="label">Password <span class="text-danger" aria-hidden="true">*</span></label>
+            <div class="password-field" x-data="passwordToggle">
+              <input id="sg-password" class="input" type="password" :type="shown ? 'text' : 'password'" x-ref="input" autocomplete="new-password" required aria-describedby="sg-password-help" />
+              <button type="button" class="password-toggle" @mousedown.prevent @click="toggle($event)" aria-controls="sg-password"
+                aria-label="Show password" :aria-label="shown ? 'Hide password' : 'Show password'" :aria-pressed="shown ? 'true' : 'false'">
+                <span x-show="!shown"><i data-lucide="eye" class="size-5" aria-hidden="true"></i></span>
+                <span x-show="shown" x-cloak><i data-lucide="eye-off" class="size-5" aria-hidden="true"></i></span>
+              </button>
+            </div>
+            <p id="sg-password-help" class="helper-text">Tap the eye to show or hide what you typed.</p>
+          </div>
+          <div>
             <label for="sg-postal" class="label">Postal code</label>
             <input id="sg-postal" class="input" type="text" inputmode="numeric" maxlength="6" aria-describedby="sg-postal-help" />
             <p id="sg-postal-help" class="helper-text">6 digits. We only use it to show needs near you, never your full address.</p>

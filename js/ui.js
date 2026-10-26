@@ -262,3 +262,35 @@ document.addEventListener("DOMContentLoaded", startIcons);
 
 // Create the toast area early so screen readers already know about it when the first toast appears.
 document.addEventListener("DOMContentLoaded", getToastRegion);
+
+// Show / hide button for password fields: <div class="password-field" x-data="passwordToggle">.
+// Only switches the input's type; it never reads, logs or stores the password itself.
+document.addEventListener("alpine:init", () => {
+  const Alpine = /** @type {any} */ (window).Alpine;
+  Alpine.data("passwordToggle", () => ({
+    shown: false,
+
+    init() {
+      const self = /** @type {any} */ (this);
+      // hide it again whenever the form is sent
+      self.$el.closest("form")?.addEventListener("submit", () => (self.shown = false));
+    },
+
+    /** @param {MouseEvent} event */
+    toggle(event) {
+      const self = /** @type {any} */ (this);
+      /** @type {HTMLInputElement} */
+      const input = self.$refs.input;
+      const start = input.selectionStart;
+      const end = input.selectionEnd;
+      self.shown = !self.shown;
+      // a tap or click (detail > 0) keeps the cursor in the field; Enter / Space leaves focus on the button
+      if (event.detail > 0) {
+        self.$nextTick(() => {
+          input.focus();
+          if (start !== null && end !== null) input.setSelectionRange(start, end);
+        });
+      }
+    },
+  }));
+});
