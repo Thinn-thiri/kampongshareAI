@@ -39,8 +39,11 @@
           <img src="/img/favicon.svg" alt="" class="size-8" />
           <span class="hidden sm:inline">KampongShare</span>
         </a>
-        <span class="text-line" aria-hidden="true">/</span>
-        <span class="min-w-0 flex-1 truncate font-semibold">Home</span>
+        <!-- the logged-in person's own name (only they see it) -->
+        <span class="max-w-28 truncate rounded-full bg-primary-soft px-2.5 py-1 text-xs font-semibold text-primary sm:max-w-48"
+          x-show="profile?.full_name" x-cloak :title="profile?.full_name"><span class="sr-only">Logged in as </span><span x-text="profile?.full_name"></span></span>
+        <!-- pushes the links and buttons to the right -->
+        <span class="flex-1" aria-hidden="true"></span>
         <!-- Desktop links (phones use the bottom navigation) -->
         <nav class="hidden items-center gap-1 sm:flex" aria-label="Site" x-show="ready" x-cloak>
           <template x-for="link in topLinks" :key="link.href">
@@ -254,7 +257,7 @@
 
         <div class="grid gap-4 lg:grid-cols-[3fr_2fr]">
           <div class="isolate overflow-hidden rounded-lg border border-line bg-surface">
-            <div id="events-map" class="h-72 w-full sm:h-96" role="region" aria-label="Map of upcoming volunteer events (the same events are listed below)"></div>
+            <div id="events-map" class="h-72 w-full sm:h-96 lg:h-full lg:min-h-96" role="region" aria-label="Map of upcoming volunteer events (the same events are listed below)"></div>
           </div>
 
           <div class="space-y-3">
@@ -279,11 +282,13 @@
               Your volunteer account is waiting for admin approval. You can look at events in the meantime.
             </p>
             <template x-for="event in nextThree" :key="event.id">
-              <article class="card space-y-2">
-                <a :href="`/event.html?id=${event.id}`" class="block rounded-sm font-semibold break-words text-ink underline-offset-2 hover:underline focus-visible:outline-2 focus-visible:outline-primary" x-text="event.title"></a>
-                <p class="text-sm text-primary" x-text="event.organization?.name"></p>
-                <p class="text-sm text-muted" x-text="formatEventTime(event.starts_at, event.ends_at)"></p>
-                <p class="text-sm text-muted break-words" x-text="event.location_name"></p>
+              <article class="card flex flex-wrap items-center justify-between gap-x-4 gap-y-2 p-4">
+                <div class="min-w-0 flex-1 basis-48">
+                  <a :href="`/event.html?id=${event.id}`" class="block rounded-sm font-semibold break-words text-ink underline-offset-2 hover:underline focus-visible:outline-2 focus-visible:outline-primary" x-text="event.title"></a>
+                  <p class="text-sm text-primary" x-text="event.organization?.name"></p>
+                  <p class="text-sm text-muted" x-text="formatEventTime(event.starts_at, event.ends_at)"></p>
+                  <p class="text-sm text-muted break-words" x-text="event.location_name"></p>
+                </div>
                 <div class="flex flex-wrap items-center gap-2" x-show="viewerReady" x-cloak>
                   <template x-if="applicationFor(event.id)">
                     <span :class="statusInfo(applicationFor(event.id).status, 'application').className"

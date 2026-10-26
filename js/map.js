@@ -21,6 +21,32 @@ function roundCoord(value) {
 }
 
 /**
+ * Leaflet measures its box once, when the map is created. If the box wasn't at its final size yet
+ * (still hidden, styles or fonts still loading, a panel opening), it only draws tiles for that
+ * small area and the rest stays empty (dark in dark mode) until the window is resized.
+ * So we re-measure whenever the box changes size.
+ * @param {any} map a Leaflet map
+ * @param {HTMLElement} element its box
+ * @param {() => void} [afterResize] e.g. fit all the pins again
+ */
+function keepMapSized(map, element, afterResize) {
+  let queued = false;
+  const resize = () => {
+    if (queued) return;
+    queued = true;
+    requestAnimationFrame(() => {
+      queued = false;
+      if (!element.isConnected) return;
+      map.invalidateSize();
+      afterResize?.();
+    });
+  };
+  new ResizeObserver(resize).observe(element);
+  window.addEventListener("load", resize, { once: true });
+  document.fonts?.ready.then(resize);
+}
+
+/**
  * A map with one pin per event; each popup links to event.html?id=.
  * Popups are built with textContent, so event text can't inject HTML.
  * @param {HTMLElement} element
@@ -60,11 +86,22 @@ function createEventsMap(element, events) {
       .bindPopup(popup);
   }
 
-  if (events.length > 1) {
-    map.fitBounds(events.map((event) => [event.latitude, event.longitude]), { padding: [30, 30], maxZoom: 15 });
-  } else if (events.length === 1) {
-    map.setView([events[0].latitude, events[0].longitude], 15);
-  }
+  const fit = () => {
+    if (events.length > 1) {
+      map.fitBounds(events.map((event) => [event.latitude, event.longitude]), { padding: [30, 30], maxZoom: 15, animate: false });
+    } else if (events.length === 1) {
+      map.setView([events[0].latitude, events[0].longitude], 15, { animate: false });
+    }
+  };
+  fit();
+  // fit the pins again after the box settles, until the person moves or zooms the map themselves
+  let personMoved = false;
+  map.on("dragstart", () => (personMoved = true));
+  element.addEventListener("wheel", () => (personMoved = true), { passive: true });
+  map.zoomControl?.getContainer().addEventListener("click", () => (personMoved = true));
+  keepMapSized(map, element, () => {
+    if (!personMoved) fit();
+  });
 }
 
 /**
@@ -83,6 +120,7 @@ function createPinMap(element, options) {
     hasPin ? [lat, lng] : [SINGAPORE_CENTRE.lat, SINGAPORE_CENTRE.lng],
     hasPin ? 16 : 11,
   );
+  keepMapSized(map, element);
   L.tileLayer("https://tile.openstreetmap.org/{z}/{x}/{y}.png", {
     maxZoom: 19,
     attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
