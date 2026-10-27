@@ -7,7 +7,7 @@
 //   Organization's urgency (max 30): critical 30 · high 20 · medium 10 · low 0
 
 /** Singapore areas (public area names) — same list as SG_AREAS in js/ui.js. */
-const SG_AREAS = [
+export const SG_AREAS = [
   "Ang Mo Kio", "Bedok", "Bishan", "Bukit Batok", "Bukit Merah", "Bukit Panjang", "Bukit Timah",
   "Choa Chu Kang", "Clementi", "Geylang", "Hougang", "Jurong East", "Jurong West", "Kallang",
   "Pasir Ris", "Punggol", "Queenstown", "Sembawang", "Sengkang", "Serangoon", "Tampines",

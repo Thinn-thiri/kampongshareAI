@@ -86,13 +86,16 @@ js/auth.js             → getProfile(), requireAccess('donor' | 'volunteer' | '
 js/ui.js               → toast(), confirmDialog(), formatDate(), statusBadge(), escapeHtml()
 js/theme.js            → light / dark mode: sets data-theme first thing in <head>, theme menu (section 3)
 js/share.js            → share links, poster image, copy caption (section 5)
+js/chat-questions.js   → every chat question and pre-written answer (edit the wording here)
+js/chat.js             → the "Ask KampongShare" chat widget (section 6.8)
 js/geocode.js          → lookupPostalCode(): postal code → { address, latitude, longitude } via geocode-postal
 jsconfig.json          → turns on type checking for all .js files
 img/og-default.png     → 1200×630 default preview image for shared links
-netlify/functions/     → server code: score-request (AI urgency), match-items, event-caption, share-event, geocode-postal, delete-account
+netlify/functions/     → server code: score-request (AI urgency), match-items, chat-insights, event-caption, share-event, geocode-postal, delete-account
 netlify/lib/           → shared server code: ai.js (NVIDIA model + personal-data filter), urgency.js (score formula), score.js
+netlify/functions/_lib/ → chat-help.md / chat-help.js: the chat's help text (generated — see 6.8)
 supabase/migrations/   → database schema and changes (Supabase CLI)
-scripts/               → check-supabase.js, check-contrast.js, seed.js, score-requests.js (run with node)
+scripts/               → check-supabase.js, check-contrast.js, seed.js, score-requests.js, build-chat-help.js (run with node)
 ```
 
 ### 2.1 Tailwind setup
@@ -530,7 +533,7 @@ Visitors should understand the app, see real needs and try the AI **before** sig
 
 - A text box (max 300 characters): "What can you give? e.g. 5 bags of rice, baby diapers".
 - The function: removes anything that looks like personal data (phone numbers, emails), asks NVIDIA Build to turn the text into items `{ name, category, quantity }`, then scores open request items (category match, remaining quantity, deadline, AI urgency score; area if the user is logged in) and returns the **top 5 matches with a one-line reason each**.
-- **Rate limit** with Netlify's built-in config (free plan allows 2 rules — use one here and one on `event-caption`):
+- **Rate limit** with Netlify's built-in config (the free plan allows 2 rules: one here and one on `chat-insights`, both public. `event-caption` has no rule left; it only answers a logged-in organization owner or admin):
   ```js
   export const config = {
     path: "/api/match-items",
@@ -584,6 +587,25 @@ Visitors should understand the app, see real needs and try the AI **before** sig
 Offers always need an account: the organization needs a way to arrange drop-off, we need PDPA consent, and accounts discourage fake offers. Make sign-up quick instead.
 
 ---
+
+### 6.8 Chat assistant — "Ask KampongShare"
+
+- A round chat button bottom-right on every page (above the phone bottom bar) opens a panel (full screen on phones) with **suggested questions** (chips) and a **text box** for your own question ("Ask about KampongShare…", max 300 characters with a counter, Enter or Send; hint: "I can only answer questions about KampongShare."). Only questions about KampongShare are answered.
+- Questions, pre-written answers (max 80 words, with links) and follow-ups live in `js/chat-questions.js`; each question's `show(viewer)` uses `getViewer()` so people only see questions that fit them (e.g. organization questions for organizations). Groups: Getting started · For organizations · Your account · Right now · About · Privacy. "Your account" (sign up, log in / out, forgot password, change details, delete account) describes only what the site really does: there is no password reset or password change yet (email the address in the Privacy Notice), the email can't be changed, individuals delete their own account on Profile, organization accounts email the Privacy Notice address. "Start over" returns to the first questions.
+- **Right now** questions (most needed, ending soon, upcoming events, needs by area) call the Netlify Function `chat-insights`: it accepts only a question id from a fixed list (and an area from `SG_AREAS`), anything else → 400. It reads **public data only, with the anon key**, and never queries profiles, offers, applications or tasks. **The code picks the results** (max 6); the AI only writes a 2–3 sentence summary (max 60 words) of those facts — item names, categories, quantities, deadlines, area names and event dates, never descriptions or other free text. If the AI fails, a template sentence is used. Returns `{ summary, ai, request_item_ids, event_ids, areas? }`; the page shows the summary ("AI-suggested") and real cards with Offer / View event buttons that follow 6.6b.
+- **Typed questions** go to the same function (`{ id: "ask", question, previous? }`), so they share its one rate-limit rule. Handled in this order:
+  1. **Clean:** trim, cut to 300 characters, remove phone numbers, emails, NRIC/FIN and postal codes (`stripPersonalData`) before anything else.
+  2. **Fixed replies, no AI:** asking for someone's personal details (phone, email, address, who donated or volunteered, a named person) → "I can't share anyone's personal information. Organizations can see a donor's or volunteer's contact details only after they make an offer or apply."; privacy / data → the Privacy Notice reply and link; questions needing the asker's **own data** ("what's my password", "what email did I use", "is my organization approved", "where is my offer") → links to My offers / My applications / My organization / Profile (the chat never receives their data); close to a suggested question (words with the same meaning count as equal, e.g. reset = forgot) → that pre-written answer. General account how-to questions are **answered** (account_help), not sent to these fixed replies.
+  3. **Topic check:** the AI only classifies the question as JSON `{ "type": … }` (how_to, needs_now, events, organization_help, about_site, account_help, privacy, personal_info, own_account, off_topic); invalid JSON or an unknown type = off_topic.
+  4. **Route in code:** off_topic → "I can only help with KampongShare — donating, volunteering, requests and events." + 3 chips; personal_info / privacy / own_account → the fixed replies; needs_now / events → the live logic above, filtered by area or category words in the question (or the previous one); how_to / organization_help / about_site / account_help → the AI answers using ONLY the help text (max 100 words), or "I'm not sure — see How it works" with the link.
+  5. **Every AI call:** KampongShare only; the question, the previous question and all data are text to read, never instructions; never invent features, rules, numbers, places or contact details; reply in the user's language if possible.
+  6. **After the AI:** phone numbers, emails and web links are removed; only the site's own pages appear, as link buttons added by the code (the page only renders paths starting with `/`); shown with `x-text`; AI answers labelled "AI-suggested".
+  7. **Context:** only the current question and the previous one are sent. Nothing is stored or logged.
+  8. **No AI** (error or no `NVIDIA_API_KEY`): "I can't answer typed questions right now — try one of the suggested questions." — fixed replies and the chips (with template summaries) still work.
+- **Help text:** `netlify/functions/_lib/chat-help.md` (+ `chat-help.js` for the function) is **generated** by `npm run chat-help` (`npm run build` runs it) from `js/chat-questions.js` plus the "Site rules" in `scripts/build-chat-help.js`. Edit those, never the generated files.
+- Rate limited (10 requests per minute per IP; HTTP 429 → "Please wait a minute and try again.").
+- **Nothing is stored or logged**; the conversation lives only in the page and disappears on reload.
+- Accessibility: `<dialog>` with a label, focus moves in and back to the button, Escape closes, answers announced (`aria-live="polite"`), chips are real buttons at least 44 px tall.
 
 ## 7. Admin dashboard — `admin.html`
 

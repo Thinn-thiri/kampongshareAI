@@ -10,13 +10,10 @@ import { chat, stripPersonalData } from "../lib/ai.js";
 
 const TIMEOUT_MS = 10000;
 
+// No Netlify rate-limit rule: the free plan allows two, used by match-items and chat-insights
+// (both public). This function only answers a logged-in organization owner or admin (checked below).
 export const config = {
   path: "/api/event-caption",
-  rateLimit: {
-    windowLimit: 10,
-    windowSize: 60,
-    aggregateBy: ["ip", "domain"],
-  },
 };
 
 /**
