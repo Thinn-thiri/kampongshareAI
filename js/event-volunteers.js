@@ -6,6 +6,7 @@
 document.addEventListener("alpine:init", () => {
   const Alpine = /** @type {any} */ (window).Alpine;
   Alpine.data("eventVolunteers", (/** @type {VolunteerEvent} */ event) => ({
+    ...messageButtons(),
     open: false,
     loaded: false,
     loading: false,
@@ -70,6 +71,11 @@ document.addEventListener("alpine:init", () => {
       } finally {
         this.loading = false;
       }
+    },
+
+    /** "Message volunteer": a private conversation about this application. @param {Application} application */
+    messageVolunteer(application) {
+      this.messageTo(event.organization_id, application.volunteer_id, t("messages.topicApplication", { title: event.title }));
     },
 
     /**

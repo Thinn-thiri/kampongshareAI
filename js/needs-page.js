@@ -20,6 +20,7 @@ document.addEventListener("alpine:init", () => {
 
     /** @type {DonationRequest[]} */
     ...publicViewer(),
+    ...messageButtons(),
     requests: [],
     loading: true,
     error: "",

@@ -24,6 +24,7 @@
     <script src="/js/supabase.js"></script>
     <script src="/js/auth.js"></script>
     <script src="/js/ui.js"></script>
+    <script src="/js/messaging.js"></script>
     <script src="/js/map.js"></script>
     <script src="/js/events.js"></script>
     <script src="/js/volunteering.js"></script>
@@ -36,13 +37,13 @@
   <body>
     <a href="#main" class="skip-link" data-i18n="nav.skip">Skip to main content</a>
     <header class="topbar" x-data="topBar">
-      <div class="container-page flex min-h-16 flex-wrap items-center gap-x-2 gap-y-2 py-2 sm:gap-x-3">
+      <div class="container-page flex min-h-16 flex-wrap items-center gap-x-1 gap-y-2 py-2 sm:gap-x-3">
         <a href="/" class="flex items-center gap-2 rounded-sm font-bold text-primary focus-visible:outline-2 focus-visible:outline-primary" aria-label="KampongShare home" data-i18n-attr="aria-label:nav.homeLink">
           <img src="/img/favicon.svg" alt="" class="size-8" />
           <span class="hidden sm:inline">KampongShare</span>
         </a>
         <!-- the logged-in person's own name (only they see it) -->
-        <span class="max-w-24 truncate rounded-full bg-primary-soft px-2.5 py-1 text-xs font-semibold text-primary sm:max-w-48"
+        <span class="max-w-16 truncate rounded-full bg-primary-soft px-2.5 py-1 text-xs font-semibold text-primary min-[400px]:max-w-24 sm:max-w-48"
           x-show="profile?.full_name" x-cloak :title="profile?.full_name"><span class="sr-only" data-i18n="nav.loggedInAs">Logged in as</span> <span x-text="profile?.full_name"></span></span>
         <!-- pushes the links and buttons to the right -->
         <span class="flex-1" aria-hidden="true"></span>
@@ -100,6 +101,13 @@
           <a href="/login.html" class="btn btn-ghost hidden px-3 sm:inline-flex" data-i18n="nav.logIn">Log in</a>
           <a href="/signup.html" class="btn btn-primary px-4" data-i18n="nav.signUp">Sign up</a>
         </nav>
+        <!-- Messages with the unread count (js/messaging.js): individuals and organizations -->
+        <a href="/messages.html" class="btn btn-ghost relative size-11 px-0" x-show="showMessages" x-cloak
+          :aria-current="here('/messages.html') ? 'page' : null" aria-label="Messages"
+          :aria-label="unread ? $t('nav.messagesUnread', { count: unread }) : $t('nav.messages')">
+          <i data-lucide="message-circle" class="size-5" aria-hidden="true"></i>
+          <span class="nav-count" x-show="unread" x-cloak x-text="unread > 99 ? '99+' : unread" aria-hidden="true"></span>
+        </a>
         <div class="relative" x-show="profile" x-cloak @keydown.escape="if (open) { open = false; $refs.accountButton.focus() }" @click.outside="open = false">
           <button type="button" x-ref="accountButton" class="btn btn-secondary min-w-11 px-2 sm:px-4" :aria-expanded="open.toString()" aria-controls="account-menu" @click="open = !open">
             <!-- phones: an icon (the name is still read out), so the top bar fits on one row -->
@@ -148,6 +156,18 @@
           <div class="mt-1 flex flex-wrap gap-2">
             <a class="btn btn-ghost -ml-3 px-3 text-sm" x-show="ownsContent(event?.organization_id)" href="/organization.html#events" data-i18n="common.manageOwn">Your organization · Manage</a>
             <a class="btn btn-ghost -ml-3 px-3 text-sm" x-show="isAdmin()" href="/admin.html#browse/events?view=active" data-i18n="common.openInAdmin">Open in admin</a>
+            <template x-if="viewerReady && messageMode(viewer) !== 'hidden'">
+              <div>
+                <a class="btn btn-ghost -ml-3 px-3 text-sm" x-show="messageMode(viewer) === 'visitor'" :href="messageLoginHref()"
+                  :aria-label="$t('messages.messageOrgAbout', { title: event?.title })">
+                  <i data-lucide="message-circle" class="size-4" aria-hidden="true"></i> <span data-i18n="messages.messageOrg">Message organization</span>
+                </a>
+                <button type="button" class="btn btn-ghost -ml-3 px-3 text-sm" x-show="messageMode(viewer) === 'person'" :disabled="messaging"
+                  @click="messageOrg(event.organization_id, $t('messages.topicAbout', { title: event.title }))" :aria-label="$t('messages.messageOrgAbout', { title: event?.title })">
+                  <i data-lucide="message-circle" class="size-4" aria-hidden="true"></i> <span data-i18n="messages.messageOrg">Message organization</span>
+                </button>
+              </div>
+            </template>
           </div>
         </div>
 

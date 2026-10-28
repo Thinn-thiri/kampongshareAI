@@ -551,7 +551,7 @@ const DASHBOARD_SECTIONS = {
   ],
 };
 
-// Top bar: login state, account menu and the Donating / Volunteering switch.
+// Top bar: login state, account menu, unread messages and the Donating / Volunteering switch.
 document.addEventListener("alpine:init", () => {
   const Alpine = /** @type {any} */ (window).Alpine;
   Alpine.data("topBar", () => ({
@@ -563,6 +563,8 @@ document.addEventListener("alpine:init", () => {
     hash: location.hash,
     /** @type {Record<string, number>} badge numbers sent by the dashboard page ("dashboard-counts" event) */
     counts: {},
+    /** unread messages from the other side, in all my conversations */
+    unread: 0,
 
     async init() {
       window.addEventListener("hashchange", () => (this.hash = location.hash));
@@ -573,6 +575,25 @@ document.addEventListener("alpine:init", () => {
       this.ready = true;
       // e.g. profile.html adds a role: show the Donating / Volunteering switch straight away.
       window.addEventListener("profile-changed", () => this.refresh());
+      if (this.showMessages) {
+        this.countUnread();
+        // live: a new message (or a conversation read in another tab) updates the number
+        watchMessages(() => this.countUnread());
+        window.addEventListener("unread-changed", () => this.countUnread());
+      }
+    },
+
+    /** Individuals and organizations have messages; admins only see reported ones (admin.html). */
+    get showMessages() {
+      return Boolean(this.profile && this.profile.role !== "admin");
+    },
+
+    async countUnread() {
+      try {
+        this.unread = await unreadTotal();
+      } catch {
+        // keep the last number; the page still works without it
+      }
     },
 
     async refresh() {

@@ -22,6 +22,7 @@
     <script src="/js/supabase.js"></script>
     <script src="/js/auth.js"></script>
     <script src="/js/ui.js"></script>
+    <script src="/js/messaging.js"></script>
     <script src="/js/chat-questions.js"></script>
     <script src="/js/chat.js"></script>
     <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3/dist/cdn.min.js"></script>
@@ -29,13 +30,13 @@
   <body>
     <a href="#main" class="skip-link" data-i18n="nav.skip">Skip to main content</a>
     <header class="topbar" x-data="topBar">
-      <div class="container-page flex min-h-16 flex-wrap items-center gap-x-2 gap-y-2 py-2 sm:gap-x-3">
+      <div class="container-page flex min-h-16 flex-wrap items-center gap-x-1 gap-y-2 py-2 sm:gap-x-3">
         <a href="/" class="flex items-center gap-2 rounded-sm font-bold text-primary focus-visible:outline-2 focus-visible:outline-primary" aria-label="KampongShare home" data-i18n-attr="aria-label:nav.homeLink">
           <img src="/img/favicon.svg" alt="" class="size-8" />
           <span class="hidden sm:inline">KampongShare</span>
         </a>
         <!-- the logged-in person's own name (only they see it) -->
-        <span class="max-w-24 truncate rounded-full bg-primary-soft px-2.5 py-1 text-xs font-semibold text-primary sm:max-w-48"
+        <span class="max-w-16 truncate rounded-full bg-primary-soft px-2.5 py-1 text-xs font-semibold text-primary min-[400px]:max-w-24 sm:max-w-48"
           x-show="profile?.full_name" x-cloak :title="profile?.full_name"><span class="sr-only" data-i18n="nav.loggedInAs">Logged in as</span> <span x-text="profile?.full_name"></span></span>
         <!-- pushes the links and buttons to the right -->
         <span class="flex-1" aria-hidden="true"></span>
@@ -93,6 +94,13 @@
           <a href="/login.html" class="btn btn-ghost hidden px-3 sm:inline-flex" data-i18n="nav.logIn">Log in</a>
           <a href="/signup.html" class="btn btn-primary px-4" data-i18n="nav.signUp">Sign up</a>
         </nav>
+        <!-- Messages with the unread count (js/messaging.js): individuals and organizations -->
+        <a href="/messages.html" class="btn btn-ghost relative size-11 px-0" x-show="showMessages" x-cloak
+          :aria-current="here('/messages.html') ? 'page' : null" aria-label="Messages"
+          :aria-label="unread ? $t('nav.messagesUnread', { count: unread }) : $t('nav.messages')">
+          <i data-lucide="message-circle" class="size-5" aria-hidden="true"></i>
+          <span class="nav-count" x-show="unread" x-cloak x-text="unread > 99 ? '99+' : unread" aria-hidden="true"></span>
+        </a>
         <div class="relative" x-show="profile" x-cloak @keydown.escape="if (open) { open = false; $refs.accountButton.focus() }" @click.outside="open = false">
           <button type="button" x-ref="accountButton" class="btn btn-secondary min-w-11 px-2 sm:px-4" :aria-expanded="open.toString()" aria-controls="account-menu" @click="open = !open">
             <!-- phones: an icon (the name is still read out), so the top bar fits on one row -->
@@ -122,7 +130,7 @@
       <article class="mx-auto max-w-2xl space-y-8">
         <div>
           <h1 class="text-2xl font-bold sm:text-3xl" data-i18n="privacy.title">Privacy Notice</h1>
-          <p class="mt-2 text-muted" data-i18n="privacy.updated">Last updated 23 October 2026</p>
+          <p class="mt-2 text-muted" data-i18n="privacy.updated">Last updated 28 October 2026</p>
           <p class="mt-4" data-i18n="privacy.intro">KampongShare connects people in Singapore who want to give with organizations that need help. This notice explains, in plain words, what we collect, why, who can see it, and what you can do about it. We follow Singapore's Personal Data Protection Act (PDPA).</p>
           <p class="mt-3 rounded-md bg-warning-soft p-3 text-sm text-warning" data-i18n="privacy.prototype">KampongShare is a hackathon prototype. Please use made-up details when trying it out.</p>
         </div>
@@ -136,6 +144,7 @@
             <li data-i18n-rich="privacy.collect4"><strong>What you do here:</strong> the donations you offer and the events you apply for.</li>
             <li data-i18n-rich="privacy.collect5"><strong>Organizations:</strong> the organization's name, description, address and map location (these are public).</li>
             <li data-i18n-rich="privacy.collect6">Your consent, the time you gave it, and that you confirmed you are 18 or older.</li>
+            <li data-i18n-rich="privacy.collect7"><strong>Messages</strong> you send to organizations, donors or volunteers on KampongShare.</li>
           </ul>
           <p data-i18n-rich="privacy.collectNot">We do <strong>not</strong> collect NRIC/FIN numbers, date of birth, race, religion, income, health information or photos of people.</p>
         </section>
@@ -159,6 +168,16 @@
           </ul>
         </section>
 
+        <section class="space-y-3" aria-labelledby="p-messages">
+          <h2 id="p-messages" class="text-xl font-semibold" data-i18n="privacy.messagesTitle">Messages</h2>
+          <ul class="list-disc space-y-1 pl-5">
+            <li data-i18n-rich="privacy.messages1">Messages can only be read by the two people in the conversation. Our admins can read a message <strong>only if one of you reports it</strong>.</li>
+            <li data-i18n-rich="privacy.messages2">The other side sees your name. Please don't share bank details or passwords — donations are always free.</li>
+            <li data-i18n-rich="privacy.messages3">Either of you can block a conversation, so no new messages can be sent. You can report any message you receive.</li>
+            <li data-i18n-rich="privacy.messages4">Deleting a conversation removes it from your inbox only. The other person keeps their copy, and we keep messages for 12 months for safety before deleting them permanently. To have your messages deleted sooner, contact us.</li>
+          </ul>
+        </section>
+
         <section class="space-y-3" aria-labelledby="p-ai">
           <h2 id="p-ai" class="text-xl font-semibold" data-i18n="privacy.aiTitle">How we use AI</h2>
           <ul class="list-disc space-y-1 pl-5">
@@ -170,6 +189,7 @@
             <li data-i18n-rich="privacy.ai6">People always make the decisions. AI only sorts and suggests.</li>
             <li data-i18n-rich="privacy.ai7">In the <strong>Ask KampongShare</strong> chat you can tap a suggested question or type your own. It only answers questions about KampongShare, uses public information only, and never shares anyone's personal information. Phone numbers, emails and similar details you type are removed before anything else happens, and chats aren't stored.</li>
             <li data-i18n-rich="privacy.ai8">You can use KampongShare in English, Chinese or Malay. AI answers are written in the language you choose (typed chat questions in the language you type), and only the language choice is sent with them.</li>
+            <li data-i18n-rich="privacy.ai9">AI <strong>never reads your messages</strong>.</li>
           </ul>
         </section>
 

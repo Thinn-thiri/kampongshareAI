@@ -22,6 +22,7 @@ function readDonorSection() {
 document.addEventListener("alpine:init", () => {
   const Alpine = /** @type {any} */ (window).Alpine;
   Alpine.data("donorDashboard", () => ({
+    ...messageButtons(),
     /** @type {DonorSection} */
     section: readDonorSection(),
 

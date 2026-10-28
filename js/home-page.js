@@ -7,6 +7,7 @@ document.addEventListener("alpine:init", () => {
   const Alpine = /** @type {any} */ (window).Alpine;
   Alpine.data("homePage", () => ({
     ...publicViewer(),
+    ...messageButtons(),
     statCards: STAT_CARDS,
     /** @type {Record<string, number> | null} */
     stats: null,

@@ -5,7 +5,7 @@
 // js/volunteering.js, js/offers.js); the database still enforces every rule.
 
 /** @typedef {'organizations' | 'requests' | 'events' | 'volunteers'} ReviewKind */
-/** @typedef {'organizations' | 'requests' | 'events' | 'offers' | 'volunteers' | 'applications'} BrowseKind */
+/** @typedef {'organizations' | 'requests' | 'events' | 'offers' | 'volunteers' | 'applications' | 'reports'} BrowseKind */
 /** @typedef {'active' | 'history' | 'all'} BrowseView */
 
 /** The "To review" sub-tabs. Volunteers holds both volunteer accounts and event applications. */
@@ -27,6 +27,7 @@ const BROWSE_KINDS = labelledOptions(
     offers: "admin.kind.offers",
     volunteers: "admin.kind.volunteers",
     applications: "admin.kind.applications",
+    reports: "admin.kind.reports",
   }),
 );
 
@@ -453,6 +454,61 @@ function applicationRowForBrowse(row) {
   };
 }
 
+/** @param {any} row @returns {BrowseRow} */
+function reportBrowseRow(row) {
+  const message = row.message;
+  const orgName = message?.conversation?.organization?.name ?? "";
+  return {
+    id: row.id,
+    get type() {
+      return t("admin.type.report");
+    },
+    // the reported message, shown as written (x-text)
+    get title() {
+      return message?.body ?? t("admin.messageGone");
+    },
+    get detail() {
+      const name = (/** @type {any} */ person) => (person ? person.full_name || t("admin.nameNotGiven") : t("admin.deletedAccount"));
+      return [
+        t("admin.reportedBy", { name: name(row.reporter) }),
+        message ? t("admin.sentBy", { name: name(message.sender) }) : "",
+        message?.conversation?.topic ?? "",
+        orgName,
+      ]
+        .filter(Boolean)
+        .join(" · ");
+    },
+    status: row.status,
+    statusKind: "report",
+    when: row.created_at,
+    get whenText() {
+      return datedText("reported", row.created_at);
+    },
+    get reason() {
+      return t("admin.reasonLine", { reason: row.reason });
+    },
+    orgName,
+    raw: row,
+  };
+}
+
+/**
+ * Marks a reported message as dealt with (admins only).
+ * @param {string} reportId
+ */
+async function resolveMessageReport(reportId) {
+  const { data, error } = await db().from("message_reports").update({ status: "resolved" }).eq("id", reportId).select("id");
+  if (error) throw error;
+  if (!data?.length) throw new Error(t("errors.permission"));
+}
+
+/** Reported messages nobody has dealt with yet, for the Overview. @returns {Promise<number>} */
+async function countOpenReports() {
+  const { count, error } = await db().from("message_reports").select("*", { count: "exact", head: true }).eq("status", "open");
+  if (error) throw error;
+  return count ?? 0;
+}
+
 /** Which statuses Active / History / All mean for each Browse list. */
 const BROWSE_STATUSES = {
   organizations: { active: ["approved"], history: ["rejected"], all: ["pending", "approved", "rejected"] },
@@ -461,6 +517,7 @@ const BROWSE_STATUSES = {
   offers: { active: ["pending", "accepted"], history: ["delivered", "rejected", "cancelled"], all: ["pending", "accepted", "delivered", "rejected", "cancelled"] },
   accounts: { active: ["approved"], history: ["rejected"], all: ["pending", "approved", "rejected"] },
   applications: { active: ["pending", "approved"], history: ["rejected", "withdrawn"], all: ["pending", "approved", "rejected", "withdrawn"] },
+  reports: { active: ["open"], history: ["resolved"], all: ["open", "resolved"] },
 };
 
 /**
@@ -539,6 +596,17 @@ async function listAdminBrowse(kind, view, search, from, to) {
     const { data, error } = await query.order("created_at", { ascending: false }).range(from, to);
     if (error) throw error;
     return (data ?? []).map(accountBrowseRow);
+  }
+  if (kind === "reports") {
+    // Admins can read a message only once someone reported it (the database's rule)
+    let query = client
+      .from("message_reports")
+      .select("id, reason, status, created_at, reporter:profiles(full_name), message:messages(body, created_at, sender:profiles(full_name), conversation:conversations(topic, organization:organizations(name)))")
+      .in("status", BROWSE_STATUSES.reports[view]);
+    if (q) query = query.ilike("reason", likePattern(q));
+    const { data, error } = await query.order("created_at", { ascending: false }).range(from, to);
+    if (error) throw error;
+    return (data ?? []).map(reportBrowseRow);
   }
   const volunteer = q ? "volunteer:profiles!inner" : "volunteer:profiles";
   let query = client

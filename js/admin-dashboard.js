@@ -73,6 +73,9 @@ document.addEventListener("alpine:init", () => {
       recentLoading: true,
       recentError: "",
 
+      /** @type {number | null} reported messages waiting (null while loading) */
+      openReports: null,
+
       /** @type {Record<string, number> | null} */
       stats: null,
       statsError: "",
@@ -98,7 +101,7 @@ document.addEventListener("alpine:init", () => {
         // the top bar shows the waiting count next to "To review"
         /** @type {any} */ (this).$watch("totalWaiting", (/** @type {number} */ total) => window.dispatchEvent(new CustomEvent("dashboard-counts", { detail: { review: total } })));
         this.applyRoute();
-        await Promise.all([this.loadReview(), this.loadRecent(), this.loadStats()]);
+        await Promise.all([this.loadReview(), this.loadRecent(), this.loadStats(), this.loadOpenReports()]);
         window.dispatchEvent(new CustomEvent("dashboard-counts", { detail: { review: this.totalWaiting } }));
         this.openItemFromRoute();
       },
@@ -193,6 +196,14 @@ document.addEventListener("alpine:init", () => {
           this.reviewError = friendlyError(error);
         } finally {
           this.reviewLoading = false;
+        }
+      },
+
+      async loadOpenReports() {
+        try {
+          this.openReports = await countOpenReports();
+        } catch {
+          this.openReports = null;
         }
       },
 
@@ -370,6 +381,7 @@ document.addEventListener("alpine:init", () => {
         if (this.browseKind === "requests") return row.status === "open" ? ["edit-request", "close-request"] : [];
         if (this.browseKind === "events") return row.status === "upcoming" || row.status === "ongoing" ? ["cancel-event"] : [];
         if (this.browseKind === "offers") return row.status === "pending" || row.status === "accepted" ? ["cancel-offer"] : [];
+        if (this.browseKind === "reports") return row.status === "open" ? ["resolve-report"] : [];
         return [];
       },
 
@@ -383,13 +395,14 @@ document.addEventListener("alpine:init", () => {
             "close-request": "admin.action.close",
             "cancel-event": "admin.action.cancelEvent",
             "cancel-offer": "admin.action.cancelOffer",
+            "resolve-report": "admin.action.resolve",
           })[action],
         );
       },
 
       /** @param {string} action */
       actionClass(action) {
-        return action === "edit-request" ? "btn btn-secondary min-h-11 px-3" : action === "approve-org" ? "btn btn-primary min-h-11 px-3" : "btn btn-danger min-h-11 px-3";
+        return action === "edit-request" ? "btn btn-secondary min-h-11 px-3" : action === "approve-org" || action === "resolve-report" ? "btn btn-primary min-h-11 px-3" : "btn btn-danger min-h-11 px-3";
       },
 
       /**
@@ -441,6 +454,14 @@ document.addEventListener("alpine:init", () => {
           });
           if (reason === null) return;
           work = async () => (await cancelEvent(row.id, reason), t("admin.eventCancelledToast"));
+        } else if (action === "resolve-report") {
+          const ok = await confirmDialog(t("admin.resolveText"), { title: t("admin.resolveTitle"), confirmText: t("admin.action.resolve") });
+          if (!ok) return;
+          work = async () => {
+            await resolveMessageReport(row.id);
+            this.loadOpenReports();
+            return t("admin.reportResolved");
+          };
         } else {
           const ok = await confirmDialog(t("admin.cancelOfferText", { title: row.title }), {
             title: t("admin.cancelOfferTitle"),

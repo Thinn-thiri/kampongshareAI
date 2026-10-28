@@ -147,6 +147,7 @@ async function cancelOffer(id) {
  * @property {OfferStatus} status
  * @property {string} created_at
  * @property {string} updated_at
+ * @property {string | null} donor_id   null once the donor deleted their account
  * @property {{ full_name: string, phone: string | null } | null} donor
  * @property {{ name: string, unit: string, category: ItemCategory, request_id: string,
  *              request: { title: string, status: RequestStatus, organization_id: string } }} item

@@ -8,6 +8,7 @@ const OFFER_ORDER = { pending: 0, accepted: 1, delivered: 2, rejected: 3, cancel
 document.addEventListener("alpine:init", () => {
   const Alpine = /** @type {any} */ (window).Alpine;
   Alpine.data("orgOffers", (/** @type {string} */ orgId) => ({
+    ...messageButtons(),
     /** @type {IncomingOffer[]} */
     offers: [],
     loading: true,
@@ -68,6 +69,11 @@ document.addEventListener("alpine:init", () => {
      */
     what(offer) {
       return t("orgDash.offerWhat", { quantity: offer.quantity, unit: offer.item.unit, item: offer.item.name });
+    },
+
+    /** "Message donor": a private conversation about this offer. @param {IncomingOffer} offer */
+    messageDonor(offer) {
+      if (offer.donor_id) this.messageTo(orgId, offer.donor_id, t("messages.topicOffer", { what: this.what(offer) }));
     },
 
     /**

@@ -174,11 +174,12 @@ async function showMoreAndFocus(pager, list) {
 /**
  * Asks the user to confirm an action. Resolves true on confirm, false on cancel or Escape.
  * @param {string} message
- * @param {{ title?: string, confirmText?: string, cancelText?: string, danger?: boolean }} [options]
+ * note: an optional small line under the message.
+ * @param {{ title?: string, confirmText?: string, cancelText?: string, danger?: boolean, note?: string }} [options]
  * @returns {Promise<boolean>}
  */
 function confirmDialog(message, options = {}) {
-  const { title = t("ui.areYouSure"), confirmText = t("ui.confirm"), cancelText = t("common.cancel"), danger = false } = options;
+  const { title = t("ui.areYouSure"), confirmText = t("ui.confirm"), cancelText = t("common.cancel"), danger = false, note = "" } = options;
   const dialog = document.createElement("dialog");
   dialog.className = "dialog";
   dialog.setAttribute("aria-labelledby", "confirm-dialog-title");
@@ -186,6 +187,7 @@ function confirmDialog(message, options = {}) {
     <form method="dialog">
       <h2 id="confirm-dialog-title" class="text-lg font-semibold">${escapeHtml(title)}</h2>
       <p class="mt-2 text-muted">${escapeHtml(message)}</p>
+      ${note ? `<p class="mt-3 text-sm text-muted">${escapeHtml(note)}</p>` : ""}
       <div class="mt-6 flex flex-col-reverse gap-3 sm:flex-row sm:justify-end">
         <button class="btn btn-secondary" value="cancel">${escapeHtml(cancelText)}</button>
         <button class="${danger ? "btn btn-danger" : "btn btn-primary"}" value="confirm">${escapeHtml(confirmText)}</button>
@@ -366,7 +368,7 @@ function historyPager(fetchPage = async () => [], noun = () => t("ui.pastItems")
   };
 }
 
-/** @typedef {'request' | 'offer' | 'event' | 'application' | 'approval'} StatusKind */
+/** @typedef {'request' | 'offer' | 'event' | 'application' | 'approval' | 'report'} StatusKind */
 
 /**
  * A badge whose word comes from the translations (enumLabel), so it follows the chosen language.
@@ -417,6 +419,10 @@ const STATUS_BADGE = {
     approved: badgeEntry("badge badge-success", "applicationStatus", "approved"),
     rejected: badgeEntry("badge badge-neutral", "applicationStatus", "rejected"),
     withdrawn: badgeEntry("badge badge-neutral", "applicationStatus", "withdrawn"),
+  },
+  report: {
+    open: badgeEntry("badge badge-warning", "reportStatus", "open"),
+    resolved: badgeEntry("badge badge-success", "reportStatus", "resolved"),
   },
 };
 

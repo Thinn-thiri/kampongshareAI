@@ -6,6 +6,7 @@ document.addEventListener("alpine:init", () => {
   const Alpine = /** @type {any} */ (window).Alpine;
   Alpine.data("orgPage", () => ({
     ...publicViewer(),
+    ...messageButtons(),
     /** @type {Organization | null} */
     org: null,
     /** @type {DonationRequest[]} */
