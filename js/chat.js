@@ -118,10 +118,10 @@ async function askChatInsights(ask) {
 /** The chat's markup: added once to every page. Static text only — answers are shown with x-text. */
 const CHAT_MARKUP = `
 <div x-data="chatAssistant">
-  <button type="button" class="chat-fab" x-ref="fab" aria-label="Ask KampongShare" data-i18n-attr="aria-label:chat.open" aria-haspopup="dialog"
+  <!-- icon only; the name is in aria-label (screen readers) and title (a tooltip on hover) -->
+  <button type="button" class="chat-fab" x-ref="fab" aria-label="Ask KampongShare" title="Ask KampongShare" data-i18n-attr="aria-label:chat.open; title:chat.open" aria-haspopup="dialog"
     aria-controls="chat-panel" :aria-expanded="open.toString()" @click="openChat()">
     <i data-lucide="message-circle-question" class="size-6" aria-hidden="true"></i>
-    <span class="hidden sm:inline" data-i18n="chat.open">Ask KampongShare</span>
   </button>
 
   <dialog id="chat-panel" class="chat-panel" aria-labelledby="chat-title" @close="onClosed()" @click="if ($event.target === $el) closeChat()">

@@ -47,6 +47,8 @@ document.addEventListener("alpine:init", () => {
         myRequests: [],
 
         showForm: false,
+        /** the folded "More options" part of the form (end time, linked request) */
+        moreOptions: false,
         /** @type {VolunteerEvent | null} */
         editing: null,
         /** @type {EventForm} */
@@ -159,6 +161,7 @@ document.addEventListener("alpine:init", () => {
         newEvent() {
           this.editing = null;
           this.form = blankForm();
+          this.moreOptions = false;
           this.openForm("ev-title");
         },
 
@@ -176,6 +179,8 @@ document.addEventListener("alpine:init", () => {
             volunteersNeeded: event.volunteers_needed || 1,
             donationRequestId: event.donation_request_id ?? "",
           };
+          // show the optional part when this event uses it
+          this.moreOptions = Boolean(this.form.endsAt || this.form.donationRequestId);
           this.openForm("ev-title");
         },
 
@@ -235,6 +240,9 @@ document.addEventListener("alpine:init", () => {
           this.errors = validateEvent(this.form, { isNew: !this.editing });
           const firstError = /** @type {(keyof typeof EVENT_FIELD_IDS)[]} */ (Object.keys(this.errors))[0];
           if (firstError) {
+            // a mistake in a folded field: unfold it first, then move focus there
+            if (this.errors.endsAt) this.moreOptions = true;
+            await /** @type {any} */ (this).$nextTick();
             document.getElementById(EVENT_FIELD_IDS[firstError])?.focus();
             return;
           }

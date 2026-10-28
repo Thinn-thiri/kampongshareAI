@@ -242,18 +242,6 @@ document.addEventListener("alpine:init", () => {
     isEditable: isEditableRequest,
 
     /**
-     * Widths for the progress bar: received (solid) and promised-but-not-received (striped).
-     * @param {RequestItem} item
-     * @returns {{ received: string, promised: string }}
-     */
-    barWidths(item) {
-      const needed = Math.max(item.quantity_needed, 1);
-      const received = Math.min(item.quantity_received / needed, 1) * 100;
-      const promised = Math.min((item.quantity_committed - item.quantity_received) / needed, 1 - received / 100) * 100;
-      return { received: `width: ${received}%`, promised: `width: ${Math.max(promised, 0)}%` };
-    },
-
-    /**
      * @param {RequestItem} item
      * @returns {string}
      */

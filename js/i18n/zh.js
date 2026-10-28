@@ -1008,6 +1008,7 @@ const I18N_ZH = {
   },
 
   orgDash: {
+    moreOptions: "更多选项：结束时间、关联需求",
     eventDescriptionPlaceholder: "例如：帮我们为邻里家庭打包 200 袋食物。不需要经验。",
     eventTitlePlaceholder: "例如：星期六食物打包",
     dropoffPlaceholder: "例如：淡滨尼 11 街第 123 座，平日上午 10 点至下午 5 点",

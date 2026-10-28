@@ -1008,6 +1008,7 @@ const I18N_EN = {
   },
 
   orgDash: {
+    moreOptions: "More options: end time, linked request",
     eventDescriptionPlaceholder: "e.g. Help us pack 200 food bags for families in the estate. No experience needed.",
     eventTitlePlaceholder: "e.g. Saturday food packing",
     dropoffPlaceholder: "e.g. Blk 123 Tampines St 11, weekdays 10am–5pm",

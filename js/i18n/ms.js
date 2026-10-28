@@ -1008,6 +1008,7 @@ const I18N_MS = {
   },
 
   orgDash: {
+    moreOptions: "Lagi pilihan: masa tamat, permintaan berkaitan",
     eventDescriptionPlaceholder: "cth. Bantu kami membungkus 200 beg makanan untuk keluarga di kawasan perumahan. Tiada pengalaman diperlukan.",
     eventTitlePlaceholder: "cth. Membungkus makanan hari Sabtu",
     dropoffPlaceholder: "cth. Blok 123 Tampines St 11, hari bekerja 10 pg–5 ptg",

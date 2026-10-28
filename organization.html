@@ -517,9 +517,9 @@
           </div>
 
           <!-- List -->
-          <div class="grid gap-4 md:grid-cols-2" x-show="!loading && !loadError">
+          <div class="noticeboard grid md:grid-cols-2" x-show="!loading && !loadError">
             <template x-for="request in activeRequests" :key="request.id">
-              <article class="card flex flex-col gap-4">
+              <article class="notice flex flex-col gap-4">
                 <div class="flex flex-wrap items-center gap-2">
                   <span :class="statusInfo(request.status, 'request').className" x-text="statusInfo(request.status, 'request').label"></span>
                   <span class="badge badge-neutral" x-text="$t('orgDash.urgencyLine', { level: urgencyLabel(request.urgency) })"></span>
@@ -529,7 +529,7 @@
                   <div x-data="{ why: false }">
                     <button type="button" class="btn btn-ghost -ml-3 px-3 text-sm" :aria-expanded="why.toString()" :aria-controls="`why-${request.id}`" @click="why = !why"
                       x-text="why ? $t('requests.hideWhy') : $t('requests.whyScore')">Why this score?</button>
-                    <div :id="`why-${request.id}`" class="mt-1 space-y-2 rounded-md bg-canvas p-3 text-sm" x-show="why" x-cloak>
+                    <div :id="`why-${request.id}`" class="reveal mt-1 space-y-2 rounded-md bg-canvas p-3 text-sm" x-show="why" x-cloak>
                       <span class="badge badge-ai" data-i18n="common.aiSuggested">AI-suggested</span>
                       <p x-text="scoreDetails(request).explanation"></p>
                       <ul class="space-y-1" x-show="scoreDetails(request).factors.length">
@@ -555,14 +555,14 @@
                 <ul class="space-y-3">
                   <template x-for="item in request.request_items" :key="item.id">
                     <li class="space-y-1">
-                      <div class="flex justify-between gap-3 text-sm">
-                        <span class="min-w-0 font-medium break-words" x-text="item.name"></span>
-                        <span class="shrink-0 text-muted" x-text="$t('requests.progress', { committed: item.quantity_committed, needed: item.quantity_needed, unit: item.unit })"></span>
+                      <p class="font-bold break-words" x-text="item.name"></p>
+                      <!-- still needed, as tear-off tabs: solid = received, striped = promised, empty = still needed -->
+                      <div class="tear-tabs" role="img" :aria-label="itemDetail(item)">
+                        <template x-for="(tab, index) in itemTabs(item)" :key="index">
+                          <span class="tear-tab" :class="{ received: 'tear-tab-received', promised: 'tear-tab-promised', needed: 'tear-tab-needed' }[tab]"></span>
+                        </template>
                       </div>
-                      <div class="progress" role="img" :aria-label="itemDetail(item)">
-                        <div class="progress-received" :style="barWidths(item).received"></div>
-                        <div class="progress-committed" :style="barWidths(item).promised"></div>
-                      </div>
+                      <p class="text-sm text-muted" x-text="$t('requests.progress', { committed: item.quantity_committed, needed: item.quantity_needed, unit: item.unit })"></p>
                       <p class="helper-text mt-0" x-text="itemDetail(item)"></p>
                     </li>
                   </template>
@@ -739,13 +739,8 @@
             <h2 id="events-heading" class="text-2xl font-semibold" data-i18n="orgDash.eventsTitle">Events</h2>
             <button type="button" class="btn btn-primary" x-show="!showForm" @click="newEvent()" data-i18n="orgDash.newEvent">New event</button>
           </div>
-          <div class="segmented w-full sm:w-auto sm:self-start" role="group" aria-label="Show events" data-i18n-attr="aria-label:orgDash.showEvents">
-            <button type="button" class="segmented-link" :aria-pressed="(tab === 'active').toString()" @click="showTab('active')" data-i18n="orgDash.upcoming">Upcoming</button>
-            <button type="button" class="segmented-link" :aria-pressed="(tab === 'history').toString()" @click="showTab('history')" data-i18n="orgDash.pastAndCancelled">Past &amp; cancelled</button>
-          </div>
-
           <!-- New / edit form -->
-          <form id="event-form" class="card scroll-mt-24 space-y-5" novalidate x-show="showForm" x-cloak @submit.prevent="save">
+          <form id="event-form" class="card reveal max-w-2xl scroll-mt-24 space-y-4" novalidate x-show="showForm" x-cloak @submit.prevent="save">
             <div>
               <h3 class="text-lg font-semibold" x-text="editing ? $t('orgDash.editEvent') : $t('orgDash.newEvent')"></h3>
               <p class="mt-1 text-sm text-muted" x-show="!editing"><span data-i18n="orgDash.eventFormIntro">An admin checks each event before it appears on the map. Fields marked</span> <span class="text-danger">*</span> <span data-i18n="common.areRequired">are required.</span></p>
@@ -765,28 +760,19 @@
 
             <div>
               <label for="ev-description" class="label" data-i18n="field.description">Description</label>
-              <textarea id="ev-description" placeholder="e.g. Help us pack 200 food bags for families in the estate. No experience needed." data-i18n-attr="placeholder:orgDash.eventDescriptionPlaceholder" class="input input-ruled py-2" rows="3" maxlength="1000" x-model="form.description"
+              <textarea id="ev-description" placeholder="e.g. Help us pack 200 food bags for families in the estate. No experience needed." data-i18n-attr="placeholder:orgDash.eventDescriptionPlaceholder" class="input input-ruled py-2" rows="2" maxlength="1000" x-model="form.description"
                 :aria-invalid="errors.description ? 'true' : null" aria-describedby="help-ev-description err-ev-description"></textarea>
               <p id="help-ev-description" class="helper-text"><span data-i18n="orgDash.eventDescHelp">What volunteers will do and what to bring.</span> <span x-text="$t('orgDash.count', { count: form.description.length, max: 1000 })"></span></p>
               <p id="err-ev-description" class="field-error" x-show="errors.description" x-text="errors.description"></p>
             </div>
 
-            <div class="grid gap-5 sm:grid-cols-2">
+            <div class="grid gap-4 sm:grid-cols-2">
               <div>
                 <label for="ev-starts" class="label"><span data-i18n="orgDash.starts">Starts</span> <span class="text-danger" aria-hidden="true">*</span></label>
                 <input id="ev-starts" class="input" type="datetime-local" required x-model="form.startsAt"
                   :aria-invalid="errors.startsAt ? 'true' : null" aria-describedby="err-ev-starts" />
                 <p id="err-ev-starts" class="field-error" x-show="errors.startsAt" x-text="errors.startsAt"></p>
               </div>
-              <div>
-                <label for="ev-ends" class="label"><span data-i18n="orgDash.ends">Ends</span> <span class="font-normal text-muted" data-i18n="common.optional">(optional)</span></label>
-                <input id="ev-ends" class="input" type="datetime-local" x-model="form.endsAt" :min="form.startsAt || null"
-                  :aria-invalid="errors.endsAt ? 'true' : null" aria-describedby="err-ev-ends" />
-                <p id="err-ev-ends" class="field-error" x-show="errors.endsAt" x-text="errors.endsAt"></p>
-              </div>
-            </div>
-
-            <div class="grid gap-5 sm:grid-cols-2">
               <div>
                 <label for="ev-volunteers" class="label"><span data-i18n="field.volunteersNeeded">Volunteers needed</span> <span class="text-danger" aria-hidden="true">*</span></label>
                 <div class="stepper">
@@ -803,22 +789,12 @@
                 <p id="help-ev-volunteers" class="helper-text" data-i18n="orgDash.volunteersHelp">When this many are approved, the event shows "Event full".</p>
                 <p id="err-ev-volunteers" class="field-error" x-show="errors.volunteersNeeded" x-text="errors.volunteersNeeded"></p>
               </div>
-              <div>
-                <label for="ev-request" class="label"><span data-i18n="orgDash.linkedDonationRequest">Linked donation request</span> <span class="font-normal text-muted" data-i18n="common.optional">(optional)</span></label>
-                <select id="ev-request" class="input" x-model="form.donationRequestId" aria-describedby="help-ev-request">
-                  <option value="" data-i18n="common.none">None</option>
-                  <template x-for="request in linkableRequests" :key="request.id">
-                    <option :value="request.id" x-text="request.title" :selected="request.id === form.donationRequestId"></option>
-                  </template>
-                </select>
-                <p id="help-ev-request" class="helper-text" data-i18n="orgDash.linkedHelp">The event's "Donate" button will open this request.</p>
-              </div>
             </div>
 
             <!-- Place -->
             <fieldset class="space-y-3" aria-describedby="help-ev-pin err-ev-pin">
               <legend class="label"><span data-i18n="field.place">Place</span> <span class="text-danger" aria-hidden="true">*</span></legend>
-              <div class="grid gap-5 sm:grid-cols-[1fr_12rem]">
+              <div class="grid gap-4 sm:grid-cols-[1fr_10rem]">
                 <div>
                   <label for="ev-place" class="label" data-i18n="orgDash.placeName">Place name</label>
                   <input id="ev-place" class="input" type="text" maxlength="150" required x-model="form.locationName"
@@ -848,7 +824,7 @@
 
               <p id="help-ev-pin" class="helper-text mt-0" data-i18n="orgDash.eventPinHelp">Click the map or drag the pin to the exact spot. Keyboard: move the map with the arrow keys, then "Put pin at map centre".</p>
               <div class="isolate overflow-hidden rounded-md border border-line">
-                <div id="ev-map" class="h-64 w-full" role="region" aria-label="Map to choose where the event is" data-i18n-attr="aria-label:orgDash.eventMap"></div>
+                <div id="ev-map" class="h-48 w-full" role="region" aria-label="Map to choose where the event is" data-i18n-attr="aria-label:orgDash.eventMap"></div>
               </div>
               <div class="flex flex-wrap items-center gap-3">
                 <button id="ev-pin-centre" type="button" class="btn btn-secondary" @click="pinAtCentre()" data-i18n="orgDash.pinAtCentre">Put pin at map centre</button>
@@ -856,6 +832,32 @@
               </div>
               <p id="err-ev-pin" class="field-error" x-show="errors.pin" x-text="errors.pin"></p>
             </fieldset>
+
+            <!-- Optional extras, folded away so the form stays short -->
+            <div>
+              <button type="button" class="btn btn-ghost -ml-3 gap-1.5 px-3" :aria-expanded="moreOptions.toString()" aria-controls="ev-more" @click="moreOptions = !moreOptions">
+                <i data-lucide="chevron-down" class="size-4 transition-transform duration-150" :class="moreOptions ? 'rotate-180' : ''" aria-hidden="true"></i>
+                <span data-i18n="orgDash.moreOptions">More options: end time, linked request</span>
+              </button>
+              <div id="ev-more" class="reveal mt-2 grid gap-4 sm:grid-cols-2" x-show="moreOptions" x-cloak>
+                  <div>
+                    <label for="ev-ends" class="label"><span data-i18n="orgDash.ends">Ends</span> <span class="font-normal text-muted" data-i18n="common.optional">(optional)</span></label>
+                    <input id="ev-ends" class="input" type="datetime-local" x-model="form.endsAt" :min="form.startsAt || null"
+                      :aria-invalid="errors.endsAt ? 'true' : null" aria-describedby="err-ev-ends" />
+                    <p id="err-ev-ends" class="field-error" x-show="errors.endsAt" x-text="errors.endsAt"></p>
+                  </div>
+                  <div>
+                    <label for="ev-request" class="label"><span data-i18n="orgDash.linkedDonationRequest">Linked donation request</span> <span class="font-normal text-muted" data-i18n="common.optional">(optional)</span></label>
+                    <select id="ev-request" class="input" x-model="form.donationRequestId" aria-describedby="help-ev-request">
+                      <option value="" data-i18n="common.none">None</option>
+                      <template x-for="request in linkableRequests" :key="request.id">
+                        <option :value="request.id" x-text="request.title" :selected="request.id === form.donationRequestId"></option>
+                      </template>
+                    </select>
+                    <p id="help-ev-request" class="helper-text" data-i18n="orgDash.linkedHelp">The event's "Donate" button will open this request.</p>
+                  </div>
+              </div>
+            </div>
 
             <div role="alert">
               <p class="rounded-md bg-danger-soft p-3 text-sm font-medium text-danger" x-show="formError" x-text="formError"></p>
@@ -868,6 +870,12 @@
               <button type="button" class="btn btn-ghost" @click="cancelForm()" :disabled="saving" data-i18n="common.cancel">Cancel</button>
             </div>
           </form>
+
+          <!-- Upcoming | Past & cancelled: below the form, right above the lists they switch -->
+          <div class="segmented w-full sm:w-auto sm:self-start" role="group" aria-label="Show events" data-i18n-attr="aria-label:orgDash.showEvents">
+            <button type="button" class="segmented-link" :aria-pressed="(tab === 'active').toString()" @click="showTab('active')" data-i18n="orgDash.upcoming">Upcoming</button>
+            <button type="button" class="segmented-link" :aria-pressed="(tab === 'history').toString()" @click="showTab('history')" data-i18n="orgDash.pastAndCancelled">Past &amp; cancelled</button>
+          </div>
 
           <!-- Loading / error / empty -->
           <div class="card space-y-3" x-show="tab === 'active' ? loading : history.loading && history.items.length === 0" role="status"><span class="sr-only" data-i18n="orgDash.loadingEvents">Loading events…</span>

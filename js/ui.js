@@ -594,6 +594,9 @@ function friendlyError(error) {
   return t("errors.generic");
 }
 
+// iPhone Safari only shows :active (the button press) when the page listens for touches.
+document.addEventListener("touchstart", () => {}, { passive: true });
+
 /**
  * The − / + buttons of a quantity stepper (.stepper): changes the number next to them by `delta`,
  * staying within the input's min and max (e.g. what's still needed), then tells x-model.

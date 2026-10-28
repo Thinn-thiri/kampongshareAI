@@ -294,7 +294,7 @@
                 <div x-data="{ why: false }">
                   <button type="button" class="btn btn-ghost -ml-3 px-3 text-sm" :aria-expanded="why.toString()" :aria-controls="`why-${request.id}`" @click="why = !why"
                     x-text="why ? $t('requests.hideWhy') : $t('requests.whyScore')">Why this score?</button>
-                  <div :id="`why-${request.id}`" class="mt-1 space-y-2 rounded-md bg-canvas p-3 text-sm" x-show="why" x-cloak>
+                  <div :id="`why-${request.id}`" class="reveal mt-1 space-y-2 rounded-md bg-canvas p-3 text-sm" x-show="why" x-cloak>
                     <span class="badge badge-ai" data-i18n="common.aiSuggested">AI-suggested</span>
                     <p x-text="scoreDetails(request).explanation"></p>
                     <ul class="space-y-1" x-show="scoreDetails(request).factors.length">
@@ -348,7 +348,7 @@
                     </div>
 
                     <!-- Offer form -->
-                    <form class="space-y-4 rounded-md border border-primary-soft bg-canvas p-4" novalidate x-show="offerItemId === item.id" x-cloak
+                    <form class="reveal space-y-4 rounded-md border border-primary-soft bg-canvas p-4" novalidate x-show="offerItemId === item.id" x-cloak
                       @submit.prevent="sendOffer(item)" :aria-label="$t('common.offerItem', { item: item.name })">
                       <div>
                         <label :for="`offer-qty-${item.id}`" class="label"><span data-i18n="needs.howMany">How many?</span> <span class="text-danger" aria-hidden="true">*</span></label>
