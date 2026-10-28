@@ -5,7 +5,12 @@
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <!-- sets light / dark before anything is drawn (no white flash) -->
     <script src="/js/theme.js"></script>
-    <title>Volunteering · KampongShare</title>
+    <!-- languages: the three dictionaries, then js/i18n.js sets <html lang> and translates before drawing -->
+    <script src="/js/i18n/en.js"></script>
+    <script src="/js/i18n/zh.js"></script>
+    <script src="/js/i18n/ms.js"></script>
+    <script src="/js/i18n.js"></script>
+    <title data-i18n="volunteer.pageTitle">Volunteering · KampongShare</title>
     <link rel="icon" href="/img/favicon.svg" type="image/svg+xml" />
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
@@ -20,74 +25,95 @@
     <script src="/js/events.js"></script>
     <script src="/js/volunteering.js"></script>
     <script src="/js/volunteer-dashboard.js"></script>
+    <script src="/js/chat-questions.js"></script>
+    <script src="/js/chat.js"></script>
     <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3/dist/cdn.min.js"></script>
   </head>
   <body data-require="volunteer">
-    <a href="#main" class="skip-link">Skip to main content</a>
+    <a href="#main" class="skip-link" data-i18n="nav.skip">Skip to main content</a>
     <header class="topbar" x-data="topBar">
-      <div class="container-page flex min-h-16 flex-wrap items-center gap-x-3 gap-y-2 py-2">
-        <a href="/" class="flex items-center gap-2 rounded-sm font-bold text-primary focus-visible:outline-2 focus-visible:outline-primary" aria-label="KampongShare home">
+      <div class="container-page flex min-h-16 flex-wrap items-center gap-x-2 gap-y-2 py-2 sm:gap-x-3">
+        <a href="/" class="flex items-center gap-2 rounded-sm font-bold text-primary focus-visible:outline-2 focus-visible:outline-primary" aria-label="KampongShare home" data-i18n-attr="aria-label:nav.homeLink">
           <img src="/img/favicon.svg" alt="" class="size-8" />
           <span class="hidden sm:inline">KampongShare</span>
         </a>
         <!-- the logged-in person's own name (only they see it) -->
-        <span class="max-w-28 truncate rounded-full bg-primary-soft px-2.5 py-1 text-xs font-semibold text-primary sm:max-w-48"
-          x-show="profile?.full_name" x-cloak :title="profile?.full_name"><span class="sr-only">Logged in as </span><span x-text="profile?.full_name"></span></span>
+        <span class="max-w-24 truncate rounded-full bg-primary-soft px-2.5 py-1 text-xs font-semibold text-primary sm:max-w-48"
+          x-show="profile?.full_name" x-cloak :title="profile?.full_name"><span class="sr-only" data-i18n="nav.loggedInAs">Logged in as</span> <span x-text="profile?.full_name"></span></span>
         <!-- pushes the links and buttons to the right -->
         <span class="flex-1" aria-hidden="true"></span>
         <!-- Desktop links (phones use the bottom navigation) -->
-        <nav class="hidden items-center gap-1 sm:flex" aria-label="Site" x-show="ready" x-cloak>
+        <nav class="hidden items-center gap-1 sm:flex" aria-label="Site" data-i18n-attr="aria-label:nav.site" x-show="ready" x-cloak>
           <template x-for="link in topLinks" :key="link.href">
             <a :href="link.href" class="top-link gap-2" :aria-current="isCurrent(link.href) ? 'page' : null">
-              <span x-text="link.label"></span>
-              <span class="badge badge-warning" x-show="link.badge" x-text="link.badge" :aria-label="`${link.badge} waiting`"></span>
+              <span x-text="$t(link.labelKey)"></span>
+              <span class="badge badge-warning" x-show="link.badge" x-text="link.badge" :aria-label="$t('nav.waiting', { count: link.badge })"></span>
             </a>
           </template>
         </nav>
-        <nav class="segmented order-last w-full sm:order-none sm:w-auto" aria-label="Switch between donating and volunteering" x-show="canSwitch" x-cloak>
-          <a href="/donor.html" class="segmented-link" :aria-current="here('/donor.html') ? 'page' : null">Donating</a>
-          <a href="/volunteer.html" class="segmented-link" :aria-current="here('/volunteer.html') ? 'page' : null">Volunteering</a>
+        <nav class="segmented order-last w-full sm:order-none sm:w-auto" aria-label="Switch between donating and volunteering" data-i18n-attr="aria-label:nav.switchRole" x-show="canSwitch" x-cloak>
+          <a href="/donor.html" class="segmented-link" :aria-current="here('/donor.html') ? 'page' : null" data-i18n="nav.donating">Donating</a>
+          <a href="/volunteer.html" class="segmented-link" :aria-current="here('/volunteer.html') ? 'page' : null" data-i18n="nav.volunteering">Volunteering</a>
         </nav>
+        <!-- Language: English / 中文 / Bahasa Melayu (js/i18n.js) -->
+        <div class="relative" x-data="langMenu" @keydown.escape="close(true)" @click.outside="close(false)">
+          <button type="button" x-ref="langButton" class="btn btn-ghost min-w-11 gap-1.5 px-2" :aria-label="buttonLabel" aria-label="Language / 语言 / Bahasa"
+            aria-haspopup="menu" :aria-expanded="open.toString()" aria-controls="lang-menu" @click="toggle()">
+            <i data-lucide="globe" class="size-5" aria-hidden="true"></i>
+            <span class="text-sm sm:hidden" :lang="current.htmlLang" x-text="current.short"></span>
+            <span class="hidden text-sm sm:inline" :lang="current.htmlLang" x-text="current.name"></span>
+          </button>
+          <div id="lang-menu" class="menu w-48" role="menu" aria-label="Language / 语言 / Bahasa" x-show="open" x-cloak @keydown.down.prevent="move(1)" @keydown.up.prevent="move(-1)">
+            <template x-for="option in options" :key="option.code">
+              <button type="button" class="menu-item gap-2" role="menuitemradio" :lang="option.htmlLang" :aria-checked="(lang === option.code).toString()" @click="pick(option.code)">
+                <span class="flex-1" x-text="option.name"></span>
+                <span class="text-primary" x-show="lang === option.code"><i data-lucide="check" class="size-4" aria-hidden="true"></i></span>
+              </button>
+            </template>
+          </div>
+        </div>
         <!-- Theme: System / Light / Dark (js/theme.js) -->
         <div class="relative" x-data="themeMenu" @keydown.escape="close(true)" @click.outside="close(false)">
-          <button type="button" x-ref="themeButton" class="btn btn-ghost size-11 px-0" :aria-label="`Theme: ${label}`" aria-label="Theme"
+          <button type="button" x-ref="themeButton" class="btn btn-ghost size-11 px-0" :aria-label="$t('theme.button', { name: label })" aria-label="Theme"
             aria-haspopup="menu" :aria-expanded="open.toString()" aria-controls="theme-menu" @click="toggle()">
             <span x-show="choice === 'system'"><i data-lucide="monitor" class="size-5" aria-hidden="true"></i></span>
             <span x-show="choice === 'light'" x-cloak><i data-lucide="sun" class="size-5" aria-hidden="true"></i></span>
             <span x-show="choice === 'dark'" x-cloak><i data-lucide="moon" class="size-5" aria-hidden="true"></i></span>
           </button>
-          <div id="theme-menu" class="menu w-40" role="menu" aria-label="Theme" x-show="open" x-cloak @keydown.down.prevent="move(1)" @keydown.up.prevent="move(-1)">
+          <div id="theme-menu" class="menu w-40" role="menu" aria-label="Theme" data-i18n-attr="aria-label:theme.menu" x-show="open" x-cloak @keydown.down.prevent="move(1)" @keydown.up.prevent="move(-1)">
             <template x-for="option in options" :key="option.value">
               <button type="button" class="menu-item gap-2" role="menuitemradio" :aria-checked="(choice === option.value).toString()" @click="pick(option.value)">
                 <span x-show="option.icon === 'monitor'"><i data-lucide="monitor" class="size-4" aria-hidden="true"></i></span>
                 <span x-show="option.icon === 'sun'"><i data-lucide="sun" class="size-4" aria-hidden="true"></i></span>
                 <span x-show="option.icon === 'moon'"><i data-lucide="moon" class="size-4" aria-hidden="true"></i></span>
-                <span class="flex-1" x-text="option.label"></span>
+                <span class="flex-1" x-text="$t(`theme.${option.value}`)"></span>
                 <span class="text-primary" x-show="choice === option.value"><i data-lucide="check" class="size-4" aria-hidden="true"></i></span>
               </button>
             </template>
           </div>
         </div>
-        <nav class="flex items-center gap-1" aria-label="Account" x-show="ready && !profile" x-cloak>
-          <a href="/login.html" class="btn btn-ghost px-3">Log in</a>
-          <a href="/signup.html" class="btn btn-primary px-4">Sign up</a>
+        <nav class="flex items-center gap-1" aria-label="Account" data-i18n-attr="aria-label:nav.account" x-show="ready && !profile" x-cloak>
+          <a href="/login.html" class="btn btn-ghost hidden px-3 sm:inline-flex" data-i18n="nav.logIn">Log in</a>
+          <a href="/signup.html" class="btn btn-primary px-4" data-i18n="nav.signUp">Sign up</a>
         </nav>
         <div class="relative" x-show="profile" x-cloak @keydown.escape="if (open) { open = false; $refs.accountButton.focus() }" @click.outside="open = false">
-          <button type="button" x-ref="accountButton" class="btn btn-secondary px-4" :aria-expanded="open.toString()" aria-controls="account-menu" @click="open = !open">
-            Account
+          <button type="button" x-ref="accountButton" class="btn btn-secondary min-w-11 px-2 sm:px-4" :aria-expanded="open.toString()" aria-controls="account-menu" @click="open = !open">
+            <!-- phones: an icon (the name is still read out), so the top bar fits on one row -->
+            <i data-lucide="user-round" class="size-5 sm:hidden" aria-hidden="true"></i>
+            <span class="sr-only sm:not-sr-only" data-i18n="nav.account">Account</span>
           </button>
           <div id="account-menu" class="menu" x-show="open" x-cloak>
-            <a :href="dashboard" href="/" class="menu-item sm:hidden">My dashboard</a>
-            <a href="/profile.html" class="menu-item">My profile</a>
-            <button type="button" class="menu-item" @click="logout()">Log out</button>
+            <a :href="dashboard" href="/" class="menu-item sm:hidden" data-i18n="nav.myDashboard">My dashboard</a>
+            <a href="/profile.html" class="menu-item" data-i18n="nav.myProfile">My profile</a>
+            <button type="button" class="menu-item" @click="logout()" data-i18n="nav.logOut">Log out</button>
           </div>
         </div>
       </div>
-        <nav class="bottom-nav" aria-label="Main" x-show="ready" x-cloak>
+        <nav class="bottom-nav" aria-label="Main" data-i18n-attr="aria-label:nav.main" x-show="ready" x-cloak>
           <template x-for="link in bottomLinks" :key="link.href">
             <a :href="link.href" class="bottom-nav-link" :aria-current="isCurrent(link.href) ? 'page' : null">
               <i :data-lucide="link.icon" class="size-5" aria-hidden="true"></i>
-              <span x-text="link.label"></span>
+              <span x-text="$t(link.labelKey)"></span>
             </a>
           </template>
         </nav>
@@ -95,67 +121,67 @@
 
     <main id="main" tabindex="-1" class="container-page space-y-10 py-8 focus:outline-none" x-data="volunteerDashboard">
       <div>
-        <h1 class="text-2xl font-bold sm:text-3xl">Volunteer dashboard</h1>
-        <p class="mt-1 text-muted">Find an event near you, apply, and the organization will confirm your place.</p>
+        <h1 class="text-2xl font-bold sm:text-3xl" data-i18n="volunteer.title">Volunteer dashboard</h1>
+        <p class="mt-1 text-muted" data-i18n="volunteer.intro">Find an event near you, apply, and the organization will confirm your place.</p>
       </div>
 
       <!-- Summary -->
-      <section aria-label="Summary" class="grid grid-cols-3 gap-3 sm:gap-4">
+      <section aria-label="Summary" data-i18n-attr="aria-label:volunteer.summary" class="grid grid-cols-3 gap-3 sm:gap-4">
         <div class="card p-4 sm:p-5">
-          <p class="text-sm text-muted">Upcoming events</p>
+          <p class="text-sm text-muted" data-i18n="volunteer.upcomingEvents">Upcoming events</p>
           <p class="mt-1 text-2xl font-bold sm:text-3xl" x-text="loadingEvents ? '–' : events.length">–</p>
         </div>
         <div class="card p-4 sm:p-5">
-          <p class="text-sm text-muted">My active applications</p>
+          <p class="text-sm text-muted" data-i18n="volunteer.activeApplications">My active applications</p>
           <p class="mt-1 text-2xl font-bold sm:text-3xl" x-text="loadingApplications ? '–' : activeApplicationCount">–</p>
         </div>
         <div class="card p-4 sm:p-5">
-          <p class="text-sm text-muted">My open tasks</p>
+          <p class="text-sm text-muted" data-i18n="volunteer.openTasks">My open tasks</p>
           <p class="mt-1 text-2xl font-bold sm:text-3xl" x-text="loadingTasks ? '–' : openTaskCount">–</p>
         </div>
       </section>
 
       <!-- Volunteer account not approved yet: read-only -->
       <div class="rounded-md border border-warning bg-warning-soft p-4 text-warning" x-show="profile && !accountApproved && accountStatus !== 'rejected'" x-cloak role="status">
-        <p class="font-semibold">Your volunteer account is waiting for admin approval</p>
-        <p class="mt-1 text-sm">You can look around and read about events, but you can't apply yet. We'll let you in as soon as an admin approves your account.</p>
+        <p class="font-semibold" data-i18n="volunteer.pendingTitle">Your volunteer account is waiting for admin approval</p>
+        <p class="mt-1 text-sm" data-i18n="volunteer.pendingText">You can look around and read about events, but you can't apply yet. We'll let you in as soon as an admin approves your account.</p>
       </div>
       <div class="rounded-md border border-danger bg-danger-soft p-4 text-danger" x-show="profile && accountStatus === 'rejected'" x-cloak role="status">
-        <p class="font-semibold">Your volunteer account wasn't approved</p>
-        <p class="mt-1 text-sm">Note from the admin:</p>
-        <p class="mt-1 text-sm whitespace-pre-line text-ink" x-text="profile?.volunteer_note || 'No reason was given.'"></p>
-        <p class="mt-2 text-sm">You can update your details on your profile page, then ask for another review.</p>
+        <p class="font-semibold" data-i18n="volunteer.rejectedTitle">Your volunteer account wasn't approved</p>
+        <p class="mt-1 text-sm" data-i18n="volunteer.adminNote">Note from the admin:</p>
+        <p class="mt-1 text-sm whitespace-pre-line text-ink" x-text="profile?.volunteer_note || $t('orgDash.noReason')"></p>
+        <p class="mt-2 text-sm" data-i18n="volunteer.rejectedHelp">You can update your details on your profile page, then ask for another review.</p>
         <div class="mt-3 flex flex-wrap gap-3">
           <button type="button" class="btn btn-secondary" :disabled="askingReview" @click="askForReview()">
             <span class="spinner" x-show="askingReview" x-cloak aria-hidden="true"></span>
-            Ask for review again
+            <span data-i18n="volunteer.askReview">Ask for review again</span>
           </button>
-          <a href="/profile.html" class="btn btn-ghost">Go to my profile</a>
+          <a href="/profile.html" class="btn btn-ghost" data-i18n="common.goToProfile">Go to my profile</a>
         </div>
       </div>
 
       <!-- Consent missing (REQUIREMENTS.md 4.2) -->
       <div class="rounded-md border border-warning bg-warning-soft p-4 text-warning" x-show="needsConsent" x-cloak role="status">
-        <p class="font-semibold">One more step before you can volunteer</p>
-        <p class="mt-1 text-sm">Please confirm the privacy consent and that you're 18 or older on your profile page.</p>
-        <a href="/profile.html" class="btn btn-secondary mt-3">Go to my profile</a>
+        <p class="font-semibold" data-i18n="volunteer.consentTitle">One more step before you can volunteer</p>
+        <p class="mt-1 text-sm" data-i18n="volunteer.consentText">Please confirm the privacy consent and that you're 18 or older on your profile page.</p>
+        <a href="/profile.html" class="btn btn-secondary mt-3" data-i18n="common.goToProfile">Go to my profile</a>
       </div>
 
       <!-- Upcoming events -->
       <section class="space-y-4" aria-labelledby="events-heading">
-        <h2 id="events-heading" class="text-xl font-semibold">Upcoming events</h2>
+        <h2 id="events-heading" class="text-xl font-semibold" data-i18n="volunteer.upcomingEvents">Upcoming events</h2>
 
-        <div class="grid gap-4 md:grid-cols-2" x-show="loadingEvents" role="status"><span class="sr-only">Loading events…</span>
+        <div class="grid gap-4 md:grid-cols-2" x-show="loadingEvents" role="status"><span class="sr-only" data-i18n="volunteer.loadingEvents">Loading events…</span>
           <div class="card space-y-3"><div class="skeleton h-6 w-3/4"></div><div class="skeleton h-4 w-1/2"></div><div class="skeleton h-11 w-32"></div></div>
           <div class="card space-y-3"><div class="skeleton h-6 w-2/3"></div><div class="skeleton h-4 w-1/2"></div><div class="skeleton h-11 w-32"></div></div>
         </div>
         <div class="card text-center" x-show="!loadingEvents && eventsError" x-cloak role="alert">
           <p class="text-danger" x-text="eventsError"></p>
-          <button type="button" class="btn btn-secondary mt-3" @click="loadEvents()">Try again</button>
+          <button type="button" class="btn btn-secondary mt-3" @click="loadEvents()" data-i18n="common.tryAgain">Try again</button>
         </div>
         <div class="card flex flex-col items-center gap-3 text-center py-10" x-show="!loadingEvents && !eventsError && events.length === 0" x-cloak>
           <i data-lucide="calendar" class="size-10 text-primary" aria-hidden="true"></i>
-          <p class="text-muted">No upcoming events right now. Please check back soon.</p>
+          <p class="text-muted" data-i18n="volunteer.noEvents">No upcoming events right now. Please check back soon.</p>
         </div>
 
         <div class="grid gap-4 md:grid-cols-2" x-show="!loadingEvents && !eventsError">
@@ -164,7 +190,7 @@
               <div class="flex flex-wrap items-center gap-2">
                 <span class="badge" :class="spots(event) === 0 ? 'badge-danger' : 'badge-info'" x-text="spotsText(event)"></span>
                 <template x-if="applicationFor(event.id)">
-                  <span :class="badges[applicationFor(event.id).status].className" x-text="`You: ${badges[applicationFor(event.id).status].label}`"></span>
+                  <span :class="badges[applicationFor(event.id).status].className" x-text="$t('volunteer.youStatus', { status: badges[applicationFor(event.id).status].label })"></span>
                 </template>
               </div>
               <div class="min-w-0">
@@ -177,12 +203,12 @@
 
               <!-- Apply form -->
               <form class="space-y-3 rounded-md border border-primary-soft bg-canvas p-4" novalidate x-show="applyEventId === event.id" x-cloak
-                @submit.prevent="sendApplication(event.id)" :aria-label="`Apply to ${event.title}`">
+                @submit.prevent="sendApplication(event.id)" :aria-label="$t('volunteer.applyTo', { event: event.title })">
                 <div>
-                  <label :for="`apply-msg-${event.id}`" class="label">Message to the organization <span class="font-normal text-muted">(optional)</span></label>
+                  <label :for="`apply-msg-${event.id}`" class="label"><span data-i18n="needs.message">Message to the organization</span> <span class="font-normal text-muted" data-i18n="common.optional">(optional)</span></label>
                   <textarea :id="`apply-msg-${event.id}`" class="input py-2" rows="2" maxlength="500" x-model="applyMessage"
                     :aria-describedby="`apply-help-${event.id}`"></textarea>
-                  <p :id="`apply-help-${event.id}`" class="helper-text" x-text="`e.g. any experience or when you can arrive. ${applyMessage.length} / 500`"></p>
+                  <p :id="`apply-help-${event.id}`" class="helper-text" x-text="$t('volunteer.applyHelp', { count: applyMessage.length, max: 500 })"></p>
                 </div>
                 <div role="alert">
                   <p class="rounded-md bg-danger-soft p-3 text-sm font-medium text-danger" x-show="applyError" x-text="applyError"></p>
@@ -190,9 +216,9 @@
                 <div class="flex flex-wrap gap-3">
                   <button type="submit" class="btn btn-primary" :disabled="busyId === event.id">
                     <span class="spinner" x-show="busyId === event.id" x-cloak aria-hidden="true"></span>
-                    <span x-text="busyId === event.id ? 'Sending…' : 'Send application'">Send application</span>
+                    <span x-text="busyId === event.id ? $t('common.sending') : $t('volunteer.sendApplication')">Send application</span>
                   </button>
-                  <button type="button" class="btn btn-ghost" @click="closeApply()">Cancel</button>
+                  <button type="button" class="btn btn-ghost" @click="closeApply()" data-i18n="common.cancel">Cancel</button>
                 </div>
               </form>
 
@@ -201,16 +227,16 @@
                   x-show="!applicationFor(event.id) || applicationFor(event.id).status === 'withdrawn'"
                   :disabled="cannotApply || spots(event) === 0 || busyId === applicationFor(event.id)?.id"
                   @click="applicationFor(event.id) ? applyAgain(applicationFor(event.id)) : openApply(event.id)"
-                  x-text="spots(event) === 0 ? 'Event full' : applicationFor(event.id) ? 'Apply again' : 'Apply'">Apply</button>
+                  x-text="spots(event) === 0 ? $t('volunteer.eventFull') : applicationFor(event.id) ? $t('volunteer.applyAgain') : $t('volunteer.apply')">Apply</button>
                 <template x-if="applicationFor(event.id) && ['pending', 'approved'].includes(applicationFor(event.id).status)">
                   <button type="button" class="btn btn-danger" :disabled="busyId === applicationFor(event.id).id || applicationFor(event.id).status === 'approved'"
                     :aria-describedby="applicationFor(event.id).status === 'approved' ? `confirmed-${event.id}` : null"
                     @click="withdraw(applicationFor(event.id))">
                     <span class="spinner" x-show="busyId === applicationFor(event.id).id" x-cloak aria-hidden="true"></span>
-                    Withdraw
+                    <span data-i18n="volunteer.withdraw">Withdraw</span>
                   </button>
                 </template>
-                <a class="btn btn-ghost" :href="`/event.html?id=${event.id}`">View event</a>
+                <a class="btn btn-ghost" :href="`/event.html?id=${event.id}`" data-i18n="volunteer.viewEvent">View event</a>
                 <p :id="`confirmed-${event.id}`" class="helper-text mt-0 w-full" x-show="applicationFor(event.id)?.status === 'approved'" x-text="confirmedNote"></p>
               </div>
             </article>
@@ -221,32 +247,32 @@
       <!-- My applications: Active | History -->
       <section class="space-y-4" aria-labelledby="apps-heading">
         <div class="flex flex-wrap items-center justify-between gap-3">
-          <h2 id="apps-heading" class="text-xl font-semibold">My applications</h2>
-          <div class="segmented w-full sm:w-auto" role="group" aria-label="Show applications">
-            <button type="button" class="segmented-link" :aria-pressed="(appTab === 'active').toString()" @click="showAppTab('active')">Active</button>
-            <button type="button" class="segmented-link" :aria-pressed="(appTab === 'history').toString()" @click="showAppTab('history')">History</button>
+          <h2 id="apps-heading" class="text-xl font-semibold" data-i18n="volunteer.myApplications">My applications</h2>
+          <div class="segmented w-full sm:w-auto" role="group" aria-label="Show applications" data-i18n-attr="aria-label:volunteer.showApplications">
+            <button type="button" class="segmented-link" :aria-pressed="(appTab === 'active').toString()" @click="showAppTab('active')" data-i18n="common.active">Active</button>
+            <button type="button" class="segmented-link" :aria-pressed="(appTab === 'history').toString()" @click="showAppTab('history')" data-i18n="common.history">History</button>
           </div>
         </div>
 
         <div class="space-y-4" x-show="appTab === 'active'">
-          <div class="card space-y-3" x-show="loadingApplications" role="status"><span class="sr-only">Loading your applications…</span>
+          <div class="card space-y-3" x-show="loadingApplications" role="status"><span class="sr-only" data-i18n="volunteer.loadingApplications">Loading your applications…</span>
             <div class="skeleton h-5 w-2/3"></div><div class="skeleton h-4 w-1/2"></div>
           </div>
           <div class="card text-center" x-show="!loadingApplications && applicationsError" x-cloak role="alert">
             <p class="text-danger" x-text="applicationsError"></p>
-            <button type="button" class="btn btn-secondary mt-3" @click="loadApplications()">Try again</button>
+            <button type="button" class="btn btn-secondary mt-3" @click="loadApplications()" data-i18n="common.tryAgain">Try again</button>
           </div>
           <div class="card flex flex-col items-center gap-3 text-center py-10" x-show="!loadingApplications && !applicationsError && activeApplications.length === 0" x-cloak>
             <i data-lucide="clipboard-list" class="size-10 text-primary" aria-hidden="true"></i>
-            <p class="text-muted">No active applications — choose an upcoming event above.</p>
-            <a href="#events-heading" class="btn btn-secondary">See upcoming events</a>
+            <p class="text-muted" data-i18n="volunteer.noActiveApplications">No active applications — choose an upcoming event above.</p>
+            <a href="#events-heading" class="btn btn-secondary" data-i18n="volunteer.seeUpcoming">See upcoming events</a>
           </div>
 
           <ul class="space-y-3" x-show="!loadingApplications && !applicationsError">
             <template x-for="application in activeApplications" :key="application.id">
               <li class="card flex flex-wrap items-start justify-between gap-3">
                 <div class="min-w-0">
-                  <p class="font-semibold break-words" x-text="application.event?.title ?? 'Event no longer available'"></p>
+                  <p class="font-semibold break-words" x-text="application.event?.title ?? $t('volunteer.eventGone')"></p>
                   <p class="text-sm text-muted" x-show="application.event"
                     x-text="application.event ? `${formatEventTime(application.event.starts_at, application.event.ends_at)} · ${application.event.location_name ?? ''}` : ''"></p>
                   <p class="text-sm text-primary" x-text="application.event?.organization?.name"></p>
@@ -258,7 +284,7 @@
                     :aria-describedby="application.status === 'approved' ? `app-confirmed-${application.id}` : null"
                     @click="withdraw(application)">
                     <span class="spinner" x-show="busyId === application.id" x-cloak aria-hidden="true"></span>
-                    Withdraw
+                    <span data-i18n="volunteer.withdraw">Withdraw</span>
                   </button>
                 </div>
                 <p :id="`app-confirmed-${application.id}`" class="helper-text mt-0 w-full" x-show="application.status === 'approved'" x-text="confirmedNote"></p>
@@ -271,19 +297,19 @@
         <div class="space-y-4" x-show="appTab === 'history'" x-cloak>
           <div class="card text-center" x-show="!appHistory.loading && appHistory.error" x-cloak role="alert">
             <p class="text-danger" x-text="appHistory.error"></p>
-            <button type="button" class="btn btn-secondary mt-3" @click="appHistory.load()">Try again</button>
+            <button type="button" class="btn btn-secondary mt-3" @click="appHistory.load()" data-i18n="common.tryAgain">Try again</button>
           </div>
           <div class="card flex flex-col items-center gap-3 text-center py-10"
             x-show="appHistory.loaded && !appHistory.loading && !appHistory.error && appHistory.items.length === 0" x-cloak>
             <i data-lucide="history" class="size-10 text-primary" aria-hidden="true"></i>
-            <p class="text-muted">No past volunteering yet. Finished, cancelled and withdrawn applications will appear here.</p>
+            <p class="text-muted" data-i18n="volunteer.noPastApplications">No past volunteering yet. Finished, cancelled and withdrawn applications will appear here.</p>
           </div>
           <ul class="space-y-3" x-show="appHistory.items.length > 0" x-ref="appHistoryList">
             <template x-for="application in appHistory.items" :key="application.id">
               <li class="card space-y-2">
                 <div class="flex flex-wrap items-start justify-between gap-3">
                   <div class="min-w-0">
-                    <p class="font-semibold break-words" x-text="application.event?.title ?? 'Event no longer available'"></p>
+                    <p class="font-semibold break-words" x-text="application.event?.title ?? $t('volunteer.eventGone')"></p>
                     <p class="text-sm text-primary" x-text="application.event?.organization?.name"></p>
                     <p class="text-xs text-muted" x-text="applicationEndedText(application)"></p>
                   </div>
@@ -293,7 +319,7 @@
                     :disabled="busyId === application.id || cannotApply || (application.event && spots({ id: application.event_id, volunteers_needed: application.event.volunteers_needed }) === 0)"
                     @click="applyAgain(application)">
                     <span class="spinner" x-show="busyId === application.id" x-cloak aria-hidden="true"></span>
-                    Apply again
+                    <span data-i18n="volunteer.applyAgain">Apply again</span>
                   </button>
                   </div>
                 </div>
@@ -307,7 +333,7 @@
           <div x-show="appHistory.hasMore" x-cloak>
             <button type="button" class="btn btn-secondary w-full sm:w-auto" :disabled="appHistory.loading" @click="showMoreAndFocus(appHistory, $refs.appHistoryList)">
               <span class="spinner" x-show="appHistory.loading" x-cloak aria-hidden="true"></span>
-              Show more
+              <span data-i18n="common.showMore">Show more</span>
             </button>
           </div>
         </div>
@@ -316,24 +342,24 @@
       <!-- My tasks: Active | History -->
       <section class="space-y-4" aria-labelledby="tasks-heading">
         <div class="flex flex-wrap items-center justify-between gap-3">
-          <h2 id="tasks-heading" class="text-xl font-semibold">My tasks</h2>
-          <div class="segmented w-full sm:w-auto" role="group" aria-label="Show tasks">
-            <button type="button" class="segmented-link" :aria-pressed="(taskTab === 'active').toString()" @click="showTaskTab('active')">Active</button>
-            <button type="button" class="segmented-link" :aria-pressed="(taskTab === 'history').toString()" @click="showTaskTab('history')">History</button>
+          <h2 id="tasks-heading" class="text-xl font-semibold" data-i18n="volunteer.myTasks">My tasks</h2>
+          <div class="segmented w-full sm:w-auto" role="group" aria-label="Show tasks" data-i18n-attr="aria-label:volunteer.showTasks">
+            <button type="button" class="segmented-link" :aria-pressed="(taskTab === 'active').toString()" @click="showTaskTab('active')" data-i18n="common.active">Active</button>
+            <button type="button" class="segmented-link" :aria-pressed="(taskTab === 'history').toString()" @click="showTaskTab('history')" data-i18n="common.history">History</button>
           </div>
         </div>
 
         <div class="space-y-4" x-show="taskTab === 'active'">
-          <div class="card space-y-3" x-show="loadingTasks" role="status"><span class="sr-only">Loading your tasks…</span>
+          <div class="card space-y-3" x-show="loadingTasks" role="status"><span class="sr-only" data-i18n="volunteer.loadingTasks">Loading your tasks…</span>
             <div class="skeleton h-5 w-2/3"></div><div class="skeleton h-4 w-1/2"></div>
           </div>
           <div class="card text-center" x-show="!loadingTasks && tasksError" x-cloak role="alert">
             <p class="text-danger" x-text="tasksError"></p>
-            <button type="button" class="btn btn-secondary mt-3" @click="loadTasks()">Try again</button>
+            <button type="button" class="btn btn-secondary mt-3" @click="loadTasks()" data-i18n="common.tryAgain">Try again</button>
           </div>
           <div class="card flex flex-col items-center gap-3 text-center py-10" x-show="!loadingTasks && !tasksError && activeTasks.length === 0" x-cloak>
             <i data-lucide="list-checks" class="size-10 text-primary" aria-hidden="true"></i>
-            <p class="text-muted">No open tasks. Once you're approved for an event, the organization may assign you tasks here.</p>
+            <p class="text-muted" data-i18n="volunteer.noOpenTasks">No open tasks. Once you're approved for an event, the organization may assign you tasks here.</p>
           </div>
 
           <ul class="space-y-3" x-show="!loadingTasks && !tasksError">
@@ -343,10 +369,10 @@
                   <p class="font-semibold break-words" x-text="task.title"></p>
                   <p class="text-sm text-primary" x-text="task.event?.title"></p>
                   <p class="mt-1 text-sm whitespace-pre-line break-words" x-show="task.description" x-text="task.description"></p>
-                  <p class="text-sm text-muted" x-show="task.due_at" x-text="task.due_at ? `Due ${formatDate(task.due_at, true)}` : ''"></p>
+                  <p class="text-sm text-muted" x-show="task.due_at" x-text="task.due_at ? $t('volunteer.dueOn', { date: formatDate(task.due_at, true) }) : ''"></p>
                 </div>
                 <div class="w-full sm:w-44">
-                  <label :for="`task-status-${task.id}`" class="label">Status</label>
+                  <label :for="`task-status-${task.id}`" class="label" data-i18n="volunteer.status">Status</label>
                   <select :id="`task-status-${task.id}`" class="input" :value="task.status" @change="changeTaskStatus(task, $event.target.value)">
                     <template x-for="option in taskOptions" :key="option.value">
                       <option :value="option.value" x-text="option.label" :selected="option.value === task.status"></option>
@@ -362,12 +388,12 @@
         <div class="space-y-4" x-show="taskTab === 'history'" x-cloak>
           <div class="card text-center" x-show="!taskHistory.loading && taskHistory.error" x-cloak role="alert">
             <p class="text-danger" x-text="taskHistory.error"></p>
-            <button type="button" class="btn btn-secondary mt-3" @click="taskHistory.load()">Try again</button>
+            <button type="button" class="btn btn-secondary mt-3" @click="taskHistory.load()" data-i18n="common.tryAgain">Try again</button>
           </div>
           <div class="card flex flex-col items-center gap-3 text-center py-10"
             x-show="taskHistory.loaded && !taskHistory.loading && !taskHistory.error && taskHistory.items.length === 0" x-cloak>
             <i data-lucide="history" class="size-10 text-primary" aria-hidden="true"></i>
-            <p class="text-muted">No past tasks yet. Finished tasks and tasks for past events will appear here.</p>
+            <p class="text-muted" data-i18n="volunteer.noPastTasks">No past tasks yet. Finished tasks and tasks for past events will appear here.</p>
           </div>
           <ul class="space-y-3" x-show="taskHistory.items.length > 0" x-ref="taskHistoryList">
             <template x-for="task in taskHistory.items" :key="task.id">
@@ -375,7 +401,7 @@
                 <div class="min-w-0">
                   <p class="font-semibold break-words" x-text="task.title"></p>
                   <p class="text-sm text-primary" x-text="task.event?.title"></p>
-                  <p class="text-sm text-warning" x-show="task.event?.status === 'cancelled'">Event cancelled</p>
+                  <p class="text-sm text-warning" x-show="task.event?.status === 'cancelled'" data-i18n="volunteer.eventCancelled">Event cancelled</p>
                 </div>
                 <span :class="taskBadge(task.status)?.className" x-text="taskBadge(task.status)?.label"></span>
               </li>
@@ -384,7 +410,7 @@
           <div x-show="taskHistory.hasMore" x-cloak>
             <button type="button" class="btn btn-secondary w-full sm:w-auto" :disabled="taskHistory.loading" @click="showMoreAndFocus(taskHistory, $refs.taskHistoryList)">
               <span class="spinner" x-show="taskHistory.loading" x-cloak aria-hidden="true"></span>
-              Show more
+              <span data-i18n="common.showMore">Show more</span>
             </button>
           </div>
         </div>

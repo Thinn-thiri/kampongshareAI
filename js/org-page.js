@@ -48,6 +48,8 @@ document.addEventListener("alpine:init", () => {
       const org = this.org;
       if (org) {
         document.title = `${org.name} · KampongShare`;
+        // the title is now what the organization wrote, so a language switch mustn't replace it
+        document.querySelector("title")?.removeAttribute("data-i18n");
         if (org.latitude != null && org.longitude != null) {
           const lat = org.latitude;
           const lng = org.longitude;

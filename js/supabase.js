@@ -11,7 +11,7 @@ const sb = createSupabaseClient();
  * @returns {SupabaseClient}
  */
 function db() {
-  if (!sb) throw new Error("Supabase not configured");
+  if (!sb) throw new Error("Supabase not configured"); // i18n-ignore (developer message; shown via friendlyError)
   return sb;
 }
 

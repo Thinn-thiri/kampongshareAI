@@ -25,7 +25,7 @@ document.addEventListener("alpine:init", () => {
     async submit() {
       this.error = "";
       if (!this.email.trim() || !this.password) {
-        this.error = "Please enter your email and password.";
+        this.error = t("login.missing");
         return;
       }
       this.busy = true;
@@ -33,7 +33,7 @@ document.addEventListener("alpine:init", () => {
         await logIn(this.email.trim(), this.password);
         const profile = await getProfile();
         if (!profile) {
-          this.error = "We couldn't load your account details. Please try again.";
+          this.error = t("login.noProfile");
           this.busy = false;
           return;
         }

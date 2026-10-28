@@ -5,7 +5,12 @@
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <!-- sets light / dark before anything is drawn (no white flash) -->
     <script src="/js/theme.js"></script>
-    <title>Admin · KampongShare</title>
+    <!-- languages: the three dictionaries, then js/i18n.js sets <html lang> and translates before drawing -->
+    <script src="/js/i18n/en.js"></script>
+    <script src="/js/i18n/zh.js"></script>
+    <script src="/js/i18n/ms.js"></script>
+    <script src="/js/i18n.js"></script>
+    <title data-i18n="admin.pageTitle">Admin · KampongShare</title>
     <link rel="icon" href="/img/favicon.svg" type="image/svg+xml" />
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
@@ -28,74 +33,95 @@
     <script src="/js/stats.js"></script>
     <script src="/js/admin-data.js"></script>
     <script src="/js/admin-dashboard.js"></script>
+    <script src="/js/chat-questions.js"></script>
+    <script src="/js/chat.js"></script>
     <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3/dist/cdn.min.js"></script>
   </head>
   <body data-require="admin">
-    <a href="#main" class="skip-link">Skip to main content</a>
+    <a href="#main" class="skip-link" data-i18n="nav.skip">Skip to main content</a>
     <header class="topbar" x-data="topBar">
-      <div class="container-page flex min-h-16 flex-wrap items-center gap-x-3 gap-y-2 py-2">
-        <a href="/" class="flex items-center gap-2 rounded-sm font-bold text-primary focus-visible:outline-2 focus-visible:outline-primary" aria-label="KampongShare home">
+      <div class="container-page flex min-h-16 flex-wrap items-center gap-x-2 gap-y-2 py-2 sm:gap-x-3">
+        <a href="/" class="flex items-center gap-2 rounded-sm font-bold text-primary focus-visible:outline-2 focus-visible:outline-primary" aria-label="KampongShare home" data-i18n-attr="aria-label:nav.homeLink">
           <img src="/img/favicon.svg" alt="" class="size-8" />
           <span class="hidden sm:inline">KampongShare</span>
         </a>
         <!-- the logged-in person's own name (only they see it) -->
-        <span class="max-w-28 truncate rounded-full bg-primary-soft px-2.5 py-1 text-xs font-semibold text-primary sm:max-w-48"
-          x-show="profile?.full_name" x-cloak :title="profile?.full_name"><span class="sr-only">Logged in as </span><span x-text="profile?.full_name"></span></span>
+        <span class="max-w-24 truncate rounded-full bg-primary-soft px-2.5 py-1 text-xs font-semibold text-primary sm:max-w-48"
+          x-show="profile?.full_name" x-cloak :title="profile?.full_name"><span class="sr-only" data-i18n="nav.loggedInAs">Logged in as</span> <span x-text="profile?.full_name"></span></span>
         <!-- pushes the links and buttons to the right -->
         <span class="flex-1" aria-hidden="true"></span>
         <!-- Desktop links (phones use the bottom navigation) -->
-        <nav class="hidden items-center gap-1 sm:flex" aria-label="Site" x-show="ready" x-cloak>
+        <nav class="hidden items-center gap-1 sm:flex" aria-label="Site" data-i18n-attr="aria-label:nav.site" x-show="ready" x-cloak>
           <template x-for="link in topLinks" :key="link.href">
             <a :href="link.href" class="top-link gap-2" :aria-current="isCurrent(link.href) ? 'page' : null">
-              <span x-text="link.label"></span>
-              <span class="badge badge-warning" x-show="link.badge" x-text="link.badge" :aria-label="`${link.badge} waiting`"></span>
+              <span x-text="$t(link.labelKey)"></span>
+              <span class="badge badge-warning" x-show="link.badge" x-text="link.badge" :aria-label="$t('nav.waiting', { count: link.badge })"></span>
             </a>
           </template>
         </nav>
-        <nav class="segmented order-last w-full sm:order-none sm:w-auto" aria-label="Switch between donating and volunteering" x-show="canSwitch" x-cloak>
-          <a href="/donor.html" class="segmented-link" :aria-current="here('/donor.html') ? 'page' : null">Donating</a>
-          <a href="/volunteer.html" class="segmented-link" :aria-current="here('/volunteer.html') ? 'page' : null">Volunteering</a>
+        <nav class="segmented order-last w-full sm:order-none sm:w-auto" aria-label="Switch between donating and volunteering" data-i18n-attr="aria-label:nav.switchRole" x-show="canSwitch" x-cloak>
+          <a href="/donor.html" class="segmented-link" :aria-current="here('/donor.html') ? 'page' : null" data-i18n="nav.donating">Donating</a>
+          <a href="/volunteer.html" class="segmented-link" :aria-current="here('/volunteer.html') ? 'page' : null" data-i18n="nav.volunteering">Volunteering</a>
         </nav>
+        <!-- Language: English / 中文 / Bahasa Melayu (js/i18n.js) -->
+        <div class="relative" x-data="langMenu" @keydown.escape="close(true)" @click.outside="close(false)">
+          <button type="button" x-ref="langButton" class="btn btn-ghost min-w-11 gap-1.5 px-2" :aria-label="buttonLabel" aria-label="Language / 语言 / Bahasa"
+            aria-haspopup="menu" :aria-expanded="open.toString()" aria-controls="lang-menu" @click="toggle()">
+            <i data-lucide="globe" class="size-5" aria-hidden="true"></i>
+            <span class="text-sm sm:hidden" :lang="current.htmlLang" x-text="current.short"></span>
+            <span class="hidden text-sm sm:inline" :lang="current.htmlLang" x-text="current.name"></span>
+          </button>
+          <div id="lang-menu" class="menu w-48" role="menu" aria-label="Language / 语言 / Bahasa" x-show="open" x-cloak @keydown.down.prevent="move(1)" @keydown.up.prevent="move(-1)">
+            <template x-for="option in options" :key="option.code">
+              <button type="button" class="menu-item gap-2" role="menuitemradio" :lang="option.htmlLang" :aria-checked="(lang === option.code).toString()" @click="pick(option.code)">
+                <span class="flex-1" x-text="option.name"></span>
+                <span class="text-primary" x-show="lang === option.code"><i data-lucide="check" class="size-4" aria-hidden="true"></i></span>
+              </button>
+            </template>
+          </div>
+        </div>
         <!-- Theme: System / Light / Dark (js/theme.js) -->
         <div class="relative" x-data="themeMenu" @keydown.escape="close(true)" @click.outside="close(false)">
-          <button type="button" x-ref="themeButton" class="btn btn-ghost size-11 px-0" :aria-label="`Theme: ${label}`" aria-label="Theme"
+          <button type="button" x-ref="themeButton" class="btn btn-ghost size-11 px-0" :aria-label="$t('theme.button', { name: label })" aria-label="Theme"
             aria-haspopup="menu" :aria-expanded="open.toString()" aria-controls="theme-menu" @click="toggle()">
             <span x-show="choice === 'system'"><i data-lucide="monitor" class="size-5" aria-hidden="true"></i></span>
             <span x-show="choice === 'light'" x-cloak><i data-lucide="sun" class="size-5" aria-hidden="true"></i></span>
             <span x-show="choice === 'dark'" x-cloak><i data-lucide="moon" class="size-5" aria-hidden="true"></i></span>
           </button>
-          <div id="theme-menu" class="menu w-40" role="menu" aria-label="Theme" x-show="open" x-cloak @keydown.down.prevent="move(1)" @keydown.up.prevent="move(-1)">
+          <div id="theme-menu" class="menu w-40" role="menu" aria-label="Theme" data-i18n-attr="aria-label:theme.menu" x-show="open" x-cloak @keydown.down.prevent="move(1)" @keydown.up.prevent="move(-1)">
             <template x-for="option in options" :key="option.value">
               <button type="button" class="menu-item gap-2" role="menuitemradio" :aria-checked="(choice === option.value).toString()" @click="pick(option.value)">
                 <span x-show="option.icon === 'monitor'"><i data-lucide="monitor" class="size-4" aria-hidden="true"></i></span>
                 <span x-show="option.icon === 'sun'"><i data-lucide="sun" class="size-4" aria-hidden="true"></i></span>
                 <span x-show="option.icon === 'moon'"><i data-lucide="moon" class="size-4" aria-hidden="true"></i></span>
-                <span class="flex-1" x-text="option.label"></span>
+                <span class="flex-1" x-text="$t(`theme.${option.value}`)"></span>
                 <span class="text-primary" x-show="choice === option.value"><i data-lucide="check" class="size-4" aria-hidden="true"></i></span>
               </button>
             </template>
           </div>
         </div>
-        <nav class="flex items-center gap-1" aria-label="Account" x-show="ready && !profile" x-cloak>
-          <a href="/login.html" class="btn btn-ghost px-3">Log in</a>
-          <a href="/signup.html" class="btn btn-primary px-4">Sign up</a>
+        <nav class="flex items-center gap-1" aria-label="Account" data-i18n-attr="aria-label:nav.account" x-show="ready && !profile" x-cloak>
+          <a href="/login.html" class="btn btn-ghost hidden px-3 sm:inline-flex" data-i18n="nav.logIn">Log in</a>
+          <a href="/signup.html" class="btn btn-primary px-4" data-i18n="nav.signUp">Sign up</a>
         </nav>
         <div class="relative" x-show="profile" x-cloak @keydown.escape="if (open) { open = false; $refs.accountButton.focus() }" @click.outside="open = false">
-          <button type="button" x-ref="accountButton" class="btn btn-secondary px-4" :aria-expanded="open.toString()" aria-controls="account-menu" @click="open = !open">
-            Account
+          <button type="button" x-ref="accountButton" class="btn btn-secondary min-w-11 px-2 sm:px-4" :aria-expanded="open.toString()" aria-controls="account-menu" @click="open = !open">
+            <!-- phones: an icon (the name is still read out), so the top bar fits on one row -->
+            <i data-lucide="user-round" class="size-5 sm:hidden" aria-hidden="true"></i>
+            <span class="sr-only sm:not-sr-only" data-i18n="nav.account">Account</span>
           </button>
           <div id="account-menu" class="menu" x-show="open" x-cloak>
-            <a :href="dashboard" href="/" class="menu-item sm:hidden">My dashboard</a>
-            <a href="/profile.html" class="menu-item">My profile</a>
-            <button type="button" class="menu-item" @click="logout()">Log out</button>
+            <a :href="dashboard" href="/" class="menu-item sm:hidden" data-i18n="nav.myDashboard">My dashboard</a>
+            <a href="/profile.html" class="menu-item" data-i18n="nav.myProfile">My profile</a>
+            <button type="button" class="menu-item" @click="logout()" data-i18n="nav.logOut">Log out</button>
           </div>
         </div>
       </div>
-        <nav class="bottom-nav" aria-label="Main" x-show="ready" x-cloak>
+        <nav class="bottom-nav" aria-label="Main" data-i18n-attr="aria-label:nav.main" x-show="ready" x-cloak>
           <template x-for="link in bottomLinks" :key="link.href">
             <a :href="link.href" class="bottom-nav-link" :aria-current="isCurrent(link.href) ? 'page' : null">
               <i :data-lucide="link.icon" class="size-5" aria-hidden="true"></i>
-              <span x-text="link.label"></span>
+              <span x-text="$t(link.labelKey)"></span>
             </a>
           </template>
         </nav>
@@ -103,16 +129,16 @@
 
     <main id="main" tabindex="-1" class="container-page space-y-6 py-8 focus:outline-none" x-data="adminDashboard">
       <div>
-        <h1 class="text-2xl font-bold sm:text-3xl">Admin dashboard</h1>
-        <p class="mt-1 text-muted">Review what's waiting, and keep an eye on what's happening. Use Overview, To review and Browse in the top bar.</p>
+        <h1 class="text-2xl font-bold sm:text-3xl" data-i18n="admin.title">Admin dashboard</h1>
+        <p class="mt-1 text-muted" data-i18n="admin.intro">Review what's waiting, and keep an eye on what's happening. Use Overview, To review and Browse in the top bar.</p>
       </div>
 
       <!-- ===================== Overview ===================== -->
       <section id="panel-overview" aria-labelledby="overview-heading" class="space-y-8" x-show="tab === 'overview'">
-        <h2 id="overview-heading" class="text-2xl font-semibold">Overview</h2>
+        <h2 id="overview-heading" class="text-2xl font-semibold" data-i18n="nav.overview">Overview</h2>
         <!-- Waiting for review -->
         <div class="space-y-3">
-          <h3 class="text-xl font-semibold">Waiting for review</h3>
+          <h3 class="text-xl font-semibold" data-i18n="admin.waitingForReview">Waiting for review</h3>
           <div class="grid grid-cols-2 gap-3 lg:grid-cols-4">
             <template x-for="kind in reviewKinds" :key="kind.value">
               <a :href="`#review/${kind.value}`" class="card block p-4 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary">
@@ -123,25 +149,25 @@
                 <template x-if="!reviewLoading">
                   <span class="mt-1 block text-3xl font-bold" x-text="reviewCount(kind.value)"></span>
                 </template>
-                <span class="sr-only">waiting — open the list</span>
+                <span class="sr-only" data-i18n="admin.openList">waiting — open the list</span>
               </a>
             </template>
           </div>
           <div class="flex flex-wrap items-center gap-3" x-show="reviewError" x-cloak role="alert">
             <p class="field-error mt-0" x-text="reviewError"></p>
-            <button type="button" class="btn btn-secondary" @click="loadReview()">Try again</button>
+            <button type="button" class="btn btn-secondary" @click="loadReview()" data-i18n="common.tryAgain">Try again</button>
           </div>
         </div>
 
         <div class="grid gap-6 lg:grid-cols-2">
           <!-- Waiting longest -->
           <div class="card space-y-3">
-            <h3 class="text-lg font-semibold">Waiting longest</h3>
-            <div class="space-y-2" x-show="reviewLoading" role="status"><span class="sr-only">Loading…</span>
+            <h3 class="text-lg font-semibold" data-i18n="admin.waitingLongest">Waiting longest</h3>
+            <div class="space-y-2" x-show="reviewLoading" role="status"><span class="sr-only" data-i18n="common.loading">Loading…</span>
               <div class="skeleton h-5 w-2/3"></div><div class="skeleton h-5 w-1/2"></div>
             </div>
             <p class="flex items-center gap-2 text-muted" x-show="!reviewLoading && !reviewError && waitingLongest.length === 0" x-cloak>
-              <i data-lucide="circle-check" class="size-5 text-success" aria-hidden="true"></i> All caught up ✓
+              <i data-lucide="circle-check" class="size-5 text-success" aria-hidden="true"></i> <span data-i18n="admin.allCaughtUp">All caught up ✓</span>
             </p>
             <ul class="divide-y divide-line" x-show="!reviewLoading && waitingLongest.length">
               <template x-for="item in waitingLongest" :key="item.key">
@@ -161,22 +187,22 @@
 
           <!-- Recently closed or cancelled -->
           <div class="card space-y-3">
-            <h3 class="text-lg font-semibold">Recently closed or cancelled</h3>
-            <p class="text-sm text-muted">The last 7 days.</p>
-            <div class="space-y-2" x-show="recentLoading" role="status"><span class="sr-only">Loading…</span>
+            <h3 class="text-lg font-semibold" data-i18n="admin.recentTitle">Recently closed or cancelled</h3>
+            <p class="text-sm text-muted" data-i18n="admin.recentText">The last 7 days.</p>
+            <div class="space-y-2" x-show="recentLoading" role="status"><span class="sr-only" data-i18n="common.loading">Loading…</span>
               <div class="skeleton h-5 w-2/3"></div><div class="skeleton h-5 w-1/2"></div>
             </div>
             <div x-show="!recentLoading && recentError" x-cloak role="alert">
               <p class="text-sm text-danger" x-text="recentError"></p>
-              <button type="button" class="btn btn-secondary mt-2" @click="loadRecent()">Try again</button>
+              <button type="button" class="btn btn-secondary mt-2" @click="loadRecent()" data-i18n="common.tryAgain">Try again</button>
             </div>
-            <p class="text-muted" x-show="!recentLoading && !recentError && recent.length === 0" x-cloak>Nothing was closed or cancelled this week.</p>
+            <p class="text-muted" x-show="!recentLoading && !recentError && recent.length === 0" x-cloak data-i18n="admin.recentNone">Nothing was closed or cancelled this week.</p>
             <ul class="divide-y divide-line" x-show="!recentLoading && recent.length">
               <template x-for="row in recent" :key="`${row.type}-${row.id}`">
                 <li class="py-3">
-                  <p class="text-sm font-semibold break-words"><span class="text-muted" x-text="`${row.type}: `"></span><span x-text="row.title"></span></p>
+                  <p class="text-sm font-semibold break-words"><span class="text-muted" x-text="$t('admin.typeLine', { type: row.type })"></span><span x-text="row.title"></span></p>
                   <p class="text-sm text-muted break-words" x-text="[row.detail, row.whenText].filter(Boolean).join(' · ')"></p>
-                  <p class="text-sm break-words" x-show="row.reason" x-text="`Reason: ${row.reason}`"></p>
+                  <p class="text-sm break-words" x-show="row.reason" x-text="$t('admin.reasonLine', { reason: row.reason })"></p>
                 </li>
               </template>
             </ul>
@@ -185,7 +211,7 @@
 
         <!-- Impact numbers (public_stats) -->
         <div class="space-y-3">
-          <h3 class="text-xl font-semibold">Impact so far</h3>
+          <h3 class="text-xl font-semibold" data-i18n="admin.impactTitle">Impact so far</h3>
           <div class="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">
             <template x-for="card in statCards" :key="card.key">
               <div class="card p-4">
@@ -194,7 +220,7 @@
                   <div class="skeleton mt-2 h-8 w-16" aria-hidden="true"></div>
                 </template>
                 <template x-if="stats">
-                  <p class="mt-1 text-2xl font-bold" x-text="stats[card.key].toLocaleString('en-SG')"></p>
+                  <p class="mt-1 text-2xl font-bold" x-text="formatNumber(stats[card.key])"></p>
                 </template>
               </div>
             </template>
@@ -205,8 +231,8 @@
 
       <!-- ===================== To review ===================== -->
       <section id="panel-review" aria-labelledby="review-heading" class="space-y-4" x-show="tab === 'review'" x-cloak>
-        <h2 id="review-heading" class="text-2xl font-semibold">To review</h2>
-        <div class="tablist" role="tablist" aria-label="What to review" @keydown="onTabKey($event)">
+        <h2 id="review-heading" class="text-2xl font-semibold" data-i18n="nav.toReview">To review</h2>
+        <div class="tablist" role="tablist" aria-label="What to review" data-i18n-attr="aria-label:admin.whatToReview" @keydown="onTabKey($event)">
           <template x-for="kind in reviewKinds" :key="kind.value">
             <button type="button" class="tab" role="tab" :id="`subtab-review-${kind.value}`" aria-controls="review-list"
               :aria-selected="(reviewKind === kind.value).toString()" :tabindex="reviewKind === kind.value ? 0 : -1"
@@ -218,18 +244,18 @@
         </div>
 
         <div id="review-list" role="tabpanel" :aria-labelledby="`subtab-review-${reviewKind}`" class="space-y-4">
-          <div class="grid gap-4 md:grid-cols-2" x-show="reviewLoading" role="status"><span class="sr-only">Loading what's waiting…</span>
+          <div class="grid gap-4 md:grid-cols-2" x-show="reviewLoading" role="status"><span class="sr-only" data-i18n="admin.loadingWaiting">Loading what's waiting…</span>
             <div class="card space-y-3"><div class="skeleton h-5 w-24"></div><div class="skeleton h-6 w-2/3"></div><div class="skeleton h-4 w-1/2"></div></div>
             <div class="card space-y-3"><div class="skeleton h-5 w-24"></div><div class="skeleton h-6 w-1/2"></div><div class="skeleton h-4 w-2/3"></div></div>
           </div>
           <div class="card text-center" x-show="!reviewLoading && reviewError" x-cloak role="alert">
             <p class="text-danger" x-text="reviewError"></p>
-            <button type="button" class="btn btn-secondary mt-3" @click="loadReview()">Try again</button>
+            <button type="button" class="btn btn-secondary mt-3" @click="loadReview()" data-i18n="common.tryAgain">Try again</button>
           </div>
           <div class="card flex flex-col items-center gap-3 py-10 text-center" x-show="!reviewLoading && !reviewError && review[reviewKind].length === 0" x-cloak>
             <i data-lucide="circle-check" class="size-10 text-success" aria-hidden="true"></i>
-            <p class="font-semibold">All caught up ✓</p>
-            <p class="text-sm text-muted">Nothing is waiting here right now.</p>
+            <p class="font-semibold" data-i18n="admin.allCaughtUp">All caught up ✓</p>
+            <p class="text-sm text-muted" data-i18n="admin.nothingWaiting">Nothing is waiting here right now.</p>
           </div>
 
           <!-- One shared review card for every kind -->
@@ -254,11 +280,11 @@
                 </dl>
                 <div class="mt-auto flex flex-wrap gap-2 pt-1">
                   <button type="button" class="btn btn-ghost px-3" :id="`view-${item.key}`" @click="openPanel(item, $el)"
-                    :aria-label="`View details: ${item.title}`">View details</button>
-                  <button type="button" class="btn btn-danger" :disabled="busyId === item.id" @click="reject(item)" :aria-label="`Reject ${item.title}`">Reject</button>
-                  <button type="button" class="btn btn-primary" :disabled="busyId === item.id" @click="approve(item)" :aria-label="`Approve ${item.title}`">
+                    :aria-label="$t('admin.viewDetailsOf', { title: item.title })" data-i18n="admin.viewDetails">View details</button>
+                  <button type="button" class="btn btn-danger" :disabled="busyId === item.id" @click="reject(item)" :aria-label="$t('admin.rejectItem', { title: item.title })" data-i18n="common.reject">Reject</button>
+                  <button type="button" class="btn btn-primary" :disabled="busyId === item.id" @click="approve(item)" :aria-label="$t('admin.approveItem', { title: item.title })">
                     <span class="spinner" x-show="busyId === item.id" x-cloak aria-hidden="true"></span>
-                    Approve
+                    <span data-i18n="common.approve">Approve</span>
                   </button>
                 </div>
               </article>
@@ -269,8 +295,8 @@
 
       <!-- ===================== Browse ===================== -->
       <section id="panel-browse" aria-labelledby="browse-heading" class="space-y-4" x-show="tab === 'browse'" x-cloak>
-        <h2 id="browse-heading" tabindex="-1" class="text-2xl font-semibold">Browse</h2>
-        <div class="tablist" role="tablist" aria-label="What to browse" @keydown="onTabKey($event)">
+        <h2 id="browse-heading" tabindex="-1" class="text-2xl font-semibold" data-i18n="nav.browse">Browse</h2>
+        <div class="tablist" role="tablist" aria-label="What to browse" data-i18n-attr="aria-label:admin.whatToBrowse" @keydown="onTabKey($event)">
           <template x-for="kind in browseKinds" :key="kind.value">
             <button type="button" class="tab" role="tab" :id="`subtab-browse-${kind.value}`" aria-controls="browse-list"
               :aria-selected="(browseKind === kind.value).toString()" :tabindex="browseKind === kind.value ? 0 : -1"
@@ -280,27 +306,27 @@
 
         <div id="browse-list" role="tabpanel" :aria-labelledby="`subtab-browse-${browseKind}`" class="space-y-4">
           <div class="flex flex-col gap-3 lg:flex-row lg:items-end lg:justify-between">
-            <div class="flex flex-wrap gap-2" role="group" aria-label="Show">
+            <div class="flex flex-wrap gap-2" role="group" aria-label="Show" data-i18n-attr="aria-label:admin.show">
               <template x-for="view in browseViews" :key="view.value">
                 <button type="button" class="chip" :aria-pressed="(browseView === view.value).toString()" @click="showBrowseView(view.value)" x-text="view.label"></button>
               </template>
             </div>
             <div class="w-full lg:w-72">
-              <label for="browse-search" class="label">Search by name or title</label>
+              <label for="browse-search" class="label" data-i18n="admin.search">Search by name or title</label>
               <input id="browse-search" class="input" type="search" maxlength="100" autocomplete="off" x-model="browseSearch" @input="onSearchInput()" />
             </div>
           </div>
 
-          <div class="card space-y-3" x-show="browse.loading && browse.items.length === 0" role="status"><span class="sr-only">Loading…</span>
+          <div class="card space-y-3" x-show="browse.loading && browse.items.length === 0" role="status"><span class="sr-only" data-i18n="common.loading">Loading…</span>
             <div class="skeleton h-5 w-2/3"></div><div class="skeleton h-5 w-1/2"></div><div class="skeleton h-5 w-3/4"></div>
           </div>
           <div class="card text-center" x-show="!browse.loading && browse.error" x-cloak role="alert">
             <p class="text-danger" x-text="browse.error"></p>
-            <button type="button" class="btn btn-secondary mt-3" @click="browse.load()">Try again</button>
+            <button type="button" class="btn btn-secondary mt-3" @click="browse.load()" data-i18n="common.tryAgain">Try again</button>
           </div>
           <div class="card flex flex-col items-center gap-3 py-10 text-center" x-show="browse.loaded && !browse.loading && !browse.error && browse.items.length === 0" x-cloak>
             <i data-lucide="search" class="size-10 text-primary" aria-hidden="true"></i>
-            <p class="text-muted" x-text="browseSearch.trim() ? 'Nothing matches that search.' : 'Nothing here yet.'"></p>
+            <p class="text-muted" x-text="browseSearch.trim() ? $t('admin.noSearchMatch') : $t('admin.nothingYet')"></p>
           </div>
 
           <!-- Phones: cards -->
@@ -317,7 +343,7 @@
                 <div class="flex flex-wrap gap-2" x-show="rowActions(row).length">
                   <template x-for="action in rowActions(row)" :key="action">
                     <button type="button" :class="actionClass(action)" :disabled="busyId === row.id" @click="runAction(action, row, $el)"
-                      :aria-label="`${actionLabel(action)}: ${row.title}`" x-text="actionLabel(action)"></button>
+                      :aria-label="$t('admin.rowAction', { action: actionLabel(action), title: row.title })" x-text="actionLabel(action)"></button>
                   </template>
                 </div>
               </li>
@@ -327,14 +353,14 @@
           <!-- Wide screens: a compact table -->
           <div class="card hidden overflow-x-auto p-0 md:block" x-show="browse.items.length > 0">
             <table class="w-full text-left text-sm">
-              <caption class="sr-only" x-text="`${browseKinds.find((k) => k.value === browseKind)?.label ?? ''}, newest first`"></caption>
+              <caption class="sr-only" x-text="$t('admin.tableCaption', { kind: browseKinds.find((k) => k.value === browseKind)?.label ?? '' })"></caption>
               <thead class="border-b border-line text-muted">
                 <tr>
-                  <th scope="col" class="px-4 py-3 font-medium">Name</th>
-                  <th scope="col" class="px-4 py-3 font-medium">Details</th>
-                  <th scope="col" class="px-4 py-3 font-medium">Status</th>
-                  <th scope="col" class="px-4 py-3 font-medium">Date</th>
-                  <th scope="col" class="px-4 py-3 font-medium"><span class="sr-only">Actions</span></th>
+                  <th scope="col" class="px-4 py-3 font-medium" data-i18n="admin.colName">Name</th>
+                  <th scope="col" class="px-4 py-3 font-medium" data-i18n="admin.colDetails">Details</th>
+                  <th scope="col" class="px-4 py-3 font-medium" data-i18n="admin.colStatus">Status</th>
+                  <th scope="col" class="px-4 py-3 font-medium" data-i18n="admin.colDate">Date</th>
+                  <th scope="col" class="px-4 py-3 font-medium"><span class="sr-only" data-i18n="admin.colActions">Actions</span></th>
                 </tr>
               </thead>
               <tbody x-ref="browseRows">
@@ -351,7 +377,7 @@
                       <div class="flex justify-end gap-2">
                         <template x-for="action in rowActions(row)" :key="action">
                           <button type="button" :class="actionClass(action)" :disabled="busyId === row.id" @click="runAction(action, row, $el)"
-                            :aria-label="`${actionLabel(action)}: ${row.title}`" x-text="actionLabel(action)"></button>
+                            :aria-label="$t('admin.rowAction', { action: actionLabel(action), title: row.title })" x-text="actionLabel(action)"></button>
                         </template>
                       </div>
                     </td>
@@ -365,7 +391,7 @@
             <button type="button" class="btn btn-secondary w-full sm:w-auto" :disabled="browse.loading"
               @click="showMoreAndFocus(browse, matchMedia('(min-width: 768px)').matches ? $refs.browseRows : $refs.browseCards)">
               <span class="spinner" x-show="browse.loading" x-cloak aria-hidden="true"></span>
-              Show more
+              <span data-i18n="common.showMore">Show more</span>
             </button>
           </div>
         </div>
@@ -376,8 +402,8 @@
         <div class="flex min-h-full flex-col">
           <div class="sticky top-0 z-10 flex items-center justify-between gap-3 border-b border-line bg-surface p-4">
             <h2 id="panel-title" tabindex="-1" class="min-w-0 text-lg font-semibold break-words focus:outline-none"
-              x-text="panelItem ? panelItem.title : editRow ? 'Edit request' : 'Details'"></h2>
-            <button type="button" class="btn btn-ghost size-11 shrink-0 px-0" aria-label="Close details" @click="closePanel()">
+              x-text="panelItem ? panelItem.title : editRow ? $t('admin.editRequest') : $t('admin.details')"></h2>
+            <button type="button" class="btn btn-ghost size-11 shrink-0 px-0" aria-label="Close details" data-i18n-attr="aria-label:admin.closeDetails" @click="closePanel()">
               <i data-lucide="x" class="size-5" aria-hidden="true"></i>
             </button>
           </div>
@@ -397,18 +423,18 @@
                   <div class="space-y-4">
                     <p class="whitespace-pre-line break-words" x-show="panelItem.raw.description" x-text="panelItem.raw.description"></p>
                     <dl class="grid grid-cols-[max-content_1fr] gap-x-4 gap-y-2 text-sm">
-                      <dt class="font-medium text-muted">Address</dt>
+                      <dt class="font-medium text-muted" data-i18n="field.address">Address</dt>
                       <dd class="break-words" x-text="panelItem.raw.address || '—'"></dd>
-                      <dt class="font-medium text-muted">Postal code</dt>
+                      <dt class="font-medium text-muted" data-i18n="field.postalCode">Postal code</dt>
                       <dd x-text="panelItem.raw.postal_code || '—'"></dd>
-                      <dt class="font-medium text-muted">Organization phone</dt>
+                      <dt class="font-medium text-muted" data-i18n="field.organizationPhone">Organization phone</dt>
                       <dd x-text="panelItem.raw.phone || '—'"></dd>
-                      <dt class="font-medium text-muted">Owner <span class="font-normal">(for review only)</span></dt>
-                      <dd class="break-words" x-text="panelItem.raw.owner ? `${panelItem.raw.owner.full_name || 'No name'}${panelItem.raw.owner.phone ? ' · ' + panelItem.raw.owner.phone : ''}` : '—'"></dd>
+                      <dt class="font-medium text-muted"><span data-i18n="field.owner">Owner</span> <span class="font-normal" data-i18n="admin.forReviewOnly">(for review only)</span></dt>
+                      <dd class="break-words" x-text="panelItem.raw.owner ? `${panelItem.raw.owner.full_name || $t('admin.noName')}${panelItem.raw.owner.phone ? ' · ' + panelItem.raw.owner.phone : ''}` : '—'"></dd>
                     </dl>
                     <div id="panel-map" class="isolate h-56 overflow-hidden rounded-md border border-line" x-show="panelItem.raw.latitude != null"
-                      role="region" aria-label="Map pin for the organization's location"></div>
-                    <p class="rounded-md bg-canvas p-3 text-sm text-muted" x-show="panelItem.raw.latitude == null">No map pin was added.</p>
+                      role="region" aria-label="Map pin for the organization's location" data-i18n-attr="aria-label:admin.orgMap"></div>
+                    <p class="rounded-md bg-canvas p-3 text-sm text-muted" x-show="panelItem.raw.latitude == null" data-i18n="admin.noPin">No map pin was added.</p>
                   </div>
                 </template>
 
@@ -417,20 +443,20 @@
                   <div class="space-y-4">
                     <p class="whitespace-pre-line break-words" x-show="panelItem.raw.description" x-text="panelItem.raw.description"></p>
                     <dl class="grid grid-cols-[max-content_1fr] gap-x-4 gap-y-2 text-sm">
-                      <dt class="font-medium text-muted">Urgency</dt>
+                      <dt class="font-medium text-muted" data-i18n="field.urgency">Urgency</dt>
                       <dd x-text="urgencyName(panelItem.raw.urgency)"></dd>
-                      <dt class="font-medium text-muted">Deadline</dt>
-                      <dd x-text="panelItem.raw.deadline ? formatDate(panelItem.raw.deadline) : 'None'"></dd>
-                      <dt class="font-medium text-muted">Drop-off</dt>
+                      <dt class="font-medium text-muted" data-i18n="field.deadline">Deadline</dt>
+                      <dd x-text="panelItem.raw.deadline ? formatDate(panelItem.raw.deadline) : $t('common.none')"></dd>
+                      <dt class="font-medium text-muted" data-i18n="field.dropoff">Drop-off</dt>
                       <dd class="whitespace-pre-line break-words" x-text="panelItem.raw.dropoff_instructions || '—'"></dd>
                     </dl>
                     <table class="w-full text-left text-sm">
-                      <caption class="sr-only">Items requested</caption>
+                      <caption class="sr-only" data-i18n="admin.itemsRequested">Items requested</caption>
                       <thead class="border-b border-line text-muted">
                         <tr>
-                          <th scope="col" class="py-2 pr-3 font-medium">Item</th>
-                          <th scope="col" class="py-2 pr-3 font-medium">Category</th>
-                          <th scope="col" class="py-2 text-right font-medium">Quantity</th>
+                          <th scope="col" class="py-2 pr-3 font-medium" data-i18n="field.item">Item</th>
+                          <th scope="col" class="py-2 pr-3 font-medium" data-i18n="field.category">Category</th>
+                          <th scope="col" class="py-2 text-right font-medium" data-i18n="field.quantity">Quantity</th>
                         </tr>
                       </thead>
                       <tbody>
@@ -451,16 +477,16 @@
                   <div class="space-y-4">
                     <p class="whitespace-pre-line break-words" x-show="panelItem.raw.description" x-text="panelItem.raw.description"></p>
                     <dl class="grid grid-cols-[max-content_1fr] gap-x-4 gap-y-2 text-sm">
-                      <dt class="font-medium text-muted">When</dt>
+                      <dt class="font-medium text-muted" data-i18n="field.when">When</dt>
                       <dd x-text="formatEventTime(panelItem.raw.starts_at, panelItem.raw.ends_at)"></dd>
-                      <dt class="font-medium text-muted">Place</dt>
+                      <dt class="font-medium text-muted" data-i18n="field.place">Place</dt>
                       <dd class="break-words" x-text="panelItem.raw.location_name || '—'"></dd>
-                      <dt class="font-medium text-muted">Volunteers needed</dt>
-                      <dd x-text="panelItem.raw.volunteers_needed || 'No limit'"></dd>
-                      <dt class="font-medium text-muted">Linked request</dt>
-                      <dd class="break-words" x-text="panelItem.raw.request?.title || 'None'"></dd>
+                      <dt class="font-medium text-muted" data-i18n="field.volunteersNeeded">Volunteers needed</dt>
+                      <dd x-text="panelItem.raw.volunteers_needed || $t('admin.noLimit')"></dd>
+                      <dt class="font-medium text-muted" data-i18n="field.linkedRequest">Linked request</dt>
+                      <dd class="break-words" x-text="panelItem.raw.request?.title || $t('common.none')"></dd>
                     </dl>
-                    <div id="panel-map" class="isolate h-56 overflow-hidden rounded-md border border-line" role="region" aria-label="Map pin for the event's place"></div>
+                    <div id="panel-map" class="isolate h-56 overflow-hidden rounded-md border border-line" role="region" aria-label="Map pin for the event's place" data-i18n-attr="aria-label:admin.eventMap"></div>
                   </div>
                 </template>
 
@@ -468,19 +494,19 @@
                 <template x-if="panelItem.subkind === 'account'">
                   <div class="space-y-4">
                     <dl class="grid grid-cols-[max-content_1fr] gap-x-4 gap-y-2 text-sm">
-                      <dt class="font-medium text-muted">Phone <span class="font-normal">(for review only)</span></dt>
-                      <dd x-text="panelItem.raw.phone || 'Not given'"></dd>
-                      <dt class="font-medium text-muted">Area</dt>
-                      <dd x-text="panelItem.raw.area || 'Not given'"></dd>
-                      <dt class="font-medium text-muted">Available</dt>
+                      <dt class="font-medium text-muted"><span data-i18n="field.phone">Phone</span> <span class="font-normal" data-i18n="admin.forReviewOnly">(for review only)</span></dt>
+                      <dd x-text="panelItem.raw.phone || $t('common.notGiven')"></dd>
+                      <dt class="font-medium text-muted" data-i18n="field.area">Area</dt>
+                      <dd x-text="panelItem.raw.area ? areaLabel(panelItem.raw.area) : $t('common.notGiven')"></dd>
+                      <dt class="font-medium text-muted" data-i18n="field.available">Available</dt>
                       <dd x-text="formatAvailability(panelItem.raw.available_days, panelItem.raw.available_times)"></dd>
-                      <dt class="font-medium text-muted">Interests</dt>
-                      <dd class="break-words" x-text="panelItem.raw.interests?.join(', ') || 'Not given'"></dd>
-                      <dt class="font-medium text-muted">Skills</dt>
-                      <dd class="break-words" x-text="panelItem.raw.skills?.join(', ') || 'Not given'"></dd>
+                      <dt class="font-medium text-muted" data-i18n="field.interests">Interests</dt>
+                      <dd class="break-words" x-text="enumList('interest', panelItem.raw.interests) || $t('common.notGiven')"></dd>
+                      <dt class="font-medium text-muted" data-i18n="field.skills">Skills</dt>
+                      <dd class="break-words" x-text="enumList('skill', panelItem.raw.skills) || $t('common.notGiven')"></dd>
                     </dl>
                     <p class="rounded-md bg-canvas p-3 text-sm" x-show="panelItem.raw.volunteer_note">
-                      <span class="font-medium">Earlier note:</span> <span x-text="panelItem.raw.volunteer_note"></span>
+                      <span class="font-medium" data-i18n="admin.earlierNote">Earlier note:</span> <span x-text="panelItem.raw.volunteer_note"></span>
                     </p>
                   </div>
                 </template>
@@ -489,30 +515,30 @@
                 <template x-if="panelItem.subkind === 'application'">
                   <div class="space-y-4">
                     <dl class="grid grid-cols-[max-content_1fr] gap-x-4 gap-y-2 text-sm">
-                      <dt class="font-medium text-muted">Event</dt>
+                      <dt class="font-medium text-muted" data-i18n="field.event">Event</dt>
                       <dd class="break-words" x-text="panelItem.raw.event?.title ?? '—'"></dd>
-                      <dt class="font-medium text-muted">Organization</dt>
+                      <dt class="font-medium text-muted" data-i18n="field.organization">Organization</dt>
                       <dd class="break-words" x-text="panelItem.raw.event?.organization?.name ?? '—'"></dd>
-                      <dt class="font-medium text-muted">When</dt>
+                      <dt class="font-medium text-muted" data-i18n="field.when">When</dt>
                       <dd x-text="panelItem.raw.event ? formatEventTime(panelItem.raw.event.starts_at, null) : '—'"></dd>
-                      <dt class="font-medium text-muted">Available</dt>
+                      <dt class="font-medium text-muted" data-i18n="field.available">Available</dt>
                       <dd x-text="formatAvailability(panelItem.raw.volunteer?.available_days, panelItem.raw.volunteer?.available_times)"></dd>
-                      <dt class="font-medium text-muted">Interests</dt>
-                      <dd class="break-words" x-text="panelItem.raw.volunteer?.interests?.join(', ') || 'Not given'"></dd>
+                      <dt class="font-medium text-muted" data-i18n="field.interests">Interests</dt>
+                      <dd class="break-words" x-text="enumList('interest', panelItem.raw.volunteer?.interests) || $t('common.notGiven')"></dd>
                     </dl>
                     <div>
-                      <p class="text-sm font-medium text-muted">Message</p>
-                      <p class="mt-1 rounded-md bg-canvas p-3 text-sm whitespace-pre-line break-words" x-text="panelItem.raw.message || 'No message.'"></p>
+                      <p class="text-sm font-medium text-muted" data-i18n="field.message">Message</p>
+                      <p class="mt-1 rounded-md bg-canvas p-3 text-sm whitespace-pre-line break-words" x-text="panelItem.raw.message || $t('admin.noMessage')"></p>
                     </div>
                   </div>
                 </template>
               </div>
 
               <div class="sticky bottom-0 flex flex-wrap justify-end gap-2 border-t border-line bg-surface p-4">
-                <button type="button" class="btn btn-danger" :disabled="busyId === panelItem.id" @click="reject(panelItem)">Reject</button>
+                <button type="button" class="btn btn-danger" :disabled="busyId === panelItem.id" @click="reject(panelItem)" data-i18n="common.reject">Reject</button>
                 <button type="button" class="btn btn-primary" :disabled="busyId === panelItem.id" @click="approve(panelItem)">
                   <span class="spinner" x-show="busyId === panelItem.id" x-cloak aria-hidden="true"></span>
-                  Approve
+                  <span data-i18n="common.approve">Approve</span>
                 </button>
               </div>
             </div>
@@ -523,20 +549,20 @@
             <form class="flex-1 space-y-4 p-4" novalidate @submit.prevent="saveRequestEdit()">
               <p class="text-sm text-muted" x-text="editRow.detail"></p>
               <div>
-                <label for="admin-req-title" class="label">Title <span class="text-danger" aria-hidden="true">*</span></label>
+                <label for="admin-req-title" class="label"><span data-i18n="field.title">Title</span> <span class="text-danger" aria-hidden="true">*</span></label>
                 <input id="admin-req-title" class="input" type="text" maxlength="100" required x-model="reqForm.title"
                   :aria-invalid="reqFormErrors.title ? 'true' : null" aria-describedby="admin-req-title-err" />
                 <p id="admin-req-title-err" class="field-error" x-show="reqFormErrors.title" x-text="reqFormErrors.title"></p>
               </div>
               <div>
-                <label for="admin-req-desc" class="label">Description</label>
+                <label for="admin-req-desc" class="label" data-i18n="field.description">Description</label>
                 <textarea id="admin-req-desc" class="input py-2" rows="4" maxlength="1000" x-model="reqForm.description"
                   :aria-invalid="reqFormErrors.description ? 'true' : null" aria-describedby="admin-req-desc-err"></textarea>
                 <p id="admin-req-desc-err" class="field-error" x-show="reqFormErrors.description" x-text="reqFormErrors.description"></p>
               </div>
               <div class="grid gap-3 sm:grid-cols-2">
                 <div>
-                  <label for="admin-req-urgency" class="label">Urgency</label>
+                  <label for="admin-req-urgency" class="label" data-i18n="field.urgency">Urgency</label>
                   <select id="admin-req-urgency" class="input" x-model="reqForm.urgency">
                     <template x-for="option in urgencies" :key="option.value">
                       <option :value="option.value" x-text="option.label" :selected="option.value === reqForm.urgency"></option>
@@ -544,16 +570,16 @@
                   </select>
                 </div>
                 <div>
-                  <label for="admin-req-deadline" class="label">Deadline</label>
+                  <label for="admin-req-deadline" class="label" data-i18n="field.deadline">Deadline</label>
                   <input id="admin-req-deadline" class="input" type="date" x-model="reqForm.deadline" />
                 </div>
               </div>
-              <p class="helper-text mt-0">Items can't be changed here. Saving recalculates the urgency score.</p>
+              <p class="helper-text mt-0" data-i18n="admin.itemsLocked">Items can't be changed here. Saving recalculates the urgency score.</p>
               <div class="flex flex-wrap justify-end gap-2">
-                <button type="button" class="btn btn-ghost" @click="closePanel()">Cancel</button>
+                <button type="button" class="btn btn-ghost" @click="closePanel()" data-i18n="common.cancel">Cancel</button>
                 <button type="submit" class="btn btn-primary" :disabled="savingReq">
                   <span class="spinner" x-show="savingReq" x-cloak aria-hidden="true"></span>
-                  Save changes
+                  <span data-i18n="common.saveChanges">Save changes</span>
                 </button>
               </div>
             </form>

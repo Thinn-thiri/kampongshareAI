@@ -5,7 +5,12 @@
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <!-- sets light / dark before anything is drawn (no white flash) -->
     <script src="/js/theme.js"></script>
-    <title>Privacy · KampongShare</title>
+    <!-- languages: the three dictionaries, then js/i18n.js sets <html lang> and translates before drawing -->
+    <script src="/js/i18n/en.js"></script>
+    <script src="/js/i18n/zh.js"></script>
+    <script src="/js/i18n/ms.js"></script>
+    <script src="/js/i18n.js"></script>
+    <title data-i18n="privacy.pageTitle">Privacy · KampongShare</title>
     <link rel="icon" href="/img/favicon.svg" type="image/svg+xml" />
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
@@ -17,177 +22,185 @@
     <script src="/js/supabase.js"></script>
     <script src="/js/auth.js"></script>
     <script src="/js/ui.js"></script>
+    <script src="/js/chat-questions.js"></script>
+    <script src="/js/chat.js"></script>
     <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3/dist/cdn.min.js"></script>
   </head>
   <body>
-    <a href="#main" class="skip-link">Skip to main content</a>
+    <a href="#main" class="skip-link" data-i18n="nav.skip">Skip to main content</a>
     <header class="topbar" x-data="topBar">
-      <div class="container-page flex min-h-16 flex-wrap items-center gap-x-3 gap-y-2 py-2">
-        <a href="/" class="flex items-center gap-2 rounded-sm font-bold text-primary focus-visible:outline-2 focus-visible:outline-primary" aria-label="KampongShare home">
+      <div class="container-page flex min-h-16 flex-wrap items-center gap-x-2 gap-y-2 py-2 sm:gap-x-3">
+        <a href="/" class="flex items-center gap-2 rounded-sm font-bold text-primary focus-visible:outline-2 focus-visible:outline-primary" aria-label="KampongShare home" data-i18n-attr="aria-label:nav.homeLink">
           <img src="/img/favicon.svg" alt="" class="size-8" />
           <span class="hidden sm:inline">KampongShare</span>
         </a>
         <!-- the logged-in person's own name (only they see it) -->
-        <span class="max-w-28 truncate rounded-full bg-primary-soft px-2.5 py-1 text-xs font-semibold text-primary sm:max-w-48"
-          x-show="profile?.full_name" x-cloak :title="profile?.full_name"><span class="sr-only">Logged in as </span><span x-text="profile?.full_name"></span></span>
+        <span class="max-w-24 truncate rounded-full bg-primary-soft px-2.5 py-1 text-xs font-semibold text-primary sm:max-w-48"
+          x-show="profile?.full_name" x-cloak :title="profile?.full_name"><span class="sr-only" data-i18n="nav.loggedInAs">Logged in as</span> <span x-text="profile?.full_name"></span></span>
         <!-- pushes the links and buttons to the right -->
         <span class="flex-1" aria-hidden="true"></span>
         <!-- Desktop links (phones use the bottom navigation) -->
-        <nav class="hidden items-center gap-1 sm:flex" aria-label="Site" x-show="ready" x-cloak>
+        <nav class="hidden items-center gap-1 sm:flex" aria-label="Site" data-i18n-attr="aria-label:nav.site" x-show="ready" x-cloak>
           <template x-for="link in topLinks" :key="link.href">
             <a :href="link.href" class="top-link gap-2" :aria-current="isCurrent(link.href) ? 'page' : null">
-              <span x-text="link.label"></span>
-              <span class="badge badge-warning" x-show="link.badge" x-text="link.badge" :aria-label="`${link.badge} waiting`"></span>
+              <span x-text="$t(link.labelKey)"></span>
+              <span class="badge badge-warning" x-show="link.badge" x-text="link.badge" :aria-label="$t('nav.waiting', { count: link.badge })"></span>
             </a>
           </template>
         </nav>
-        <nav class="segmented order-last w-full sm:order-none sm:w-auto" aria-label="Switch between donating and volunteering" x-show="canSwitch" x-cloak>
-          <a href="/donor.html" class="segmented-link" :aria-current="here('/donor.html') ? 'page' : null">Donating</a>
-          <a href="/volunteer.html" class="segmented-link" :aria-current="here('/volunteer.html') ? 'page' : null">Volunteering</a>
+        <nav class="segmented order-last w-full sm:order-none sm:w-auto" aria-label="Switch between donating and volunteering" data-i18n-attr="aria-label:nav.switchRole" x-show="canSwitch" x-cloak>
+          <a href="/donor.html" class="segmented-link" :aria-current="here('/donor.html') ? 'page' : null" data-i18n="nav.donating">Donating</a>
+          <a href="/volunteer.html" class="segmented-link" :aria-current="here('/volunteer.html') ? 'page' : null" data-i18n="nav.volunteering">Volunteering</a>
         </nav>
+        <!-- Language: English / 中文 / Bahasa Melayu (js/i18n.js) -->
+        <div class="relative" x-data="langMenu" @keydown.escape="close(true)" @click.outside="close(false)">
+          <button type="button" x-ref="langButton" class="btn btn-ghost min-w-11 gap-1.5 px-2" :aria-label="buttonLabel" aria-label="Language / 语言 / Bahasa"
+            aria-haspopup="menu" :aria-expanded="open.toString()" aria-controls="lang-menu" @click="toggle()">
+            <i data-lucide="globe" class="size-5" aria-hidden="true"></i>
+            <span class="text-sm sm:hidden" :lang="current.htmlLang" x-text="current.short"></span>
+            <span class="hidden text-sm sm:inline" :lang="current.htmlLang" x-text="current.name"></span>
+          </button>
+          <div id="lang-menu" class="menu w-48" role="menu" aria-label="Language / 语言 / Bahasa" x-show="open" x-cloak @keydown.down.prevent="move(1)" @keydown.up.prevent="move(-1)">
+            <template x-for="option in options" :key="option.code">
+              <button type="button" class="menu-item gap-2" role="menuitemradio" :lang="option.htmlLang" :aria-checked="(lang === option.code).toString()" @click="pick(option.code)">
+                <span class="flex-1" x-text="option.name"></span>
+                <span class="text-primary" x-show="lang === option.code"><i data-lucide="check" class="size-4" aria-hidden="true"></i></span>
+              </button>
+            </template>
+          </div>
+        </div>
         <!-- Theme: System / Light / Dark (js/theme.js) -->
         <div class="relative" x-data="themeMenu" @keydown.escape="close(true)" @click.outside="close(false)">
-          <button type="button" x-ref="themeButton" class="btn btn-ghost size-11 px-0" :aria-label="`Theme: ${label}`" aria-label="Theme"
+          <button type="button" x-ref="themeButton" class="btn btn-ghost size-11 px-0" :aria-label="$t('theme.button', { name: label })" aria-label="Theme"
             aria-haspopup="menu" :aria-expanded="open.toString()" aria-controls="theme-menu" @click="toggle()">
             <span x-show="choice === 'system'"><i data-lucide="monitor" class="size-5" aria-hidden="true"></i></span>
             <span x-show="choice === 'light'" x-cloak><i data-lucide="sun" class="size-5" aria-hidden="true"></i></span>
             <span x-show="choice === 'dark'" x-cloak><i data-lucide="moon" class="size-5" aria-hidden="true"></i></span>
           </button>
-          <div id="theme-menu" class="menu w-40" role="menu" aria-label="Theme" x-show="open" x-cloak @keydown.down.prevent="move(1)" @keydown.up.prevent="move(-1)">
+          <div id="theme-menu" class="menu w-40" role="menu" aria-label="Theme" data-i18n-attr="aria-label:theme.menu" x-show="open" x-cloak @keydown.down.prevent="move(1)" @keydown.up.prevent="move(-1)">
             <template x-for="option in options" :key="option.value">
               <button type="button" class="menu-item gap-2" role="menuitemradio" :aria-checked="(choice === option.value).toString()" @click="pick(option.value)">
                 <span x-show="option.icon === 'monitor'"><i data-lucide="monitor" class="size-4" aria-hidden="true"></i></span>
                 <span x-show="option.icon === 'sun'"><i data-lucide="sun" class="size-4" aria-hidden="true"></i></span>
                 <span x-show="option.icon === 'moon'"><i data-lucide="moon" class="size-4" aria-hidden="true"></i></span>
-                <span class="flex-1" x-text="option.label"></span>
+                <span class="flex-1" x-text="$t(`theme.${option.value}`)"></span>
                 <span class="text-primary" x-show="choice === option.value"><i data-lucide="check" class="size-4" aria-hidden="true"></i></span>
               </button>
             </template>
           </div>
         </div>
-        <nav class="flex items-center gap-1" aria-label="Account" x-show="ready && !profile" x-cloak>
-          <a href="/login.html" class="btn btn-ghost px-3">Log in</a>
-          <a href="/signup.html" class="btn btn-primary px-4">Sign up</a>
+        <nav class="flex items-center gap-1" aria-label="Account" data-i18n-attr="aria-label:nav.account" x-show="ready && !profile" x-cloak>
+          <a href="/login.html" class="btn btn-ghost hidden px-3 sm:inline-flex" data-i18n="nav.logIn">Log in</a>
+          <a href="/signup.html" class="btn btn-primary px-4" data-i18n="nav.signUp">Sign up</a>
         </nav>
         <div class="relative" x-show="profile" x-cloak @keydown.escape="if (open) { open = false; $refs.accountButton.focus() }" @click.outside="open = false">
-          <button type="button" x-ref="accountButton" class="btn btn-secondary px-4" :aria-expanded="open.toString()" aria-controls="account-menu" @click="open = !open">
-            Account
+          <button type="button" x-ref="accountButton" class="btn btn-secondary min-w-11 px-2 sm:px-4" :aria-expanded="open.toString()" aria-controls="account-menu" @click="open = !open">
+            <!-- phones: an icon (the name is still read out), so the top bar fits on one row -->
+            <i data-lucide="user-round" class="size-5 sm:hidden" aria-hidden="true"></i>
+            <span class="sr-only sm:not-sr-only" data-i18n="nav.account">Account</span>
           </button>
           <div id="account-menu" class="menu" x-show="open" x-cloak>
-            <a :href="dashboard" href="/" class="menu-item sm:hidden">My dashboard</a>
-            <a href="/profile.html" class="menu-item">My profile</a>
-            <button type="button" class="menu-item" @click="logout()">Log out</button>
+            <a :href="dashboard" href="/" class="menu-item sm:hidden" data-i18n="nav.myDashboard">My dashboard</a>
+            <a href="/profile.html" class="menu-item" data-i18n="nav.myProfile">My profile</a>
+            <button type="button" class="menu-item" @click="logout()" data-i18n="nav.logOut">Log out</button>
           </div>
         </div>
       </div>
-        <nav class="bottom-nav" aria-label="Main" x-show="ready" x-cloak>
+        <nav class="bottom-nav" aria-label="Main" data-i18n-attr="aria-label:nav.main" x-show="ready" x-cloak>
           <template x-for="link in bottomLinks" :key="link.href">
             <a :href="link.href" class="bottom-nav-link" :aria-current="isCurrent(link.href) ? 'page' : null">
               <i :data-lucide="link.icon" class="size-5" aria-hidden="true"></i>
-              <span x-text="link.label"></span>
+              <span x-text="$t(link.labelKey)"></span>
             </a>
           </template>
         </nav>
     </header>
 
+    <!-- Every text here comes from privacy.* in js/i18n/en.js, zh.js and ms.js.
+         The Chinese and Malay versions need review by a native speaker before a real launch. -->
     <main id="main" tabindex="-1" class="container-page py-8 focus:outline-none">
       <article class="mx-auto max-w-2xl space-y-8">
         <div>
-          <h1 class="text-2xl font-bold sm:text-3xl">Privacy Notice</h1>
-          <p class="mt-2 text-muted">Last updated 23 October 2026</p>
-          <p class="mt-4">
-            KampongShare connects people in Singapore who want to give with organizations that need help.
-            This notice explains, in plain words, what we collect, why, who can see it, and what you can do about it.
-            We follow Singapore's Personal Data Protection Act (PDPA).
-          </p>
-          <p class="mt-3 rounded-md bg-warning-soft p-3 text-sm text-warning">
-            KampongShare is a hackathon prototype. Please use made-up details when trying it out.
-          </p>
+          <h1 class="text-2xl font-bold sm:text-3xl" data-i18n="privacy.title">Privacy Notice</h1>
+          <p class="mt-2 text-muted" data-i18n="privacy.updated">Last updated 23 October 2026</p>
+          <p class="mt-4" data-i18n="privacy.intro">KampongShare connects people in Singapore who want to give with organizations that need help. This notice explains, in plain words, what we collect, why, who can see it, and what you can do about it. We follow Singapore's Personal Data Protection Act (PDPA).</p>
+          <p class="mt-3 rounded-md bg-warning-soft p-3 text-sm text-warning" data-i18n="privacy.prototype">KampongShare is a hackathon prototype. Please use made-up details when trying it out.</p>
         </div>
 
         <section class="space-y-3" aria-labelledby="p-collect">
-          <h2 id="p-collect" class="text-xl font-semibold">What we collect</h2>
+          <h2 id="p-collect" class="text-xl font-semibold" data-i18n="privacy.collectTitle">What we collect</h2>
           <ul class="list-disc space-y-1 pl-5">
-            <li><strong>Everyone:</strong> your name, email and password (the password is stored securely by our login provider; we can't see it).</li>
-            <li><strong>Optional:</strong> phone number, postal code and area. We never ask for your full home address.</li>
-            <li><strong>Volunteers (optional):</strong> the days and times you're free, your interests and skills.</li>
-            <li><strong>What you do here:</strong> the donations you offer and the events you apply for.</li>
-            <li><strong>Organizations:</strong> the organization's name, description, address and map location (these are public).</li>
-            <li>Your consent, the time you gave it, and that you confirmed you are 18 or older.</li>
+            <li data-i18n-rich="privacy.collect1"><strong>Everyone:</strong> your name, email and password (the password is stored securely by our login provider; we can't see it).</li>
+            <li data-i18n-rich="privacy.collect2"><strong>Optional:</strong> phone number, postal code and area. We never ask for your full home address.</li>
+            <li data-i18n-rich="privacy.collect3"><strong>Volunteers (optional):</strong> the days and times you're free, your interests and skills.</li>
+            <li data-i18n-rich="privacy.collect4"><strong>What you do here:</strong> the donations you offer and the events you apply for.</li>
+            <li data-i18n-rich="privacy.collect5"><strong>Organizations:</strong> the organization's name, description, address and map location (these are public).</li>
+            <li data-i18n-rich="privacy.collect6">Your consent, the time you gave it, and that you confirmed you are 18 or older.</li>
           </ul>
-          <p>
-            We do <strong>not</strong> collect NRIC/FIN numbers, date of birth, race, religion, income, health information or photos of people.
-          </p>
+          <p data-i18n-rich="privacy.collectNot">We do <strong>not</strong> collect NRIC/FIN numbers, date of birth, race, religion, income, health information or photos of people.</p>
         </section>
 
         <section class="space-y-3" aria-labelledby="p-why">
-          <h2 id="p-why" class="text-xl font-semibold">Why we use it</h2>
+          <h2 id="p-why" class="text-xl font-semibold" data-i18n="privacy.whyTitle">Why we use it</h2>
           <ul class="list-disc space-y-1 pl-5">
-            <li>To let you offer items and apply to volunteer, and let organizations arrange drop-offs and events with you.</li>
-            <li>To show needs and events near you (using your postal code or area).</li>
-            <li>To keep the platform safe: admins check organizations, requests and events before they go public.</li>
+            <li data-i18n-rich="privacy.why1">To let you offer items and apply to volunteer, and let organizations arrange drop-offs and events with you.</li>
+            <li data-i18n-rich="privacy.why2">To show needs and events near you (using your postal code or area).</li>
+            <li data-i18n-rich="privacy.why3">To keep the platform safe: admins check organizations, requests and events before they go public.</li>
           </ul>
-          <p>We don't sell your data, and we don't use ads, trackers or analytics cookies.</p>
+          <p data-i18n="privacy.whyNoSell">We don't sell your data, and we don't use ads, trackers or analytics cookies.</p>
         </section>
 
         <section class="space-y-3" aria-labelledby="p-who">
-          <h2 id="p-who" class="text-xl font-semibold">Who can see it</h2>
+          <h2 id="p-who" class="text-xl font-semibold" data-i18n="privacy.whoTitle">Who can see it</h2>
           <ul class="list-disc space-y-1 pl-5">
-            <li><strong>The public</strong> sees organizations, their approved requests and events, and overall totals — never the names of donors or volunteers.</li>
-            <li><strong>An organization</strong> sees your name and phone number only if you offered items to it or applied to its event. It never sees your offers to other organizations.</li>
-            <li><strong>Admins</strong> see personal details only where needed to review and moderate.</li>
+            <li data-i18n-rich="privacy.who1"><strong>The public</strong> sees organizations, their approved requests and events, and overall totals — never the names of donors or volunteers.</li>
+            <li data-i18n-rich="privacy.who2"><strong>An organization</strong> sees your name and phone number only if you offered items to it or applied to its event. It never sees your offers to other organizations.</li>
+            <li data-i18n-rich="privacy.who3"><strong>Admins</strong> see personal details only where needed to review and moderate.</li>
           </ul>
         </section>
 
         <section class="space-y-3" aria-labelledby="p-ai">
-          <h2 id="p-ai" class="text-xl font-semibold">How we use AI</h2>
+          <h2 id="p-ai" class="text-xl font-semibold" data-i18n="privacy.aiTitle">How we use AI</h2>
           <ul class="list-disc space-y-1 pl-5">
-            <li>AI helps explain how urgent a request is and suggests which needs match what you can give. Every AI result is labelled <span class="badge badge-ai">AI-suggested</span>.</li>
-            <li>The urgency score comes from a clear formula (deadline, how much is still needed, urgency set by the organization). AI only writes the explanation.</li>
-            <li>We <strong>never send personal data to the AI</strong> — only things like item names, quantities, deadlines and area names. Phone numbers and emails are removed first.</li>
-            <li>AI never uses race, religion, nationality, health or income.</li>
-            <li>For volunteers, we use your availability, interests and skills for suggestions <strong>only if you tick the matching box</strong>. You can turn it off any time.</li>
-            <li>People always make the decisions. AI only sorts and suggests.</li>
+            <li><span data-i18n="privacy.ai1">AI helps explain how urgent a request is and suggests which needs match what you can give. Every AI result is labelled:</span> <span class="badge badge-ai" data-i18n="common.aiSuggested">AI-suggested</span></li>
+            <li data-i18n-rich="privacy.ai2">The urgency score comes from a clear formula (deadline, how much is still needed, urgency set by the organization). AI only writes the explanation.</li>
+            <li data-i18n-rich="privacy.ai3">We <strong>never send personal data to the AI</strong> — only things like item names, quantities, deadlines and area names. Phone numbers and emails are removed first.</li>
+            <li data-i18n-rich="privacy.ai4">AI never uses race, religion, nationality, health or income.</li>
+            <li data-i18n-rich="privacy.ai5">For volunteers, we use your availability, interests and skills for suggestions <strong>only if you tick the matching box</strong>. You can turn it off any time.</li>
+            <li data-i18n-rich="privacy.ai6">People always make the decisions. AI only sorts and suggests.</li>
+            <li data-i18n-rich="privacy.ai7">In the <strong>Ask KampongShare</strong> chat you can tap a suggested question or type your own. It only answers questions about KampongShare, uses public information only, and never shares anyone's personal information. Phone numbers, emails and similar details you type are removed before anything else happens, and chats aren't stored.</li>
+            <li data-i18n-rich="privacy.ai8">You can use KampongShare in English, Chinese or Malay. AI answers are written in the language you choose (typed chat questions in the language you type), and only the language choice is sent with them.</li>
           </ul>
         </section>
 
         <section class="space-y-3" aria-labelledby="p-keep">
-          <h2 id="p-keep" class="text-xl font-semibold">How long we keep it</h2>
-          <p>
-            We keep your details while your account is open. When you delete your account, we remove your profile and personal details.
-            Records of past donations may be kept for the organization, but without your name or contact details.
-          </p>
-          <p>
-            We keep your donation and volunteering history for 12 months so you and the organizations can see what happened.
-            You can ask us to delete it sooner.
-          </p>
+          <h2 id="p-keep" class="text-xl font-semibold" data-i18n="privacy.keepTitle">How long we keep it</h2>
+          <p data-i18n="privacy.keep1">We keep your details while your account is open. When you delete your account, we remove your profile and personal details. Records of past donations may be kept for the organization, but without your name or contact details.</p>
+          <p data-i18n="privacy.keep2">We keep your donation and volunteering history for 12 months so you and the organizations can see what happened. You can ask us to delete it sooner.</p>
         </section>
 
         <section class="space-y-3" aria-labelledby="p-choices">
-          <h2 id="p-choices" class="text-xl font-semibold">Your choices</h2>
+          <h2 id="p-choices" class="text-xl font-semibold" data-i18n="privacy.choicesTitle">Your choices</h2>
           <ul class="list-disc space-y-1 pl-5">
-            <li><strong>See and correct</strong> everything we hold about you on your profile page.</li>
-            <li><strong>Withdraw your consent</strong> on your profile page. You won't be able to donate or volunteer until you agree again.</li>
-            <li><strong>Turn AI matching off</strong> on your profile page.</li>
-            <li><strong>Delete your account</strong> on your profile page (organization accounts: please contact us).</li>
+            <li data-i18n-rich="privacy.choice1"><strong>See and correct</strong> everything we hold about you on your profile page.</li>
+            <li data-i18n-rich="privacy.choice2"><strong>Withdraw your consent</strong> on your profile page. You won't be able to donate or volunteer until you agree again.</li>
+            <li data-i18n-rich="privacy.choice3"><strong>Turn AI matching off</strong> on your profile page.</li>
+            <li data-i18n-rich="privacy.choice4"><strong>Delete your account</strong> on your profile page (organization accounts: please contact us).</li>
+            <li data-i18n-rich="privacy.choice5">Your language choice is saved only in your browser.</li>
           </ul>
         </section>
 
         <section class="space-y-3" aria-labelledby="p-security">
-          <h2 id="p-security" class="text-xl font-semibold">Keeping it safe</h2>
-          <p>
-            The site only works over a secure connection (HTTPS). Database rules make sure people can only see what they're allowed to.
-            Secret keys are kept on the server, never in the website. If a serious data breach ever happened, we would tell
-            the Personal Data Protection Commission and the people affected promptly, as the law requires.
-          </p>
+          <h2 id="p-security" class="text-xl font-semibold" data-i18n="privacy.securityTitle">Keeping it safe</h2>
+          <p data-i18n="privacy.security">The site only works over a secure connection (HTTPS). Database rules make sure people can only see what they're allowed to. Secret keys are kept on the server, never in the website. If a serious data breach ever happened, we would tell the Personal Data Protection Commission and the people affected promptly, as the law requires.</p>
         </section>
 
         <section class="card space-y-2" aria-labelledby="p-contact">
-          <h2 id="p-contact" class="text-xl font-semibold">Questions?</h2>
+          <h2 id="p-contact" class="text-xl font-semibold" data-i18n="privacy.contactTitle">Questions?</h2>
           <p>
-            Contact our Data Protection Officer at
+            <span data-i18n="privacy.contactBefore">Contact our Data Protection Officer at</span>
             <a href="mailto:privacy@kampongshare.example.com" class="font-semibold break-all text-primary underline">privacy@kampongshare.example.com</a>.
-            We'll reply within 5 working days.
+            <span data-i18n="privacy.contactAfter">We'll reply within 5 working days.</span>
           </p>
         </section>
       </article>

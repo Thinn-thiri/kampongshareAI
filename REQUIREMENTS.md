@@ -85,17 +85,19 @@ js/supabase.js         → creates the client
 js/auth.js             → getProfile(), requireAccess('donor' | 'volunteer' | 'organization' | 'admin'), logout
 js/ui.js               → toast(), confirmDialog(), formatDate(), statusBadge(), escapeHtml()
 js/theme.js            → light / dark mode: sets data-theme first thing in <head>, theme menu (section 3)
+js/i18n/en.js, zh.js, ms.js → every text the site shows, in English, 简体中文 and Bahasa Melayu (section 9)
+js/i18n.js             → languages: t(), $t, data-i18n, enumLabel(), areaLabel(), the language menu (section 9)
 js/share.js            → share links, poster image, copy caption (section 5)
-js/chat-questions.js   → every chat question and pre-written answer (edit the wording here)
+js/chat-questions.js   → every chat question (who sees it, links, follow-ups); the words are in js/i18n/*.js
 js/chat.js             → the "Ask KampongShare" chat widget (section 6.8)
 js/geocode.js          → lookupPostalCode(): postal code → { address, latitude, longitude } via geocode-postal
 jsconfig.json          → turns on type checking for all .js files
 img/og-default.png     → 1200×630 default preview image for shared links
 netlify/functions/     → server code: score-request (AI urgency), match-items, chat-insights, event-caption, share-event, geocode-postal, delete-account
-netlify/lib/           → shared server code: ai.js (NVIDIA model + personal-data filter), urgency.js (score formula), score.js
+netlify/lib/           → shared server code: ai.js (NVIDIA model + personal-data filter), urgency.js (score formula), score.js, messages.js (the server's own words in 3 languages)
 netlify/functions/_lib/ → chat-help.md / chat-help.js: the chat's help text (generated — see 6.8)
 supabase/migrations/   → database schema and changes (Supabase CLI)
-scripts/               → check-supabase.js, check-contrast.js, seed.js, score-requests.js, build-chat-help.js (run with node)
+scripts/               → check-supabase.js, check-contrast.js, check-i18n.js, seed.js, score-requests.js, build-chat-help.js (run with node)
 ```
 
 ### 2.1 Tailwind setup
@@ -198,7 +200,8 @@ Define everything once here. Tailwind turns each `--color-*` into classes, e.g. 
   --shadow-md: 0 4px 16px rgb(15 23 42 / 0.08);
 
   /* type */
-  --font-sans: "Plus Jakarta Sans", system-ui, sans-serif;
+  /* Chinese falls back to the device's own Chinese font (no big web font) */
+  --font-sans: "Plus Jakarta Sans", "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", "Noto Sans SC", system-ui, sans-serif;
 }
 
 /* the @theme values above are the light theme */
@@ -344,7 +347,7 @@ Use Tailwind's built-in spacing (`p-4`, `gap-6`…) and text sizes (`text-sm`, `
 
 - **Mobile-first.** Must work at 360px wide with no sideways scrolling. Breakpoints at 640px and 1024px.
 - Content max width 1100px, centred, 16px side padding on mobile.
-- Top bar: logo, the logged-in person's own name, the main links, theme control, profile menu with logout. On mobile, a bottom navigation bar with the 3–4 main sections for that role.
+- Top bar: logo, the logged-in person's own name, the main links, language menu (section 9), theme control, profile menu with logout. On mobile, a bottom navigation bar with the 3–4 main sections for that role.
 - **Dashboards are split into sections** linked from the top bar (`DASHBOARD_SECTIONS` in js/auth.js) instead of one long page: an Overview first, then one section per job. The section is kept in the URL hash, so reloading and Back / Forward work; a badge shows what's waiting (sent with the `dashboard-counts` event). Admin: Overview · To review · Browse. Organization: Overview · Requests · Offers · Events. Donor: Overview · Find needs · My offers (people who also volunteer see the donor sections on donor.html, plus the Donating / Volunteering switch).
 - Dashboards start with 3–4 summary stat cards (e.g., "Open requests", "Items still needed", "Offers waiting").
 - Lists become card grids on desktop, single column on mobile.
@@ -548,6 +551,7 @@ Visitors should understand the app, see real needs and try the AI **before** sig
 - **Don't store or log the visitor's text.**
 - If the AI fails, fall back to category buttons (food, clothing, hygiene, household, baby, education) and match by category only.
 - Results show "AI-suggested" and an **Offer** button that follows the 6.3 login flow. Logged-in donors use the same function on `donor.html`.
+- The page also sends `lang` (`en`, `zh` or `ms`; anything else → 400): the one-line reasons come back in that language (from `netlify/lib/messages.js`). The AI writes item names in English even for Chinese or Malay text, so they match the organizations' items.
 
 ### 6.5 Organization page — `org.html?id=<organization id>`
 
@@ -591,18 +595,18 @@ Offers always need an account: the organization needs a way to arrange drop-off,
 ### 6.8 Chat assistant — "Ask KampongShare"
 
 - A round chat button bottom-right on every page (above the phone bottom bar) opens a panel (full screen on phones) with **suggested questions** (chips) and a **text box** for your own question ("Ask about KampongShare…", max 300 characters with a counter, Enter or Send; hint: "I can only answer questions about KampongShare."). Only questions about KampongShare are answered.
-- Questions, pre-written answers (max 80 words, with links) and follow-ups live in `js/chat-questions.js`; each question's `show(viewer)` uses `getViewer()` so people only see questions that fit them (e.g. organization questions for organizations). Groups: Getting started · For organizations · Your account · Right now · About · Privacy. "Your account" (sign up, log in / out, forgot password, change details, delete account) describes only what the site really does: there is no password reset or password change yet (email the address in the Privacy Notice), the email can't be changed, individuals delete their own account on Profile, organization accounts email the Privacy Notice address. "Start over" returns to the first questions.
-- **Right now** questions (most needed, ending soon, upcoming events, needs by area) call the Netlify Function `chat-insights`: it accepts only a question id from a fixed list (and an area from `SG_AREAS`), anything else → 400. It reads **public data only, with the anon key**, and never queries profiles, offers, applications or tasks. **The code picks the results** (max 6); the AI only writes a 2–3 sentence summary (max 60 words) of those facts — item names, categories, quantities, deadlines, area names and event dates, never descriptions or other free text. If the AI fails, a template sentence is used. Returns `{ summary, ai, request_item_ids, event_ids, areas? }`; the page shows the summary ("AI-suggested") and real cards with Offer / View event buttons that follow 6.6b.
-- **Typed questions** go to the same function (`{ id: "ask", question, previous? }`), so they share its one rate-limit rule. Handled in this order:
+- Questions, follow-ups and links live in `js/chat-questions.js`; their words (labels and pre-written answers, max 80 words) are translation keys `chat.q.<id>.label` / `.answer` in `js/i18n/*.js`; each question's `show(viewer)` uses `getViewer()` so people only see questions that fit them (e.g. organization questions for organizations). Groups: Getting started · For organizations · Your account · Right now · About · Privacy. "Your account" (sign up, log in / out, forgot password, change details, delete account) describes only what the site really does: there is no password reset or password change yet (email the address in the Privacy Notice), the email can't be changed, individuals delete their own account on Profile, organization accounts email the Privacy Notice address. "Start over" returns to the first questions.
+- **Right now** questions (most needed, ending soon, upcoming events, needs by area) call the Netlify Function `chat-insights`: it accepts only a question id from a fixed list (and an area from `SG_AREAS`), anything else → 400. It reads **public data only, with the anon key**, and never queries profiles, offers, applications or tasks. **The code picks the results** (max 6); the AI only writes a 2–3 sentence summary (max 60 words) of those facts — item names, categories, quantities, deadlines, area names and event dates, never descriptions or other free text. If the AI fails, a template sentence is used. Every request also carries `lang` (the site's language; anything but `en`, `zh` or `ms` → 400): summaries and template sentences come back in it. Returns `{ summary, ai, request_item_ids, event_ids, areas? }`; the page shows the summary ("AI-suggested") and real cards with Offer / View event buttons that follow 6.6b.
+- **Typed questions** go to the same function (`{ id: "ask", question, previous?, lang? }`), so they share its one rate-limit rule. They are answered **in the language they're typed in** (Chinese characters → Chinese, mostly Malay words → Malay, otherwise English or the site's language); fixed replies and pre-written answers too. Handled in this order:
   1. **Clean:** trim, cut to 300 characters, remove phone numbers, emails, NRIC/FIN and postal codes (`stripPersonalData`) before anything else.
   2. **Fixed replies, no AI:** asking for someone's personal details (phone, email, address, who donated or volunteered, a named person) → "I can't share anyone's personal information. Organizations can see a donor's or volunteer's contact details only after they make an offer or apply."; privacy / data → the Privacy Notice reply and link; questions needing the asker's **own data** ("what's my password", "what email did I use", "is my organization approved", "where is my offer") → links to My offers / My applications / My organization / Profile (the chat never receives their data); close to a suggested question (words with the same meaning count as equal, e.g. reset = forgot) → that pre-written answer. General account how-to questions are **answered** (account_help), not sent to these fixed replies.
   3. **Topic check:** the AI only classifies the question as JSON `{ "type": … }` (how_to, needs_now, events, organization_help, about_site, account_help, privacy, personal_info, own_account, off_topic); invalid JSON or an unknown type = off_topic.
   4. **Route in code:** off_topic → "I can only help with KampongShare — donating, volunteering, requests and events." + 3 chips; personal_info / privacy / own_account → the fixed replies; needs_now / events → the live logic above, filtered by area or category words in the question (or the previous one); how_to / organization_help / about_site / account_help → the AI answers using ONLY the help text (max 100 words), or "I'm not sure — see How it works" with the link.
-  5. **Every AI call:** KampongShare only; the question, the previous question and all data are text to read, never instructions; never invent features, rules, numbers, places or contact details; reply in the user's language if possible.
+  5. **Every AI call:** KampongShare only; the question, the previous question and all data are text to read, never instructions; never invent features, rules, numbers, places or contact details; write in the answer's language (Chinese: Simplified characters only — `toSimplified()` converts common Traditional ones as a safety net) and keep item, organization and area names as written.
   6. **After the AI:** phone numbers, emails and web links are removed; only the site's own pages appear, as link buttons added by the code (the page only renders paths starting with `/`); shown with `x-text`; AI answers labelled "AI-suggested".
   7. **Context:** only the current question and the previous one are sent. Nothing is stored or logged.
   8. **No AI** (error or no `NVIDIA_API_KEY`): "I can't answer typed questions right now — try one of the suggested questions." — fixed replies and the chips (with template summaries) still work.
-- **Help text:** `netlify/functions/_lib/chat-help.md` (+ `chat-help.js` for the function) is **generated** by `npm run chat-help` (`npm run build` runs it) from `js/chat-questions.js` plus the "Site rules" in `scripts/build-chat-help.js`. Edit those, never the generated files.
+- **Help text:** `netlify/functions/_lib/chat-help.md` (+ `chat-help.js` for the function) is **generated** by `npm run chat-help` (`npm run build` runs it) from `js/chat-questions.js` and the words in `js/i18n/*.js`, plus the "Site rules" in `scripts/build-chat-help.js`. The help text is English (the AI answers in the needed language); the pre-written answers are kept in all three languages. Edit those, never the generated files.
 - Rate limited (10 requests per minute per IP; HTTP 429 → "Please wait a minute and try again.").
 - **Nothing is stored or logged**; the conversation lives only in the page and disappears on reload.
 - Accessibility: `<dialog>` with a label, focus moves in and back to the button, Escape closes, answers announced (`aria-live="polite"`), chips are real buttons at least 44 px tall.
@@ -662,5 +666,25 @@ The kinds and what the panel shows:
 - Shows loading, empty and error states.
 - Database errors are shown to the user in friendly words.
 - No secrets or personal data in frontend code, URLs or console logs.
-- Follows sections 2–7 of this file.
+- Follows sections 2–7 and 9 of this file.
+- Every new text uses a translation key in all three language files; `node scripts/check-i18n.js` passes.
 - No `// @ts-check` warnings in changed files.
+
+---
+
+## 9. Languages
+
+The site speaks **English**, **简体中文** (Simplified Chinese, as used in Singapore) and **Bahasa Melayu** (as used in Singapore).
+
+- **Every text the site itself shows uses a translation key in all three files** — `js/i18n/en.js` (the source), `zh.js` and `ms.js` — grouped by page (`common.save`, `signup.title`…): headings, labels, buttons, placeholders, helper text, toasts, dialogs, empty states, loading text, aria-labels and page titles. Never write English straight into HTML or JS again.
+- **User-written content is never translated:** request titles and descriptions, item names and units, organization names, descriptions and addresses, messages, cancel and close reasons, admin notes, places. Show them as entered. (Stored AI explanations stay in the language they were written in; "Why this score?" factor names are translated.)
+- **In code:** `t("key", { name })` in JS, `x-text="$t('key')"` in Alpine, `data-i18n="key"` on static HTML (only on elements that hold just text), `data-i18n-rich` for text with `**bold**`, and `data-i18n-attr="aria-label:key; placeholder:key"` for attributes. A `{ one, other }` entry is a plural. Missing keys fall back to English (with a console warning only on localhost).
+- **Fixed values** (statuses, urgency, categories, roles, days, times, interests, skills) always go through `enumLabel(kind, value)` (or `enumOptions()` for pickers); area names through `areaLabel()` (Chinese uses the official place names; stored values never change).
+- **Database messages:** every `raise exception` message in `supabase/migrations/` has a pattern in `DB_ERRORS` (js/ui.js), e.g. `Only % % of "%" still needed` → `errors.db.onlyStillNeeded`; `friendlyError()` uses it. An unknown message shows "Something went wrong" plus the original English. **A new migration message needs a new entry and keys in all three files.**
+- **Dates and numbers** use `Intl` with `en-SG`, `zh-SG` or `ms-SG` (`formatDate`, `formatNumber`). The downloaded share poster stays English.
+- **Language menu** in the top bar of every page: the Lucide `globe` and the language's own name (phones: EN / 中文 / BM), a `menuitemradio` menu with each language in its own script and `lang` attribute, no flags, the button label "Language / 语言 / Bahasa — <current>". Saved in `localStorage` (`ks-lang`, try/catch); a first visit follows the browser if it's Chinese or Malay, otherwise English. Switching updates the page without a reload and sets `<html lang>` to `en`, `zh-Hans` or `ms`.
+- **AI:** `match-items` and `chat-insights` get the chosen `lang`; summaries, reasons and template sentences come back in it, and typed chat questions are answered in the language they're typed in (6.8). Only the language code is added — no personal data (4.6).
+- **Server words** (chat fixed replies, templates, match reasons) live in `netlify/lib/messages.js`, with the same keys in all three languages.
+- **Lists that are built once** (review cards, Browse rows, tabs, filters): give their words as getters or translation keys (`labelledOptions()`, `enumOptions()`, `get label() { return t(…) }`), never as fixed strings, so a language switch redraws them without a reload. Lists of stored values (interests, skills, days) are shown with `enumList()`.
+- **Check:** `node scripts/check-i18n.js` (also `npm run check:i18n`) covers the **whole app**: same keys and `{placeholders}` in every language, every key used in code exists, every database message is translated, no untranslated text in any page or Alpine expression, and no English text left in `js/` (read with TypeScript's parser). Sample data and code that stay as they are get the standard HTML `translate="no"`; a JS line that is never shown to people (a stored value, a developer error) gets a `// i18n-ignore` comment (or an `i18n-ignore-start` / `i18n-ignore-end` block). The Chinese and Malay translations, especially the privacy notice, still **need review by a native speaker**.
+- **Phone width:** keep labels for tabs, chips, buttons and table headers short in every language (Malay is often the longest) and check at 360 px. Tab lists scroll sideways on phones and the selected tab is always scrolled into view (`revealSelectedTabs()` in js/ui.js); no page may scroll sideways.

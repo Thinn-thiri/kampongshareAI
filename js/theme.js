@@ -9,11 +9,14 @@
 const THEME_KEY = "ks-theme";
 
 /** The three choices for the theme menu (Lucide icon names). */
+// the labels shown are theme.system / theme.light / theme.dark in js/i18n/*.js
+// i18n-ignore-start
 const THEME_OPTIONS = /** @type {{ value: ThemeChoice, label: string, icon: string }[]} */ ([
   { value: "system", label: "System", icon: "monitor" },
   { value: "light", label: "Light", icon: "sun" },
   { value: "dark", label: "Dark", icon: "moon" },
 ]);
+// i18n-ignore-end
 
 const systemDark = window.matchMedia("(prefers-color-scheme: dark)");
 
@@ -82,7 +85,7 @@ document.addEventListener("alpine:init", () => {
     },
 
     get label() {
-      return THEME_OPTIONS.find((option) => option.value === this.choice)?.label ?? "System";
+      return t(`theme.${this.choice}`);
     },
 
     toggle() {

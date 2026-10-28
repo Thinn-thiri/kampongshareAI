@@ -38,7 +38,8 @@
   --shadow-md: 0 4px 16px rgb(15 23 42 / 0.08);
 
   /* type */
-  --font-sans: "Plus Jakarta Sans", system-ui, sans-serif;
+  /* Latin text uses Plus Jakarta Sans; Chinese falls back to the device's own Chinese font (no big web font) */
+  --font-sans: "Plus Jakarta Sans", "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", "Noto Sans SC", system-ui, sans-serif;
 }
 
 /* Light theme is the @theme above. Dark theme: the same tokens with dark values.
@@ -291,6 +292,20 @@ html.theme-changing * {
   /* details panel (native <dialog>): full screen on phones, a sheet on the right on wider screens */
   .side-panel {
     @apply m-0 h-dvh max-h-none w-full max-w-none overflow-y-auto bg-surface p-0 text-ink shadow-md backdrop:bg-overlay sm:ml-auto sm:w-[30rem] sm:border-l sm:border-line;
+  }
+
+  /* "Ask KampongShare" chat: round button above the phone bottom bar, panel full screen on phones */
+  .chat-fab {
+    @apply fixed right-4 bottom-20 z-40 inline-flex size-14 items-center justify-center gap-2 rounded-full bg-primary text-sm font-semibold text-on-primary shadow-md hover:bg-primary-hover focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary sm:bottom-6 sm:w-auto sm:px-5;
+  }
+  .chat-panel {
+    @apply fixed inset-0 m-0 h-dvh max-h-none w-full max-w-none overflow-hidden bg-surface p-0 text-ink shadow-md backdrop:bg-overlay sm:inset-auto sm:right-6 sm:bottom-6 sm:h-[600px] sm:max-h-[calc(100dvh-3rem)] sm:w-[380px] sm:rounded-lg sm:border sm:border-line;
+  }
+  .chat-bubble-bot {
+    @apply max-w-[90%] rounded-lg rounded-tl-sm bg-canvas px-3 py-2 text-sm text-ink;
+  }
+  .chat-bubble-user {
+    @apply max-w-[85%] rounded-lg rounded-tr-sm bg-primary px-3 py-2 text-sm text-on-primary;
   }
 
   /* desktop top bar links (Home · Browse needs · My dashboard) */

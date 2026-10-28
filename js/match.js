@@ -22,14 +22,7 @@
  *   | { status: 'fallback' } | { status: 'rate_limited' } | { status: 'error' }} MatchResult
  */
 
-const MATCH_CATEGORIES = [
-  { value: "food", label: "Food" },
-  { value: "clothing", label: "Clothing" },
-  { value: "hygiene", label: "Hygiene" },
-  { value: "household", label: "Household" },
-  { value: "baby", label: "Baby" },
-  { value: "education", label: "Education" },
-];
+const MATCH_CATEGORIES = enumOptions("category", ["food", "clothing", "hygiene", "household", "baby", "education"]);
 
 /**
  * Asks the server for matches. Sends the login token when there is one (for the "near you" bonus).
@@ -46,7 +39,8 @@ async function findMatches(input) {
       } = await sb.auth.getSession();
       if (session) headers.Authorization = `Bearer ${session.access_token}`;
     }
-    const response = await fetch("/api/match-items", { method: "POST", headers, body: JSON.stringify(input) });
+    // the chosen language, so the reasons come back in it (nothing personal is added)
+    const response = await fetch("/api/match-items", { method: "POST", headers, body: JSON.stringify({ ...input, lang: getLang() }) });
     if (response.status === 429) return { status: "rate_limited" };
     if (!response.ok) return { status: "error" };
     const body = await response.json();
@@ -77,11 +71,11 @@ document.addEventListener("alpine:init", () => {
       this.error = "";
       const text = this.text.trim();
       if (!text) {
-        this.error = "Tell us what you'd like to give, e.g. 5 bags of rice.";
+        this.error = t("match.empty");
         return;
       }
       if (text.length > 300) {
-        this.error = "Please keep it under 300 characters.";
+        this.error = t("match.tooLong");
         return;
       }
       this.pickedCategory = "";
@@ -128,7 +122,7 @@ document.addEventListener("alpine:init", () => {
      * @returns {string}
      */
     deadlineText(deadline) {
-      return deadline ? `Needed by ${formatDate(deadline)}` : "No deadline";
+      return deadline ? t("common.neededBy", { date: formatDate(deadline) }) : t("common.noDeadline");
     },
   }));
 });

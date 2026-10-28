@@ -12,13 +12,10 @@ const PROFILE_FIELD_IDS = {
   roles: "pf-donate",
 };
 
-/** @type {Record<Role, string>} */
-const ROLE_LABELS = {
-  donor: "Individual — donating opens first",
-  volunteer: "Individual — volunteering opens first",
-  organization: "Organization",
-  admin: "Admin",
-};
+/** The account type, in the chosen language. @param {Role} role @returns {string} */
+function roleLabel(role) {
+  return t(`profile.role.${role}`);
+}
 
 /**
  * @typedef {Object} ProfileForm
@@ -65,12 +62,12 @@ function validateProfile(form, isIndividual) {
   /** @type {Partial<Record<keyof typeof PROFILE_FIELD_IDS, string>>} */
   const errors = {};
   const name = form.fullName.trim();
-  if (!name) errors.fullName = "Please enter your name.";
-  else if (name.length > 100) errors.fullName = "Please keep your name under 100 characters.";
-  if (form.phone.trim() && !isValidSgPhone(form.phone)) errors.phone = "Please enter an 8-digit Singapore number, like 9123 4567.";
-  if (form.postalCode.trim() && !/^\d{6}$/.test(form.postalCode.trim())) errors.postalCode = "A Singapore postal code has 6 digits, like 520123.";
-  if (form.area.trim().length > 50) errors.area = "Please keep the area under 50 characters.";
-  if (isIndividual && !form.isDonor && !form.isVolunteer) errors.roles = "Keep at least one turned on: donating or volunteering.";
+  if (!name) errors.fullName = t("signup.errName");
+  else if (name.length > 100) errors.fullName = t("signup.errNameLong");
+  if (form.phone.trim() && !isValidSgPhone(form.phone)) errors.phone = t("signup.errPhone");
+  if (form.postalCode.trim() && !/^\d{6}$/.test(form.postalCode.trim())) errors.postalCode = t("signup.errPostal");
+  if (form.area.trim().length > 50) errors.area = t("profile.errAreaLong");
+  if (isIndividual && !form.isDonor && !form.isVolunteer) errors.roles = t("errors.db.keepOneRole");
   return errors;
 }
 
@@ -109,7 +106,7 @@ document.addEventListener("alpine:init", () => {
     timeOptions: TIME_OPTIONS,
     interestOptions: INTEREST_OPTIONS,
     skillOptions: SKILL_OPTIONS,
-    roleLabels: ROLE_LABELS,
+    roleLabel,
 
     async init() {
       try {
@@ -163,10 +160,10 @@ document.addEventListener("alpine:init", () => {
         window.dispatchEvent(new CustomEvent("profile-changed"));
         toast(
           role === "donor"
-            ? "Donating added to your account."
+            ? t("profile.donatingAdded")
             : isApprovedVolunteer(profile)
-              ? "Volunteering added to your account."
-              : "Volunteering added. An admin will approve your volunteer account before you can apply to events.",
+              ? t("profile.volunteeringAdded")
+              : t("profile.volunteeringAddedPending"),
         );
         if (role === "volunteer") this.onVolunteerToggle();
       } catch (error) {
@@ -181,9 +178,9 @@ document.addEventListener("alpine:init", () => {
       if (!this.profile?.is_volunteer) return null;
       /** @type {Record<string, { className: string, label: string }>} */
       const badges = {
-        approved: { className: "badge badge-success", label: "Approved by admin" },
-        pending: { className: "badge badge-warning", label: "Waiting for admin approval" },
-        rejected: { className: "badge badge-danger", label: "Not approved" },
+        approved: { className: "badge badge-success", label: t("profile.approvedByAdmin") },
+        pending: { className: "badge badge-warning", label: t("profile.waitingApproval") },
+        rejected: { className: "badge badge-danger", label: t("profile.notApproved") },
       };
       return badges[this.profile.volunteer_approval ?? "pending"];
     },
@@ -194,7 +191,7 @@ document.addEventListener("alpine:init", () => {
       this.reviewBusy = true;
       try {
         this.profile = await requestVolunteerReview();
-        toast("Thanks — your volunteer account was sent to the admin for review again.");
+        toast(t("volunteer.reviewSent"));
       } catch (error) {
         toast(friendlyError(error), "error");
       } finally {
@@ -210,20 +207,22 @@ document.addEventListener("alpine:init", () => {
     async deleteAccount() {
       this.deleteError = "";
       if (!this.deleteUnderstood) {
-        this.deleteError = "Please tick the box to confirm you understand this can't be undone.";
+        this.deleteError = t("profile.tickToDelete");
         return;
       }
-      const ok = await confirmDialog(
-        "Your profile, contact details and volunteer applications will be removed, and you'll be logged out. Waiting offers are cancelled. Past donations stay with the organizations without your name or contact details.",
-        { title: "Delete your account for good?", confirmText: "Delete my account", cancelText: "Keep my account", danger: true },
-      );
+      const ok = await confirmDialog(t("profile.deleteText"), {
+        title: t("profile.deleteDialogTitle"),
+        confirmText: t("profile.deleteTitle"),
+        cancelText: t("profile.keepAccount"),
+        danger: true,
+      });
       if (!ok) return;
       this.deleting = true;
       try {
         await deleteMyAccount();
         location.href = "/";
       } catch (error) {
-        this.deleteError = error instanceof Error ? error.message : "We couldn't delete your account just now. Please try again.";
+        this.deleteError = error instanceof Error ? error.message : t("profile.deleteFailed");
         this.deleting = false;
       }
     },
@@ -275,7 +274,7 @@ document.addEventListener("alpine:init", () => {
       try {
         this.setProfile(await updateMyProfile(changes));
         window.dispatchEvent(new CustomEvent("profile-changed"));
-        toast("Your profile was saved.");
+        toast(t("profile.saved"));
       } catch (error) {
         this.formError = friendlyError(error);
       } finally {
@@ -290,7 +289,7 @@ document.addEventListener("alpine:init", () => {
         this.setProfile(await giveConsent());
         this.consentChecked = false;
         this.ageChecked = false;
-        toast("Thank you — you can donate and volunteer again.");
+        toast(t("profile.consentThanks"));
       } catch (error) {
         toast(friendlyError(error), "error");
       } finally {
@@ -299,15 +298,17 @@ document.addEventListener("alpine:init", () => {
     },
 
     async confirmWithdrawConsent() {
-      const ok = await confirmDialog(
-        "You won't be able to make offers or apply to volunteer until you agree again. Your details stay saved, and you can view, correct or delete them here.",
-        { title: "Withdraw your consent?", confirmText: "Withdraw consent", cancelText: "Keep my consent", danger: true },
-      );
+      const ok = await confirmDialog(t("profile.withdrawText"), {
+        title: t("profile.withdrawTitle"),
+        confirmText: t("profile.withdrawConfirm"),
+        cancelText: t("profile.keepConsent"),
+        danger: true,
+      });
       if (!ok) return;
       this.consentBusy = true;
       try {
         this.setProfile(await withdrawConsent());
-        toast("Your consent was withdrawn.");
+        toast(t("profile.consentWithdrawn"));
       } catch (error) {
         toast(friendlyError(error), "error");
       } finally {

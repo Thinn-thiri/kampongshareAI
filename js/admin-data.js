@@ -9,25 +9,35 @@
 /** @typedef {'active' | 'history' | 'all'} BrowseView */
 
 /** The "To review" sub-tabs. Volunteers holds both volunteer accounts and event applications. */
-const REVIEW_KINDS = /** @type {{ value: ReviewKind, label: string, single: string }[]} */ ([
-  { value: "organizations", label: "Organizations", single: "Organization" },
-  { value: "requests", label: "Requests", single: "Request" },
-  { value: "events", label: "Events", single: "Event" },
-  { value: "volunteers", label: "Volunteers", single: "Volunteer" },
-]);
+const REVIEW_KINDS = labelledOptions(
+  /** @type {Record<ReviewKind, string>} */ ({
+    organizations: "admin.kind.organizations",
+    requests: "admin.kind.requests",
+    events: "admin.kind.events",
+    volunteers: "admin.kind.volunteers",
+  }),
+);
 
 /** The Browse sub-tabs. */
-const BROWSE_KINDS = /** @type {{ value: BrowseKind, label: string }[]} */ ([
-  { value: "organizations", label: "Organizations" },
-  { value: "requests", label: "Requests" },
-  { value: "events", label: "Events" },
-  { value: "offers", label: "Offers" },
-  { value: "volunteers", label: "Volunteers" },
-  { value: "applications", label: "Applications" },
-]);
+const BROWSE_KINDS = labelledOptions(
+  /** @type {Record<BrowseKind, string>} */ ({
+    organizations: "admin.kind.organizations",
+    requests: "admin.kind.requests",
+    events: "admin.kind.events",
+    offers: "admin.kind.offers",
+    volunteers: "admin.kind.volunteers",
+    applications: "admin.kind.applications",
+  }),
+);
 
-/** One-tap reasons in the Reject dialog (the admin can still edit the note). */
-const QUICK_REJECT_REASONS = ["Missing details", "Couldn't verify the organization", "Not suitable for the platform", "Duplicate"];
+/**
+ * One-tap reasons in the Reject dialog (the admin can still edit the note). In the admin's language,
+ * because the note is saved as text the sender reads.
+ * @returns {string[]}
+ */
+function quickRejectReasons() {
+  return ["missing", "unverified", "unsuitable", "duplicate"].map((key) => t(`admin.quickReason.${key}`));
+}
 
 /** Longest admin note (characters), as before. */
 const ADMIN_NOTE_MAX = 500;
@@ -39,7 +49,7 @@ const ADMIN_NOTE_MAX = 500;
  * @property {string} id
  * @property {ReviewKind} kind
  * @property {'organization' | 'request' | 'event' | 'account' | 'application'} subkind
- * @property {string} typeLabel  "Organization", "Request", "Event", "Account", "Application"
+ * @property {string} typeLabel  "Organization", "Request", "Event", "Account", "Application" (a getter: follows the language)
  * @property {string} title
  * @property {string} sender     who sent it
  * @property {string} createdAt
@@ -54,8 +64,8 @@ const ADMIN_NOTE_MAX = 500;
  */
 function waitingText(createdAt) {
   const days = Math.floor((Date.now() - new Date(createdAt).getTime()) / 86_400_000);
-  if (days <= 0) return "Waiting since today";
-  return `Waiting ${days} ${days === 1 ? "day" : "days"}`;
+  if (days <= 0) return t("admin.waitingToday");
+  return t("admin.waitingDays", { count: days });
 }
 
 /** @param {string} value @returns {string} */
@@ -81,14 +91,20 @@ async function loadReviewItems(kind) {
       id: org.id,
       kind,
       subkind: /** @type {const} */ ("organization"),
-      typeLabel: "Organization",
+      get typeLabel() {
+        return t("admin.type.organization");
+      },
       title: org.name,
-      sender: org.owner?.full_name ? `Sent by ${org.owner.full_name}` : "Sent by the organization's owner",
+      get sender() {
+        return org.owner?.full_name ? t("admin.sentBy", { name: org.owner.full_name }) : t("admin.sentByOwner");
+      },
       createdAt: org.created_at,
-      details: [
-        { label: "Address", value: org.address || "Not given" },
-        { label: "Phone", value: org.phone || "Not given" },
-      ],
+      get details() {
+        return [
+          { label: t("field.address"), value: org.address || t("common.notGiven") },
+          { label: t("field.phone"), value: org.phone || t("common.notGiven") },
+        ];
+      },
       raw: org,
     }));
   }
@@ -99,15 +115,21 @@ async function loadReviewItems(kind) {
       id: request.id,
       kind,
       subkind: /** @type {const} */ ("request"),
-      typeLabel: "Request",
+      get typeLabel() {
+        return t("admin.type.request");
+      },
       title: request.title,
-      sender: `Sent by ${request.organization?.name || "an organization"}`,
+      get sender() {
+        return t("admin.sentBy", { name: request.organization?.name || t("admin.anOrganization") });
+      },
       createdAt: request.created_at,
-      details: [
-        { label: "Items", value: `${request.request_items.length} ${request.request_items.length === 1 ? "item" : "items"}` },
-        { label: "Deadline", value: request.deadline ? formatDate(request.deadline) : "None" },
-        { label: "Urgency", value: urgencyName(request.urgency) },
-      ],
+      get details() {
+        return [
+          { label: t("field.items"), value: t("admin.itemsCount", { count: request.request_items.length }) },
+          { label: t("field.deadline"), value: request.deadline ? formatDate(request.deadline) : t("common.none") },
+          { label: t("field.urgency"), value: urgencyName(request.urgency) },
+        ];
+      },
       raw: request,
     }));
   }
@@ -118,15 +140,21 @@ async function loadReviewItems(kind) {
       id: event.id,
       kind,
       subkind: /** @type {const} */ ("event"),
-      typeLabel: "Event",
+      get typeLabel() {
+        return t("admin.type.event");
+      },
       title: event.title,
-      sender: `Sent by ${event.organization?.name || "an organization"}`,
+      get sender() {
+        return t("admin.sentBy", { name: event.organization?.name || t("admin.anOrganization") });
+      },
       createdAt: event.created_at,
-      details: [
-        { label: "When", value: formatEventTime(event.starts_at, event.ends_at) },
-        { label: "Place", value: event.location_name || "Not given" },
-        { label: "Volunteers needed", value: event.volunteers_needed ? String(event.volunteers_needed) : "No limit" },
-      ],
+      get details() {
+        return [
+          { label: t("field.when"), value: formatEventTime(event.starts_at, event.ends_at) },
+          { label: t("field.place"), value: event.location_name || t("common.notGiven") },
+          { label: t("field.volunteersNeeded"), value: event.volunteers_needed ? formatNumber(event.volunteers_needed) : t("admin.noLimit") },
+        ];
+      },
       raw: event,
     }));
   }
@@ -138,14 +166,22 @@ async function loadReviewItems(kind) {
       id: account.id,
       kind,
       subkind: /** @type {const} */ ("account"),
-      typeLabel: "Account",
-      title: account.full_name || "Name not given",
-      sender: "New volunteer account",
+      get typeLabel() {
+        return t("admin.type.account");
+      },
+      get title() {
+        return account.full_name || t("admin.nameNotGiven");
+      },
+      get sender() {
+        return t("admin.newVolunteerAccount");
+      },
       createdAt: account.created_at,
-      details: [
-        { label: "Area", value: account.area || "Not given" },
-        { label: "Interests", value: account.interests?.join(", ") || "Not given" },
-      ],
+      get details() {
+        return [
+          { label: t("field.area"), value: account.area ? areaLabel(account.area) : t("common.notGiven") },
+          { label: t("field.interests"), value: enumList("interest", account.interests) || t("common.notGiven") },
+        ];
+      },
       raw: account,
     })),
     ...applications.map((application) => ({
@@ -153,14 +189,22 @@ async function loadReviewItems(kind) {
       id: application.id,
       kind,
       subkind: /** @type {const} */ ("application"),
-      typeLabel: "Application",
-      title: application.volunteer?.full_name || "Name not given",
-      sender: `Applied to ${application.event?.title ?? "an event"}`,
+      get typeLabel() {
+        return t("admin.type.application");
+      },
+      get title() {
+        return application.volunteer?.full_name || t("admin.nameNotGiven");
+      },
+      get sender() {
+        return t("admin.appliedTo", { event: application.event?.title ?? t("admin.anEvent") });
+      },
       createdAt: application.created_at,
-      details: [
-        { label: "Event", value: application.event?.title ?? "Not available" },
-        { label: "Organization", value: application.event?.organization?.name ?? "Not available" },
-      ],
+      get details() {
+        return [
+          { label: t("field.event"), value: application.event?.title ?? t("admin.notAvailable") },
+          { label: t("field.organization"), value: application.event?.organization?.name ?? t("admin.notAvailable") },
+        ];
+      },
       raw: application,
     })),
   ];
@@ -176,20 +220,20 @@ async function approveReviewItem(item) {
   switch (item.subkind) {
     case "organization":
       await setOrganizationApproval(item.id, "approved");
-      return `Organization approved: ${item.title} can now post requests and events.`;
+      return t("admin.approvedToast.organization", { title: item.title });
     case "request":
       await setRequestApproval(item.id, "open");
       await scoreRequest(item.id); // urgency score for sorting and "Why this score?"
-      return `Request approved: donors can see "${item.title}" now.`;
+      return t("admin.approvedToast.request", { title: item.title });
     case "event":
       await setEventApproval(item.id, "approved");
-      return `Event approved: "${item.title}" is on the map and can be shared.`;
+      return t("admin.approvedToast.event", { title: item.title });
     case "account":
       await setVolunteerApproval(item.id, "approved");
-      return `Volunteer approved: ${item.title} can now apply to events.`;
+      return t("admin.approvedToast.account", { title: item.title });
     default:
       await setApplicationStatus(item.id, "approved");
-      return "Application approved.";
+      return t("admin.approvedToast.application");
   }
 }
 
@@ -203,19 +247,19 @@ async function rejectReviewItem(item, note) {
   switch (item.subkind) {
     case "organization":
       await setOrganizationApproval(item.id, "rejected", note);
-      return `Organization rejected. ${item.title} can see your note.`;
+      return t("admin.rejectedToast.organization", { title: item.title });
     case "request":
       await setRequestApproval(item.id, "rejected", note);
-      return `Request rejected. The organization can see your note.`;
+      return t("admin.rejectedToast.request");
     case "event":
       await setEventApproval(item.id, "rejected", note);
-      return `Event rejected. The organization can see your note.`;
+      return t("admin.rejectedToast.event");
     case "account":
       await setVolunteerApproval(item.id, "rejected", note);
-      return `Volunteer account rejected. ${item.title} can see your note and ask for another review.`;
+      return t("admin.rejectedToast.account", { title: item.title });
     default:
       await setApplicationStatus(item.id, "rejected");
-      return "Application rejected.";
+      return t("admin.rejectedToast.application");
   }
 }
 
@@ -225,18 +269,11 @@ async function rejectReviewItem(item, note) {
  * @returns {{ title: string, message: string }}
  */
 function rejectWording(item) {
-  switch (item.subkind) {
-    case "organization":
-      return { title: "Reject this organization?", message: `${item.title} won't be able to post requests or events. The organization will see your note.` };
-    case "request":
-      return { title: "Reject this request?", message: `"${item.title}" won't be shown to donors. The organization will see your note.` };
-    case "event":
-      return { title: "Reject this event?", message: `"${item.title}" won't appear on the map. The organization will see your note.` };
-    case "account":
-      return { title: "Reject this volunteer account?", message: `${item.title} won't be able to apply to events. They'll see your note and can ask for another review.` };
-    default:
-      return { title: "Reject this application?", message: `${item.title} will see they weren't selected for ${item.raw.event?.title ? `"${item.raw.event.title}"` : "the event"}.` };
-  }
+  const event = item.raw.event?.title ? `"${item.raw.event.title}"` : t("admin.theEvent");
+  return {
+    title: t(`admin.rejectTitle.${item.subkind}`),
+    message: t(`admin.rejectText.${item.subkind}`, { title: item.title, event }),
+  };
 }
 
 /**
@@ -256,25 +293,30 @@ function rejectWording(item) {
  */
 
 /**
- * @param {string} word
+ * "Joined 3 Oct 2026" — key is one of admin.dated.* (a {date} line).
+ * @param {string} key
  * @param {string | null | undefined} iso
  * @returns {string}
  */
-function datedText(word, iso) {
-  return iso ? `${word} ${formatDate(iso)}` : word;
+function datedText(key, iso) {
+  return t(`admin.dated.${key}`, { date: iso ? formatDate(iso) : "" }).trim();
 }
 
 /** @param {any} row @returns {BrowseRow} */
 function orgBrowseRow(row) {
   return {
     id: row.id,
-    type: "Organization",
+    get type() {
+      return t("admin.type.organization");
+    },
     title: row.name,
     detail: row.address || "",
     status: row.approval,
     statusKind: "approval",
     when: row.created_at,
-    whenText: datedText("Joined", row.created_at),
+    get whenText() {
+      return datedText("joined", row.created_at);
+    },
     reason: row.approval === "rejected" ? row.admin_note ?? "" : "",
     orgName: row.name,
     raw: row,
@@ -283,18 +325,22 @@ function orgBrowseRow(row) {
 
 /** @param {any} row @returns {BrowseRow} */
 function requestBrowseRow(row) {
-  const word = { fulfilled: "Fulfilled", closed: "Closed", rejected: "Rejected" }[/** @type {string} */ (row.status)];
-  const when = word ? row.closed_at ?? row.updated_at : row.created_at;
+  const ended = ["fulfilled", "closed", "rejected"].includes(row.status);
+  const when = ended ? row.closed_at ?? row.updated_at : row.created_at;
   const orgName = row.organization?.name ?? "";
   return {
     id: row.id,
-    type: "Request",
+    get type() {
+      return t("admin.type.request");
+    },
     title: row.title,
     detail: orgName,
     status: row.status,
     statusKind: "request",
     when,
-    whenText: datedText(word ?? "Posted", when),
+    get whenText() {
+      return datedText(ended ? row.status : "posted", when);
+    },
     reason: row.status === "rejected" ? row.admin_note ?? "" : row.close_reason ?? "",
     orgName,
     raw: row,
@@ -308,13 +354,17 @@ function eventRowForBrowse(row) {
   const orgName = row.organization?.name ?? "";
   return {
     id: row.id,
-    type: "Event",
+    get type() {
+      return t("admin.type.event");
+    },
     title: row.title,
     detail: [orgName, row.location_name].filter(Boolean).join(" · "),
     status: row.status,
     statusKind: "event",
     when,
-    whenText: cancelled ? datedText("Cancelled", when) : formatEventTime(row.starts_at, row.ends_at),
+    get whenText() {
+      return cancelled ? datedText("cancelled", when) : formatEventTime(row.starts_at, row.ends_at);
+    },
     reason: cancelled ? row.cancel_reason ?? "" : row.status === "completed" ? row.outcome_summary ?? "" : "",
     orgName,
     raw: row,
@@ -324,17 +374,27 @@ function eventRowForBrowse(row) {
 /** @param {any} row @returns {BrowseRow} */
 function offerRowForBrowse(row) {
   const orgName = row.item?.request?.organization?.name ?? "";
-  const donor = row.donor ? row.donor.full_name || "Name not given" : "Deleted account";
   const active = row.status === "pending" || row.status === "accepted";
   return {
     id: row.id,
-    type: "Offer",
-    title: row.item ? `${row.quantity} ${row.item.unit} · ${row.item.name}` : `${row.quantity} items`,
-    detail: [row.item?.request?.title, orgName, `from ${donor}`].filter(Boolean).join(" · "),
+    get type() {
+      return t("admin.type.offer");
+    },
+    get title() {
+      return row.item
+        ? t("admin.offerTitle", { quantity: row.quantity, unit: row.item.unit, item: row.item.name })
+        : t("admin.offerItems", { count: row.quantity });
+    },
+    get detail() {
+      const donor = row.donor ? row.donor.full_name || t("admin.nameNotGiven") : t("admin.deletedAccount");
+      return [row.item?.request?.title, orgName, t("admin.fromDonor", { name: donor })].filter(Boolean).join(" · ");
+    },
     status: row.status,
     statusKind: "offer",
     when: active ? row.created_at : row.updated_at,
-    whenText: active ? datedText("Offered", row.created_at) : offerEndedText(row),
+    get whenText() {
+      return active ? datedText("offered", row.created_at) : offerEndedText(row);
+    },
     reason: "",
     orgName,
     raw: row,
@@ -345,13 +405,21 @@ function offerRowForBrowse(row) {
 function accountBrowseRow(row) {
   return {
     id: row.id,
-    type: "Account",
-    title: row.full_name || "Name not given",
-    detail: row.area || "",
+    get type() {
+      return t("admin.type.account");
+    },
+    get title() {
+      return row.full_name || t("admin.nameNotGiven");
+    },
+    get detail() {
+      return row.area ? areaLabel(row.area) : "";
+    },
     status: row.volunteer_approval ?? "pending",
     statusKind: "approval",
     when: row.created_at,
-    whenText: datedText("Signed up", row.created_at),
+    get whenText() {
+      return datedText("signedUp", row.created_at);
+    },
     reason: row.volunteer_approval === "rejected" ? row.volunteer_note ?? "" : "",
     orgName: "",
     raw: row,
@@ -363,14 +431,23 @@ function applicationRowForBrowse(row) {
   const orgName = row.event?.organization?.name ?? "";
   return {
     id: row.id,
-    type: "Application",
-    title: row.volunteer ? row.volunteer.full_name || "Name not given" : "Deleted account",
+    get type() {
+      return t("admin.type.application");
+    },
+    get title() {
+      return row.volunteer ? row.volunteer.full_name || t("admin.nameNotGiven") : t("admin.deletedAccount");
+    },
     detail: [row.event?.title, orgName].filter(Boolean).join(" · "),
     status: row.status,
     statusKind: "application",
     when: row.created_at,
-    whenText: datedText("Applied", row.created_at),
-    reason: row.event?.status === "cancelled" ? `Event cancelled${row.event.cancel_reason ? `: ${row.event.cancel_reason}` : ""}` : "",
+    get whenText() {
+      return datedText("applied", row.created_at);
+    },
+    get reason() {
+      if (row.event?.status !== "cancelled") return "";
+      return row.event.cancel_reason ? t("admin.eventCancelledReason", { reason: row.event.cancel_reason }) : t("admin.eventCancelled");
+    },
     orgName,
     raw: row,
   };

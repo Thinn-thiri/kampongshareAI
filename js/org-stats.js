@@ -62,15 +62,13 @@ document.addEventListener("alpine:init", () => {
     actions() {
       const s = this.stats;
       if (!s) return [];
-      /** @param {number} n @param {string} one @param {string} many */
-      const plural = (n, one, many) => `${n} ${n === 1 ? one : many}`;
       /** @type {{ text: string, href: string, info?: boolean }[]} */
       const list = [];
-      if (s.offersWaiting) list.push({ text: `${plural(s.offersWaiting, "offer", "offers")} to accept or reject`, href: "#offers" });
-      if (s.offersToDeliver) list.push({ text: `${plural(s.offersToDeliver, "accepted offer", "accepted offers")} to mark delivered when it arrives`, href: "#offers" });
-      if (s.applicationsWaiting) list.push({ text: `${plural(s.applicationsWaiting, "volunteer application", "volunteer applications")} waiting`, href: "#events" });
-      if (s.requestsWaitingApproval) list.push({ text: `${plural(s.requestsWaitingApproval, "request", "requests")} waiting for admin approval`, href: "#requests", info: true });
-      if (s.eventsWaitingApproval) list.push({ text: `${plural(s.eventsWaitingApproval, "event", "events")} waiting for admin approval`, href: "#events", info: true });
+      if (s.offersWaiting) list.push({ text: t("orgDash.action.offers", { count: s.offersWaiting }), href: "#offers" });
+      if (s.offersToDeliver) list.push({ text: t("orgDash.action.deliver", { count: s.offersToDeliver }), href: "#offers" });
+      if (s.applicationsWaiting) list.push({ text: t("orgDash.action.applications", { count: s.applicationsWaiting }), href: "#events" });
+      if (s.requestsWaitingApproval) list.push({ text: t("orgDash.action.requests", { count: s.requestsWaitingApproval }), href: "#requests", info: true });
+      if (s.eventsWaitingApproval) list.push({ text: t("orgDash.action.events", { count: s.eventsWaitingApproval }), href: "#events", info: true });
       return list;
     },
   }));

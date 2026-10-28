@@ -41,8 +41,9 @@ document.addEventListener("alpine:init", () => {
     },
 
     get summary() {
-      if (!event.volunteers_needed) return `${this.approvedCount} approved`;
-      return this.isFull ? `Event full — ${this.approvedCount} of ${event.volunteers_needed} approved` : `${this.approvedCount} of ${event.volunteers_needed} approved`;
+      if (!event.volunteers_needed) return t("orgDash.approvedCount", { approved: this.approvedCount });
+      const counts = { approved: this.approvedCount, needed: event.volunteers_needed };
+      return this.isFull ? t("orgDash.fullApprovedOf", counts) : t("orgDash.approvedOf", counts);
     },
 
     /** Applications worth showing: withdrawn ones are hidden. */
@@ -76,11 +77,29 @@ document.addEventListener("alpine:init", () => {
      * @param {'approve' | 'reject' | 'remove'} action
      */
     async decide(application, action) {
-      const name = application.volunteer?.full_name || "this volunteer";
+      const name = application.volunteer?.full_name || t("orgDash.thisVolunteer");
       const dialogs = {
-        approve: { title: "Approve this volunteer?", message: `${name} will be confirmed for "${event.title}".`, confirmText: "Approve", danger: false, done: `${name} is approved.` },
-        reject: { title: "Reject this application?", message: `${name} will see they weren't selected this time.`, confirmText: "Reject", danger: true, done: "Application rejected." },
-        remove: { title: "Remove this volunteer?", message: `${name} will see they're no longer needed for "${event.title}", and their spot opens up.`, confirmText: "Remove volunteer", danger: true, done: `${name} was removed.` },
+        approve: {
+          title: t("orgDash.approveVolunteerTitle"),
+          message: t("orgDash.approveVolunteerText", { name, event: event.title }),
+          confirmText: t("common.approve"),
+          danger: false,
+          done: t("orgDash.volunteerApproved", { name }),
+        },
+        reject: {
+          title: t("orgDash.rejectApplicationTitle"),
+          message: t("orgDash.rejectApplicationText", { name }),
+          confirmText: t("common.reject"),
+          danger: true,
+          done: t("orgDash.applicationRejected"),
+        },
+        remove: {
+          title: t("orgDash.removeVolunteerTitle"),
+          message: t("orgDash.removeVolunteerText", { name, event: event.title }),
+          confirmText: t("orgDash.removeVolunteer"),
+          danger: true,
+          done: t("orgDash.volunteerRemoved", { name }),
+        },
       };
       const dialog = dialogs[action];
       const ok = await confirmDialog(dialog.message, { title: dialog.title, confirmText: dialog.confirmText, danger: dialog.danger });
@@ -117,7 +136,7 @@ document.addEventListener("alpine:init", () => {
       this.savingTask = true;
       try {
         await createTask({ eventId: event.id, volunteerId, ...this.taskForm });
-        toast("Task assigned. The volunteer can see it on their dashboard.");
+        toast(t("orgDash.taskAssigned"));
         this.taskFor = null;
         await this.load();
       } catch (error) {

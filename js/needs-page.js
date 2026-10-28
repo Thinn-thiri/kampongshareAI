@@ -139,7 +139,7 @@ document.addEventListener("alpine:init", () => {
       if (!visible) this.clearFilters();
       const item = this.requests.flatMap((r) => r.request_items).find((i) => i.id === itemId);
       if (!item) {
-        toast("That item isn't open for donations any more.", "error");
+        toast(t("needs.notOpen"), "error");
         return;
       }
       if (this.mode === "donor" && item.quantity_remaining > 0 && !this.activeOfferFor(item)) this.openOffer(item);
@@ -172,7 +172,7 @@ document.addEventListener("alpine:init", () => {
       this.sending = true;
       try {
         await makeOffer(item.id, this.offerForm);
-        toast("Your offer was sent. The organization will confirm within 2 days.");
+        toast(t("needs.offerSent"));
         this.offerItemId = null;
         await this.reload();
       } catch (error) {
@@ -188,7 +188,7 @@ document.addEventListener("alpine:init", () => {
         this.viewer = await turnOnRole("donor");
         this.profile = await getProfile();
         if (this.profile) this.myOffers = await listMyOffers(this.profile.id);
-        toast("Donating is turned on. You can offer items now.");
+        toast(t("viewer.donatingOn"));
       } catch (error) {
         toast(friendlyError(error), "error");
       } finally {

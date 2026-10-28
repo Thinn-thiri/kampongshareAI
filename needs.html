@@ -5,7 +5,12 @@
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <!-- sets light / dark before anything is drawn (no white flash) -->
     <script src="/js/theme.js"></script>
-    <title>Browse needs · KampongShare</title>
+    <!-- languages: the three dictionaries, then js/i18n.js sets <html lang> and translates before drawing -->
+    <script src="/js/i18n/en.js"></script>
+    <script src="/js/i18n/zh.js"></script>
+    <script src="/js/i18n/ms.js"></script>
+    <script src="/js/i18n.js"></script>
+    <title data-i18n="needs.pageTitle">Browse needs · KampongShare</title>
     <link rel="icon" href="/img/favicon.svg" type="image/svg+xml" />
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
@@ -20,74 +25,95 @@
     <script src="/js/requests.js"></script>
     <script src="/js/offers.js"></script>
     <script src="/js/needs-page.js"></script>
+    <script src="/js/chat-questions.js"></script>
+    <script src="/js/chat.js"></script>
     <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3/dist/cdn.min.js"></script>
   </head>
   <body>
-    <a href="#main" class="skip-link">Skip to main content</a>
+    <a href="#main" class="skip-link" data-i18n="nav.skip">Skip to main content</a>
     <header class="topbar" x-data="topBar">
-      <div class="container-page flex min-h-16 flex-wrap items-center gap-x-3 gap-y-2 py-2">
-        <a href="/" class="flex items-center gap-2 rounded-sm font-bold text-primary focus-visible:outline-2 focus-visible:outline-primary" aria-label="KampongShare home">
+      <div class="container-page flex min-h-16 flex-wrap items-center gap-x-2 gap-y-2 py-2 sm:gap-x-3">
+        <a href="/" class="flex items-center gap-2 rounded-sm font-bold text-primary focus-visible:outline-2 focus-visible:outline-primary" aria-label="KampongShare home" data-i18n-attr="aria-label:nav.homeLink">
           <img src="/img/favicon.svg" alt="" class="size-8" />
           <span class="hidden sm:inline">KampongShare</span>
         </a>
         <!-- the logged-in person's own name (only they see it) -->
-        <span class="max-w-28 truncate rounded-full bg-primary-soft px-2.5 py-1 text-xs font-semibold text-primary sm:max-w-48"
-          x-show="profile?.full_name" x-cloak :title="profile?.full_name"><span class="sr-only">Logged in as </span><span x-text="profile?.full_name"></span></span>
+        <span class="max-w-24 truncate rounded-full bg-primary-soft px-2.5 py-1 text-xs font-semibold text-primary sm:max-w-48"
+          x-show="profile?.full_name" x-cloak :title="profile?.full_name"><span class="sr-only" data-i18n="nav.loggedInAs">Logged in as</span> <span x-text="profile?.full_name"></span></span>
         <!-- pushes the links and buttons to the right -->
         <span class="flex-1" aria-hidden="true"></span>
         <!-- Desktop links (phones use the bottom navigation) -->
-        <nav class="hidden items-center gap-1 sm:flex" aria-label="Site" x-show="ready" x-cloak>
+        <nav class="hidden items-center gap-1 sm:flex" aria-label="Site" data-i18n-attr="aria-label:nav.site" x-show="ready" x-cloak>
           <template x-for="link in topLinks" :key="link.href">
             <a :href="link.href" class="top-link gap-2" :aria-current="isCurrent(link.href) ? 'page' : null">
-              <span x-text="link.label"></span>
-              <span class="badge badge-warning" x-show="link.badge" x-text="link.badge" :aria-label="`${link.badge} waiting`"></span>
+              <span x-text="$t(link.labelKey)"></span>
+              <span class="badge badge-warning" x-show="link.badge" x-text="link.badge" :aria-label="$t('nav.waiting', { count: link.badge })"></span>
             </a>
           </template>
         </nav>
-        <nav class="segmented order-last w-full sm:order-none sm:w-auto" aria-label="Switch between donating and volunteering" x-show="canSwitch" x-cloak>
-          <a href="/donor.html" class="segmented-link" :aria-current="here('/donor.html') ? 'page' : null">Donating</a>
-          <a href="/volunteer.html" class="segmented-link" :aria-current="here('/volunteer.html') ? 'page' : null">Volunteering</a>
+        <nav class="segmented order-last w-full sm:order-none sm:w-auto" aria-label="Switch between donating and volunteering" data-i18n-attr="aria-label:nav.switchRole" x-show="canSwitch" x-cloak>
+          <a href="/donor.html" class="segmented-link" :aria-current="here('/donor.html') ? 'page' : null" data-i18n="nav.donating">Donating</a>
+          <a href="/volunteer.html" class="segmented-link" :aria-current="here('/volunteer.html') ? 'page' : null" data-i18n="nav.volunteering">Volunteering</a>
         </nav>
+        <!-- Language: English / 中文 / Bahasa Melayu (js/i18n.js) -->
+        <div class="relative" x-data="langMenu" @keydown.escape="close(true)" @click.outside="close(false)">
+          <button type="button" x-ref="langButton" class="btn btn-ghost min-w-11 gap-1.5 px-2" :aria-label="buttonLabel" aria-label="Language / 语言 / Bahasa"
+            aria-haspopup="menu" :aria-expanded="open.toString()" aria-controls="lang-menu" @click="toggle()">
+            <i data-lucide="globe" class="size-5" aria-hidden="true"></i>
+            <span class="text-sm sm:hidden" :lang="current.htmlLang" x-text="current.short"></span>
+            <span class="hidden text-sm sm:inline" :lang="current.htmlLang" x-text="current.name"></span>
+          </button>
+          <div id="lang-menu" class="menu w-48" role="menu" aria-label="Language / 语言 / Bahasa" x-show="open" x-cloak @keydown.down.prevent="move(1)" @keydown.up.prevent="move(-1)">
+            <template x-for="option in options" :key="option.code">
+              <button type="button" class="menu-item gap-2" role="menuitemradio" :lang="option.htmlLang" :aria-checked="(lang === option.code).toString()" @click="pick(option.code)">
+                <span class="flex-1" x-text="option.name"></span>
+                <span class="text-primary" x-show="lang === option.code"><i data-lucide="check" class="size-4" aria-hidden="true"></i></span>
+              </button>
+            </template>
+          </div>
+        </div>
         <!-- Theme: System / Light / Dark (js/theme.js) -->
         <div class="relative" x-data="themeMenu" @keydown.escape="close(true)" @click.outside="close(false)">
-          <button type="button" x-ref="themeButton" class="btn btn-ghost size-11 px-0" :aria-label="`Theme: ${label}`" aria-label="Theme"
+          <button type="button" x-ref="themeButton" class="btn btn-ghost size-11 px-0" :aria-label="$t('theme.button', { name: label })" aria-label="Theme"
             aria-haspopup="menu" :aria-expanded="open.toString()" aria-controls="theme-menu" @click="toggle()">
             <span x-show="choice === 'system'"><i data-lucide="monitor" class="size-5" aria-hidden="true"></i></span>
             <span x-show="choice === 'light'" x-cloak><i data-lucide="sun" class="size-5" aria-hidden="true"></i></span>
             <span x-show="choice === 'dark'" x-cloak><i data-lucide="moon" class="size-5" aria-hidden="true"></i></span>
           </button>
-          <div id="theme-menu" class="menu w-40" role="menu" aria-label="Theme" x-show="open" x-cloak @keydown.down.prevent="move(1)" @keydown.up.prevent="move(-1)">
+          <div id="theme-menu" class="menu w-40" role="menu" aria-label="Theme" data-i18n-attr="aria-label:theme.menu" x-show="open" x-cloak @keydown.down.prevent="move(1)" @keydown.up.prevent="move(-1)">
             <template x-for="option in options" :key="option.value">
               <button type="button" class="menu-item gap-2" role="menuitemradio" :aria-checked="(choice === option.value).toString()" @click="pick(option.value)">
                 <span x-show="option.icon === 'monitor'"><i data-lucide="monitor" class="size-4" aria-hidden="true"></i></span>
                 <span x-show="option.icon === 'sun'"><i data-lucide="sun" class="size-4" aria-hidden="true"></i></span>
                 <span x-show="option.icon === 'moon'"><i data-lucide="moon" class="size-4" aria-hidden="true"></i></span>
-                <span class="flex-1" x-text="option.label"></span>
+                <span class="flex-1" x-text="$t(`theme.${option.value}`)"></span>
                 <span class="text-primary" x-show="choice === option.value"><i data-lucide="check" class="size-4" aria-hidden="true"></i></span>
               </button>
             </template>
           </div>
         </div>
-        <nav class="flex items-center gap-1" aria-label="Account" x-show="ready && !profile" x-cloak>
-          <a href="/login.html" class="btn btn-ghost px-3">Log in</a>
-          <a href="/signup.html" class="btn btn-primary px-4">Sign up</a>
+        <nav class="flex items-center gap-1" aria-label="Account" data-i18n-attr="aria-label:nav.account" x-show="ready && !profile" x-cloak>
+          <a href="/login.html" class="btn btn-ghost hidden px-3 sm:inline-flex" data-i18n="nav.logIn">Log in</a>
+          <a href="/signup.html" class="btn btn-primary px-4" data-i18n="nav.signUp">Sign up</a>
         </nav>
         <div class="relative" x-show="profile" x-cloak @keydown.escape="if (open) { open = false; $refs.accountButton.focus() }" @click.outside="open = false">
-          <button type="button" x-ref="accountButton" class="btn btn-secondary px-4" :aria-expanded="open.toString()" aria-controls="account-menu" @click="open = !open">
-            Account
+          <button type="button" x-ref="accountButton" class="btn btn-secondary min-w-11 px-2 sm:px-4" :aria-expanded="open.toString()" aria-controls="account-menu" @click="open = !open">
+            <!-- phones: an icon (the name is still read out), so the top bar fits on one row -->
+            <i data-lucide="user-round" class="size-5 sm:hidden" aria-hidden="true"></i>
+            <span class="sr-only sm:not-sr-only" data-i18n="nav.account">Account</span>
           </button>
           <div id="account-menu" class="menu" x-show="open" x-cloak>
-            <a :href="dashboard" href="/" class="menu-item sm:hidden">My dashboard</a>
-            <a href="/profile.html" class="menu-item">My profile</a>
-            <button type="button" class="menu-item" @click="logout()">Log out</button>
+            <a :href="dashboard" href="/" class="menu-item sm:hidden" data-i18n="nav.myDashboard">My dashboard</a>
+            <a href="/profile.html" class="menu-item" data-i18n="nav.myProfile">My profile</a>
+            <button type="button" class="menu-item" @click="logout()" data-i18n="nav.logOut">Log out</button>
           </div>
         </div>
       </div>
-        <nav class="bottom-nav" aria-label="Main" x-show="ready" x-cloak>
+        <nav class="bottom-nav" aria-label="Main" data-i18n-attr="aria-label:nav.main" x-show="ready" x-cloak>
           <template x-for="link in bottomLinks" :key="link.href">
             <a :href="link.href" class="bottom-nav-link" :aria-current="isCurrent(link.href) ? 'page' : null">
               <i :data-lucide="link.icon" class="size-5" aria-hidden="true"></i>
-              <span x-text="link.label"></span>
+              <span x-text="$t(link.labelKey)"></span>
             </a>
           </template>
         </nav>
@@ -95,80 +121,80 @@
 
     <main id="main" tabindex="-1" class="container-page space-y-6 py-8 focus:outline-none" x-data="needsPage">
       <div>
-        <h1 class="text-2xl font-bold sm:text-3xl">Browse needs</h1>
-        <p class="mt-1 text-muted">Every open request from approved organizations, most urgent first. Offer exactly what's needed.</p>
+        <h1 class="text-2xl font-bold sm:text-3xl" data-i18n="needs.title">Browse needs</h1>
+        <p class="mt-1 text-muted" data-i18n="needs.intro">Every open request from approved organizations, most urgent first. Offer exactly what's needed.</p>
       </div>
 
       <!-- Filters (kept in the URL) -->
-      <form class="card grid gap-4 sm:grid-cols-2 lg:grid-cols-4" role="search" aria-label="Filter needs" @submit.prevent>
+      <form class="card grid gap-4 sm:grid-cols-2 lg:grid-cols-4" role="search" aria-label="Filter needs" data-i18n-attr="aria-label:needs.filterLabel" @submit.prevent>
         <div class="sm:col-span-2 lg:col-span-1">
-          <label for="f-q" class="label">Search</label>
-          <input id="f-q" class="input" type="search" placeholder="e.g. rice, diapers" maxlength="60"
+          <label for="f-q" class="label" data-i18n="needs.search">Search</label>
+          <input id="f-q" class="input" type="search" placeholder="e.g. rice, diapers" data-i18n-attr="placeholder:needs.searchPlaceholder" maxlength="60"
             x-model.debounce.300ms="filters.q" />
         </div>
         <div>
-          <label for="f-category" class="label">Category</label>
+          <label for="f-category" class="label" data-i18n="needs.category">Category</label>
           <select id="f-category" class="input" x-model="filters.category" @change="syncUrl()">
-            <option value="">All categories</option>
+            <option value="" data-i18n="needs.allCategories">All categories</option>
             <template x-for="option in categories" :key="option.value">
               <option :value="option.value" x-text="option.label" :selected="option.value === filters.category"></option>
             </template>
           </select>
         </div>
         <div>
-          <label for="f-area" class="label">Area</label>
+          <label for="f-area" class="label" data-i18n="needs.area">Area</label>
           <select id="f-area" class="input" x-model="filters.area" @change="syncUrl()">
-            <option value="">All areas</option>
+            <option value="" data-i18n="needs.allAreas">All areas</option>
             <template x-for="area in areas" :key="area">
-              <option :value="area" x-text="area" :selected="area === filters.area"></option>
+              <option :value="area" x-text="areaLabel(area)" :selected="area === filters.area"></option>
             </template>
           </select>
         </div>
         <div>
-          <label for="f-urgency" class="label">Urgency</label>
+          <label for="f-urgency" class="label" data-i18n="needs.urgency">Urgency</label>
           <select id="f-urgency" class="input" x-model="filters.urgency" @change="syncUrl()">
-            <option value="">Any urgency</option>
+            <option value="" data-i18n="needs.anyUrgency">Any urgency</option>
             <template x-for="option in urgencies.slice().reverse()" :key="option.value">
               <option :value="option.value" x-text="option.label" :selected="option.value === filters.urgency"></option>
             </template>
           </select>
         </div>
         <div class="flex flex-wrap items-center justify-between gap-3 sm:col-span-2 lg:col-span-4" aria-live="polite">
-          <p class="text-sm text-muted" x-show="!loading" x-text="`${filtered.length} ${filtered.length === 1 ? 'request' : 'requests'}`"></p>
-          <button type="button" class="btn btn-ghost" x-show="hasFilters" x-cloak @click="clearFilters()">Clear filters</button>
+          <p class="text-sm text-muted" x-show="!loading" x-text="$t('needs.count', { count: filtered.length })"></p>
+          <button type="button" class="btn btn-ghost" x-show="hasFilters" x-cloak @click="clearFilters()" data-i18n="needs.clearFilters">Clear filters</button>
         </div>
       </form>
 
       <!-- Who's looking -->
-      <div class="rounded-md bg-info-soft p-3 text-sm text-info" x-show="!loading && mode === 'visitor'" x-cloak>
+      <div class="rounded-md bg-info-soft p-3 text-sm text-info" x-show="!loading && mode === 'visitor'" x-cloak data-i18n="needs.visitorNote">
         You can browse without an account. To offer an item, you'll log in or sign up first — then we bring you back here.
       </div>
       <div class="flex flex-wrap items-center justify-between gap-3 rounded-md border border-line bg-canvas p-3 text-sm" x-show="!loading && mode === 'turn_on'" x-cloak>
-        <p>Turn on donating in your profile to do this.</p>
+        <p data-i18n="common.turnOnDonatingToDo">Turn on donating in your profile to do this.</p>
         <button type="button" class="btn btn-secondary" :disabled="turningOn" @click="turnOnDonating()">
           <span class="spinner" x-show="turningOn" x-cloak aria-hidden="true"></span>
-          Turn on donating
+          <span data-i18n="common.turnOnDonating">Turn on donating</span>
         </button>
       </div>
       <div class="flex flex-wrap items-center justify-between gap-3 rounded-md border border-warning bg-warning-soft p-3 text-sm text-warning" x-show="!loading && mode === 'consent'" x-cloak>
-        <p>Please confirm the privacy consent and that you're 18 or older before offering.</p>
-        <a href="/profile.html" class="btn btn-secondary">Go to my profile</a>
+        <p data-i18n="needs.consentNote">Please confirm the privacy consent and that you're 18 or older before offering.</p>
+        <a href="/profile.html" class="btn btn-secondary" data-i18n="common.goToProfile">Go to my profile</a>
       </div>
-      <p class="rounded-md bg-canvas p-3 text-sm text-muted" x-show="!loading && mode === 'staff'" x-cloak>This is what donors see.</p>
+      <p class="rounded-md bg-canvas p-3 text-sm text-muted" x-show="!loading && mode === 'staff'" x-cloak data-i18n="common.donorsSee">This is what donors see.</p>
 
       <!-- Loading / error / empty -->
-      <div class="grid gap-4 md:grid-cols-2" x-show="loading" role="status"><span class="sr-only">Loading needs…</span>
+      <div class="grid gap-4 md:grid-cols-2" x-show="loading" role="status"><span class="sr-only" data-i18n="index.loadingNeeds">Loading needs…</span>
         <div class="card space-y-3"><div class="skeleton h-5 w-24"></div><div class="skeleton h-6 w-3/4"></div><div class="skeleton h-2.5 w-full"></div></div>
         <div class="card space-y-3"><div class="skeleton h-5 w-24"></div><div class="skeleton h-6 w-2/3"></div><div class="skeleton h-2.5 w-full"></div></div>
       </div>
       <div class="card text-center" x-show="!loading && error" x-cloak role="alert">
         <p class="text-danger" x-text="error"></p>
-        <button type="button" class="btn btn-secondary mt-3" @click="reload()">Try again</button>
+        <button type="button" class="btn btn-secondary mt-3" @click="reload()" data-i18n="common.tryAgain">Try again</button>
       </div>
       <div class="card flex flex-col items-center gap-3 py-10 text-center" x-show="!loading && !error && filtered.length === 0" x-cloak>
         <i data-lucide="package-open" class="size-10 text-primary" aria-hidden="true"></i>
-        <p class="text-muted" x-text="hasFilters ? 'No requests match these filters.' : 'No open requests right now — check back soon.'"></p>
-        <button type="button" class="btn btn-secondary" x-show="hasFilters" @click="clearFilters()">Clear filters</button>
+        <p class="text-muted" x-text="hasFilters ? $t('needs.noMatches') : $t('index.noOpenRequests')"></p>
+        <button type="button" class="btn btn-secondary" x-show="hasFilters" @click="clearFilters()" data-i18n="needs.clearFilters">Clear filters</button>
       </div>
 
       <!-- Requests -->
@@ -177,37 +203,37 @@
           <article class="card flex flex-col gap-4">
             <div class="flex flex-wrap items-center gap-2">
               <span :class="requestUrgency(request).className" x-text="requestUrgency(request).label"></span>
-              <span class="badge badge-ai" x-show="requestUrgency(request).scored">AI-suggested</span>
+              <span class="badge badge-ai" x-show="requestUrgency(request).scored" data-i18n="common.aiSuggested">AI-suggested</span>
             </div>
             <!-- Why this score? (REQUIREMENTS.md 3 / 4.6) -->
             <template x-if="scoreDetails(request)">
               <div x-data="{ why: false }">
                 <button type="button" class="btn btn-ghost -ml-3 px-3 text-sm" :aria-expanded="why.toString()" :aria-controls="`why-${request.id}`" @click="why = !why"
-                  x-text="why ? 'Hide why' : 'Why this score?'">Why this score?</button>
+                  x-text="why ? $t('requests.hideWhy') : $t('requests.whyScore')">Why this score?</button>
                 <div :id="`why-${request.id}`" class="mt-1 space-y-2 rounded-md bg-canvas p-3 text-sm" x-show="why" x-cloak>
-                  <span class="badge badge-ai">AI-suggested</span>
+                  <span class="badge badge-ai" data-i18n="common.aiSuggested">AI-suggested</span>
                   <p x-text="scoreDetails(request).explanation"></p>
                   <ul class="space-y-1" x-show="scoreDetails(request).factors.length">
                     <template x-for="factor in scoreDetails(request).factors" :key="factor.key">
-                      <li class="flex justify-between gap-3"><span x-text="factor.label"></span><span class="shrink-0 font-medium" x-text="`${factor.points} / ${factor.max}`"></span></li>
+                      <li class="flex justify-between gap-3"><span x-text="factorLabel(factor)"></span><span class="shrink-0 font-medium" x-text="$t('requests.factorPoints', { points: factor.points, max: factor.max })"></span></li>
                     </template>
                   </ul>
-                  <p class="text-xs text-muted">The number comes from a fixed formula. People always make the decisions.</p>
+                  <p class="text-xs text-muted" data-i18n="requests.formulaNote">The number comes from a fixed formula. People always make the decisions.</p>
                 </div>
               </div>
             </template>
             <div class="min-w-0">
               <h2 class="text-lg font-semibold break-words" x-text="request.title"></h2>
               <a class="text-sm font-medium text-primary underline-offset-2 hover:underline" :href="`/org.html?id=${request.organization_id}`"
-                x-text="request.organization?.name || 'Organization'"></a>
+                x-text="request.organization?.name || $t('common.organization')"></a>
               <p class="text-sm text-muted break-words" x-show="request.organization?.address" x-text="request.organization?.address"></p>
-              <p class="text-sm text-muted" x-text="request.deadline ? `Needed by ${formatDate(request.deadline)}` : 'No deadline'"></p>
+              <p class="text-sm text-muted" x-text="request.deadline ? $t('common.neededBy', { date: formatDate(request.deadline) }) : $t('common.noDeadline')"></p>
               <p class="mt-2 text-sm whitespace-pre-line break-words" x-show="request.description" x-text="request.description"></p>
-              <a class="btn btn-ghost -ml-3 mt-1 px-3 text-sm" x-show="viewerReady && ownsContent(request.organization_id)" x-cloak href="/organization.html#requests">Your organization · Manage</a>
-              <a class="btn btn-ghost -ml-3 mt-1 px-3 text-sm" x-show="viewerReady && isAdmin()" x-cloak href="/admin.html#browse/requests?view=active">Open in admin</a>
+              <a class="btn btn-ghost -ml-3 mt-1 px-3 text-sm" x-show="viewerReady && ownsContent(request.organization_id)" x-cloak href="/organization.html#requests" data-i18n="common.manageOwn">Your organization · Manage</a>
+              <a class="btn btn-ghost -ml-3 mt-1 px-3 text-sm" x-show="viewerReady && isAdmin()" x-cloak href="/admin.html#browse/requests?view=active" data-i18n="common.openInAdmin">Open in admin</a>
             </div>
             <div class="rounded-md bg-canvas p-3 text-sm" x-show="request.dropoff_instructions">
-              <p class="font-medium">Drop-off</p>
+              <p class="font-medium" data-i18n="requests.dropoff">Drop-off</p>
               <p class="whitespace-pre-line break-words text-muted" x-text="request.dropoff_instructions"></p>
             </div>
 
@@ -217,39 +243,39 @@
                   :class="focusItemId === item.id ? 'ring-2 ring-primary-soft ring-offset-4 ring-offset-surface' : ''">
                   <div class="flex justify-between gap-3 text-sm">
                     <span class="min-w-0 font-medium break-words" x-text="item.name"></span>
-                    <span class="shrink-0 text-muted" x-text="`${item.quantity_committed} of ${item.quantity_needed} ${item.unit}`"></span>
+                    <span class="shrink-0 text-muted" x-text="$t('requests.progress', { committed: item.quantity_committed, needed: item.quantity_needed, unit: item.unit })"></span>
                   </div>
                   <div class="progress" role="img" :aria-label="itemBarLabel(item)">
                     <div class="progress-received" :style="itemBarStyles(item).received"></div>
                     <div class="progress-committed" :style="itemBarStyles(item).promised"></div>
                   </div>
                   <div class="flex flex-wrap items-center justify-between gap-2">
-                    <p class="text-sm font-semibold" x-text="item.quantity_remaining > 0 ? `Still needed: ${item.quantity_remaining} ${item.unit}` : 'Fully promised — thank you!'"></p>
+                    <p class="text-sm font-semibold" x-text="item.quantity_remaining > 0 ? $t('requests.stillNeeded', { count: item.quantity_remaining, unit: item.unit }) : $t('requests.fullyPromisedThanks')"></p>
                     <template x-if="activeOfferFor(item)">
-                      <span class="text-sm text-muted" x-text="`You offered ${activeOfferFor(item).quantity} — ${statusInfo(activeOfferFor(item).status, 'offer').label.toLowerCase()}`"></span>
+                      <span class="text-sm text-muted" x-text="$t('needs.youOffered', { count: activeOfferFor(item).quantity, status: statusInfo(activeOfferFor(item).status, 'offer').label })"></span>
                     </template>
                     <template x-if="item.quantity_remaining > 0 && !activeOfferFor(item) && offerItemId !== item.id">
                       <span>
-                        <a class="btn btn-primary min-h-11 px-4" x-show="mode === 'visitor'" :href="loginHref(item.id)" :aria-label="`Offer ${item.name}`">Offer</a>
+                        <a class="btn btn-primary min-h-11 px-4" x-show="mode === 'visitor'" :href="loginHref(item.id)" :aria-label="$t('common.offerItem', { item: item.name })" data-i18n="common.offer">Offer</a>
                         <button type="button" class="btn btn-primary min-h-11 px-4" x-show="mode === 'donor' || mode === 'consent'"
-                          :disabled="mode !== 'donor'" @click="openOffer(item)" :aria-label="`Offer ${item.name}`">Offer</button>
+                          :disabled="mode !== 'donor'" @click="openOffer(item)" :aria-label="$t('common.offerItem', { item: item.name })" data-i18n="common.offer">Offer</button>
                       </span>
                     </template>
                   </div>
 
                   <!-- Offer form (donors) -->
                   <form class="space-y-4 rounded-md border border-primary-soft bg-canvas p-4" novalidate x-show="offerItemId === item.id" x-cloak
-                    @submit.prevent="sendOffer(item)" :aria-label="`Offer ${item.name}`">
+                    @submit.prevent="sendOffer(item)" :aria-label="$t('common.offerItem', { item: item.name })">
                     <div>
-                      <label :for="`offer-qty-${item.id}`" class="label">How many? <span class="text-danger" aria-hidden="true">*</span></label>
+                      <label :for="`offer-qty-${item.id}`" class="label"><span data-i18n="needs.howMany">How many?</span> <span class="text-danger" aria-hidden="true">*</span></label>
                       <input :id="`offer-qty-${item.id}`" class="input max-w-40" type="number" inputmode="numeric" step="1" min="1" :max="item.quantity_remaining"
                         x-model.number="offerForm.quantity" :aria-invalid="offerErrors.quantity ? 'true' : null"
                         :aria-describedby="`offer-qty-help-${item.id} offer-qty-err-${item.id}`" />
-                      <p :id="`offer-qty-help-${item.id}`" class="helper-text" x-text="`Up to ${item.quantity_remaining} ${item.unit}`"></p>
+                      <p :id="`offer-qty-help-${item.id}`" class="helper-text" x-text="$t('needs.upTo', { count: item.quantity_remaining, unit: item.unit })"></p>
                       <p :id="`offer-qty-err-${item.id}`" class="field-error" x-show="offerErrors.quantity" x-text="offerErrors.quantity"></p>
                     </div>
                     <div>
-                      <label :for="`offer-msg-${item.id}`" class="label">Message to the organization <span class="font-normal text-muted">(optional)</span></label>
+                      <label :for="`offer-msg-${item.id}`" class="label"><span data-i18n="needs.message">Message to the organization</span> <span class="font-normal text-muted" data-i18n="common.optional">(optional)</span></label>
                       <textarea :id="`offer-msg-${item.id}`" class="input py-2" rows="2" maxlength="500" x-model="offerForm.message"
                         :aria-invalid="offerErrors.message ? 'true' : null" :aria-describedby="`offer-msg-err-${item.id}`"></textarea>
                       <p :id="`offer-msg-err-${item.id}`" class="field-error" x-show="offerErrors.message" x-text="offerErrors.message"></p>
@@ -259,22 +285,22 @@
                         <label class="flex items-start gap-3 text-sm">
                           <input :id="`offer-food-${item.id}`" type="checkbox" class="mt-0.5 size-5 shrink-0 accent-primary" x-model="offerForm.foodSafetyConfirmed"
                             :aria-invalid="offerErrors.foodSafety ? 'true' : null" :aria-describedby="`offer-food-err-${item.id}`" />
-                          <span>Items are sealed, unopened and not past their expiry date. <span class="text-danger" aria-hidden="true">*</span>
-                            <span class="block text-muted">Cooked or home-made food can't be accepted.</span></span>
+                          <span><span data-i18n="needs.foodConfirm">Items are sealed, unopened and not past their expiry date.</span> <span class="text-danger" aria-hidden="true">*</span>
+                            <span class="block text-muted" data-i18n="needs.foodNote">Cooked or home-made food can't be accepted.</span></span>
                         </label>
                         <p :id="`offer-food-err-${item.id}`" class="field-error ml-8" x-show="offerErrors.foodSafety" x-text="offerErrors.foodSafety"></p>
                       </div>
                     </template>
-                    <p class="helper-text mt-0" x-show="item.category === 'clothing'">Clothing should be clean and in usable condition.</p>
+                    <p class="helper-text mt-0" x-show="item.category === 'clothing'" data-i18n="needs.clothingNote">Clothing should be clean and in usable condition.</p>
                     <div role="alert">
                       <p class="rounded-md bg-danger-soft p-3 text-sm font-medium text-danger" x-show="offerError" x-text="offerError"></p>
                     </div>
                     <div class="flex flex-wrap gap-3">
                       <button type="submit" class="btn btn-primary" :disabled="sending">
                         <span class="spinner" x-show="sending" x-cloak aria-hidden="true"></span>
-                        <span x-text="sending ? 'Sending…' : 'Send offer'">Send offer</span>
+                        <span x-text="sending ? $t('common.sending') : $t('needs.sendOffer')">Send offer</span>
                       </button>
-                      <button type="button" class="btn btn-ghost" @click="closeOffer()" :disabled="sending">Cancel</button>
+                      <button type="button" class="btn btn-ghost" @click="closeOffer()" :disabled="sending" data-i18n="common.cancel">Cancel</button>
                     </div>
                   </form>
                 </li>

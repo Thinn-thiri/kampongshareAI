@@ -66,10 +66,10 @@ document.addEventListener("alpine:init", () => {
     },
 
     get filterText() {
-      if (this.filterRequestId) return "Showing the request linked to this event.";
+      if (this.filterRequestId) return t("donor.linkedRequest");
       if (this.filterOrgId) {
         const name = this.requests.find((r) => r.organization_id === this.filterOrgId)?.organization?.name;
-        return name ? `Showing open requests from ${name}.` : "Showing this organization's open requests.";
+        return name ? t("donor.orgRequests", { name }) : t("donor.thisOrgRequests");
       }
       return "";
     },
@@ -97,7 +97,7 @@ document.addEventListener("alpine:init", () => {
         window.dispatchEvent(new HashChangeEvent("hashchange"));
       }
       const donorId = this.profile.id;
-      this.history = historyPager((from, to) => listMyOfferHistory(donorId, from, to), "past offers");
+      this.history = historyPager((from, to) => listMyOfferHistory(donorId, from, to), () => t("donor.pastOffers"));
       await Promise.all([this.loadRequests(), this.loadOffers()]);
     },
 
@@ -169,11 +169,11 @@ document.addEventListener("alpine:init", () => {
         item = this.requests.flatMap((r) => r.request_items).find((i) => i.id === itemId);
       }
       if (!item || item.quantity_remaining <= 0) {
-        toast("That item isn't open for donations any more.", "error");
+        toast(t("donor.itemNotOpen"), "error");
         return;
       }
       if (this.activeOfferFor(item)) {
-        toast("You already have an offer for this item — see My offers.", "error");
+        toast(t("donor.alreadyOffered"), "error");
         return;
       }
       this.openOffer(item);
@@ -197,7 +197,7 @@ document.addEventListener("alpine:init", () => {
       this.sending = true;
       try {
         await makeOffer(item.id, this.offerForm);
-        toast("Your offer was sent. The organization will confirm within 2 days.");
+        toast(t("donor.offerSent"));
         this.offerItemId = null;
         await Promise.all([this.loadRequests(), this.loadOffers()]);
       } catch (error) {
@@ -209,17 +209,19 @@ document.addEventListener("alpine:init", () => {
 
     /** @param {DonationOffer} offer */
     async cancel(offer) {
-      const what = `${offer.quantity} ${offer.item?.unit ?? ""} of ${offer.item?.name ?? "this item"}`.replace(/\s+/g, " ");
-      const message =
-        offer.status === "accepted"
-          ? `The organization has accepted this offer and is expecting ${what}. Cancel only if you can't bring it.`
-          : `Your offer of ${what} will be withdrawn.`;
-      const ok = await confirmDialog(message, { title: "Cancel this offer?", confirmText: "Cancel offer", cancelText: "Keep it", danger: true });
+      const what = t("donor.offerWhat", { quantity: offer.quantity, unit: offer.item?.unit ?? "", item: offer.item?.name ?? t("donor.thisItem") }).replace(/\s+/g, " ");
+      const message = offer.status === "accepted" ? t("donor.cancelAcceptedText", { what }) : t("donor.cancelText", { what });
+      const ok = await confirmDialog(message, {
+        title: t("donor.cancelTitle"),
+        confirmText: t("donor.cancelOffer"),
+        cancelText: t("common.keepIt"),
+        danger: true,
+      });
       if (!ok) return;
       this.cancellingId = offer.id;
       try {
         await cancelOffer(offer.id);
-        toast("Your offer was cancelled.");
+        toast(t("donor.cancelled"));
         focusHeading("offers-heading"); // the card may be gone: keep keyboard users in this section
         await Promise.all([this.loadRequests(), this.loadOffers()]);
       } catch (error) {

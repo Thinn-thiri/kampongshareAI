@@ -21,7 +21,7 @@ document.addEventListener("alpine:init", () => {
     busyId: null,
 
     async init() {
-      this.history = historyPager(async (from, to) => this.pastOffers.slice(from, to + 1), "past offers");
+      this.history = historyPager(async (from, to) => this.pastOffers.slice(from, to + 1), () => t("orgDash.pastOffers"));
       await this.load();
     },
 
@@ -67,7 +67,7 @@ document.addEventListener("alpine:init", () => {
      * @returns {string}
      */
     what(offer) {
-      return `${offer.quantity} ${offer.item.unit} of ${offer.item.name}`;
+      return t("orgDash.offerWhat", { quantity: offer.quantity, unit: offer.item.unit, item: offer.item.name });
     },
 
     /**
@@ -75,28 +75,28 @@ document.addEventListener("alpine:init", () => {
      * @param {'accepted' | 'rejected' | 'delivered'} status
      */
     async act(offer, status) {
-      const donor = offer.donor?.full_name || "the donor";
+      const donor = offer.donor?.full_name || t("orgDash.theDonor");
       const dialogs = {
         accepted: {
-          title: "Accept this offer?",
-          message: `Accept ${this.what(offer)} from ${donor}? They'll see your drop-off instructions.`,
-          confirmText: "Accept offer",
+          title: t("orgDash.acceptTitle"),
+          message: t("orgDash.acceptText", { what: this.what(offer), donor }),
+          confirmText: t("orgDash.acceptConfirm"),
           danger: false,
-          done: "Offer accepted. The donor can now see your drop-off instructions.",
+          done: t("orgDash.accepted"),
         },
         rejected: {
-          title: "Reject this offer?",
-          message: `${donor} will see that ${this.what(offer)} wasn't needed.`,
-          confirmText: "Reject offer",
+          title: t("orgDash.rejectTitle"),
+          message: t("orgDash.rejectText", { what: this.what(offer), donor }),
+          confirmText: t("orgDash.rejectConfirm"),
           danger: true,
-          done: "Offer rejected.",
+          done: t("orgDash.offerRejected"),
         },
         delivered: {
-          title: "Mark as delivered?",
-          message: `Confirm you've received ${this.what(offer)} from ${donor}.`,
-          confirmText: "Mark delivered",
+          title: t("orgDash.deliveredTitle"),
+          message: t("orgDash.deliveredText", { what: this.what(offer), donor }),
+          confirmText: t("orgDash.markDelivered"),
           danger: false,
-          done: "Marked as delivered. Thank you!",
+          done: t("orgDash.delivered"),
         },
       };
       const dialog = dialogs[status];

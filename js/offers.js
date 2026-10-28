@@ -133,7 +133,7 @@ async function makeOffer(itemId, form) {
 async function cancelOffer(id) {
   const { data, error } = await db().from("donation_offers").update({ status: "cancelled" }).eq("id", id).select("id");
   if (error) throw error;
-  if (!data?.length) throw { code: "42501", message: "No offer was updated" };
+  if (!data?.length) throw { code: "42501", message: "No offer was updated" }; // i18n-ignore (shown via friendlyError by its code)
 }
 
 /**
@@ -209,7 +209,7 @@ async function listAllOffersForAdmin(filter) {
 async function setOfferStatus(id, status) {
   const { data, error } = await db().from("donation_offers").update({ status }).eq("id", id).select("id");
   if (error) throw error;
-  if (!data?.length) throw { code: "42501", message: "No offer was updated" };
+  if (!data?.length) throw { code: "42501", message: "No offer was updated" }; // i18n-ignore (shown via friendlyError by its code)
 }
 
 /**
@@ -235,13 +235,13 @@ function validateOffer(form, item) {
   const errors = {};
   const quantity = Number(form.quantity);
   if (!Number.isInteger(quantity) || quantity < 1) {
-    errors.quantity = "Enter a whole number, 1 or more.";
+    errors.quantity = t("needs.errQuantity");
   } else if (quantity > item.quantity_remaining) {
-    errors.quantity = `Only ${item.quantity_remaining} ${item.unit} still needed.`;
+    errors.quantity = t("needs.errTooMany", { count: item.quantity_remaining, unit: item.unit });
   }
-  if (form.message.trim().length > 500) errors.message = "Please keep your message under 500 characters.";
+  if (form.message.trim().length > 500) errors.message = t("needs.errMessage");
   if (item.category === "food" && !form.foodSafetyConfirmed) {
-    errors.foodSafety = "Please confirm the food is sealed, unopened and not past its expiry date.";
+    errors.foodSafety = t("needs.errFood");
   }
   return errors;
 }
@@ -264,7 +264,7 @@ function isActiveOffer(offer) {
 function offerDisplay(offer) {
   const requestStatus = offer.item?.request?.status;
   if (offer.status === "rejected" && requestStatus !== "open") {
-    return { className: "badge badge-neutral", label: "Request closed" };
+    return { className: "badge badge-neutral", label: enumLabel("offerStatus", "request_closed") };
   }
   return statusInfo(offer.status, "offer");
 }
@@ -275,6 +275,6 @@ function offerDisplay(offer) {
  * @returns {string}
  */
 function offerEndedText(offer) {
-  const word = { delivered: "Delivered", cancelled: "Cancelled", rejected: "Ended" }[/** @type {string} */ (offer.status)] ?? "Updated";
-  return `${word} ${formatDate(offer.updated_at)}`;
+  const key = { delivered: "delivered", cancelled: "cancelled", rejected: "ended" }[/** @type {string} */ (offer.status)] ?? "updated";
+  return t(`history.${key}`, { date: formatDate(offer.updated_at) });
 }

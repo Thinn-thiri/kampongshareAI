@@ -143,7 +143,7 @@ function pathAfterLogin(profile) {
  * @returns {Promise<{ session: unknown }>} session is null when email confirmation is switched on
  */
 async function signUpUser(details) {
-  if (!sb) throw new Error("Supabase not configured");
+  if (!sb) throw new Error("Supabase not configured"); // i18n-ignore (developer message; shown via friendlyError)
   const isIndividual = details.accountType === "individual";
 
   /** @type {Record<string, unknown>} */
@@ -185,7 +185,7 @@ async function signUpUser(details) {
  * @returns {Promise<void>}
  */
 async function logIn(email, password) {
-  if (!sb) throw new Error("Supabase not configured");
+  if (!sb) throw new Error("Supabase not configured"); // i18n-ignore (developer message; shown via friendlyError)
   const { error } = await sb.auth.signInWithPassword({ email, password });
   if (error) throw error;
   profileRequest = null;
@@ -236,7 +236,7 @@ async function requireLogin() {
  */
 async function enableRole(role) {
   const profile = await getProfile();
-  if (!profile) throw new Error("Not logged in");
+  if (!profile) throw new Error("Not logged in"); // i18n-ignore (developer message; shown via friendlyError)
   const { data, error } = await db()
     .from("profiles")
     .update(role === "donor" ? { is_donor: true } : { is_volunteer: true })
@@ -258,7 +258,7 @@ async function enableRole(role) {
  */
 async function updateMyProfile(changes) {
   const profile = await getProfile();
-  if (!profile) throw new Error("Not logged in");
+  if (!profile) throw new Error("Not logged in"); // i18n-ignore (developer message; shown via friendlyError)
   const { data, error } = await db().from("profiles").update(changes).eq("id", profile.id).select("*").single();
   if (error) throw error;
   profileRequest = Promise.resolve(data);
@@ -450,10 +450,10 @@ function publicViewer() {
         if (kind === "volunteer") await this.loadMyApplications();
         toast(
           kind === "donor"
-            ? "Donating is turned on. You can offer items now."
+            ? t("viewer.donatingOn")
             : this.viewer?.volunteerApproved
-              ? "Volunteering is turned on. You can apply now."
-              : "Volunteering is turned on. An admin will approve your volunteer account before you can apply.",
+              ? t("viewer.volunteeringOn")
+              : t("viewer.volunteeringOnPending"),
         );
       } catch (error) {
         toast(friendlyError(error), "error");
@@ -483,21 +483,21 @@ async function getMyEmail() {
  * @throws {Error} with a friendly message when it can't be done
  */
 async function deleteMyAccount() {
-  if (!sb) throw new Error("Supabase not configured");
+  if (!sb) throw new Error("Supabase not configured"); // i18n-ignore (developer message; shown via friendlyError)
   const {
     data: { session },
   } = await sb.auth.getSession();
-  if (!session) throw new Error("Please log in again first.");
+  if (!session) throw new Error(t("errors.loginAgain"));
   /** @type {Response} */
   let response;
   try {
     response = await fetch("/api/delete-account", { method: "POST", headers: { Authorization: `Bearer ${session.access_token}` } });
   } catch {
-    throw new Error("We couldn't reach the server. Check your internet connection and try again.");
+    throw new Error(t("errors.network"));
   }
   const body = await response.json().catch(() => ({}));
   if (!response.ok) {
-    throw new Error(typeof body.message === "string" ? body.message : "We couldn't delete your account just now. Please try again.");
+    throw new Error(response.status === 403 ? t("profile.deleteNotAllowed") : t("profile.deleteFailed"));
   }
   await sb.auth.signOut({ scope: "local" });
   profileRequest = null;
@@ -530,24 +530,24 @@ document.addEventListener("DOMContentLoaded", async () => {
 /**
  * Dashboards split into sections (REQUIREMENTS.md section 3): the top bar (and the phone bottom bar)
  * links straight to them. `countKey` shows a badge from the "dashboard-counts" event the page sends.
- * @type {Partial<Record<Role, { href: string, label: string, icon: string, countKey?: string }[]>>}
+ * @type {Partial<Record<Role, { href: string, labelKey: string, icon: string, countKey?: string }[]>>}
  */
 const DASHBOARD_SECTIONS = {
   donor: [
-    { href: "/donor.html#overview", label: "Overview", icon: "layout-dashboard" },
-    { href: "/donor.html#find", label: "Find needs", icon: "package-open" },
-    { href: "/donor.html#offers", label: "My offers", icon: "hand-heart", countKey: "dropoff" },
+    { href: "/donor.html#overview", labelKey: "nav.overview", icon: "layout-dashboard" },
+    { href: "/donor.html#find", labelKey: "nav.findNeeds", icon: "package-open" },
+    { href: "/donor.html#offers", labelKey: "nav.myOffers", icon: "hand-heart", countKey: "dropoff" },
   ],
   admin: [
-    { href: "/admin.html#overview", label: "Overview", icon: "layout-dashboard" },
-    { href: "/admin.html#review", label: "To review", icon: "inbox", countKey: "review" },
-    { href: "/admin.html#browse", label: "Browse", icon: "list" },
+    { href: "/admin.html#overview", labelKey: "nav.overview", icon: "layout-dashboard" },
+    { href: "/admin.html#review", labelKey: "nav.toReview", icon: "inbox", countKey: "review" },
+    { href: "/admin.html#browse", labelKey: "nav.browse", icon: "list" },
   ],
   organization: [
-    { href: "/organization.html#overview", label: "Overview", icon: "layout-dashboard" },
-    { href: "/organization.html#requests", label: "Requests", icon: "package-open" },
-    { href: "/organization.html#offers", label: "Offers", icon: "inbox", countKey: "offers" },
-    { href: "/organization.html#events", label: "Events", icon: "calendar", countKey: "events" },
+    { href: "/organization.html#overview", labelKey: "nav.overview", icon: "layout-dashboard" },
+    { href: "/organization.html#requests", labelKey: "nav.requests", icon: "package-open" },
+    { href: "/organization.html#offers", labelKey: "nav.offers", icon: "inbox", countKey: "offers" },
+    { href: "/organization.html#events", labelKey: "nav.events", icon: "calendar", countKey: "events" },
   ],
 };
 
@@ -603,41 +603,41 @@ document.addEventListener("alpine:init", () => {
      * Desktop top bar links. Visitors: Home · Browse needs. Logged in: Home · My dashboard
      * (people who both donate and volunteer get the Donating / Volunteering switch instead).
      * Admins and organizations get their dashboard's sections instead of "My dashboard".
-     * @returns {{ href: string, label: string, badge?: number | null }[]}
+     * @returns {{ href: string, labelKey: string, badge?: number | null }[]}
      */
     get topLinks() {
-      const home = { href: "/", label: "Home" };
-      if (!this.profile) return [home, { href: "/needs.html", label: "Browse needs" }];
+      const home = { href: "/", labelKey: "nav.home" };
+      if (!this.profile) return [home, { href: "/needs.html", labelKey: "nav.browseNeeds" }];
       const sections = this.sections;
       if (sections) {
-        return [home, ...sections.map((s) => ({ href: s.href, label: s.label, badge: s.countKey ? this.counts[s.countKey] : null }))];
+        return [home, ...sections.map((s) => ({ href: s.href, labelKey: s.labelKey, badge: s.countKey ? this.counts[s.countKey] : null }))];
       }
       if (this.canSwitch) return [home];
-      return [home, { href: dashboardFor(this.profile), label: "My dashboard" }];
+      return [home, { href: dashboardFor(this.profile), labelKey: "nav.myDashboard" }];
     },
 
     /**
      * The 3–4 main sections for this person, for the mobile bottom navigation (REQUIREMENTS.md section 3).
-     * @returns {{ href: string, label: string, icon: string }[]}
+     * @returns {{ href: string, labelKey: string, icon: string }[]}
      */
     get bottomLinks() {
       const profile = this.profile;
-      const needs = { href: "/needs.html", label: "Needs", icon: "package-open" };
-      const profileLink = { href: "/profile.html", label: "Profile", icon: "user-round" };
+      const needs = { href: "/needs.html", labelKey: "nav.needs", icon: "package-open" };
+      const profileLink = { href: "/profile.html", labelKey: "nav.profile", icon: "user-round" };
       if (!profile) {
-        return [{ href: "/", label: "Home", icon: "house" }, needs, { href: "/login.html", label: "Log in", icon: "log-in" }];
+        return [{ href: "/", labelKey: "nav.home", icon: "house" }, needs, { href: "/login.html", labelKey: "nav.logIn", icon: "log-in" }];
       }
       if (profile.role === "organization") return DASHBOARD_SECTIONS.organization ?? [];
       if (profile.role === "admin") return [...(DASHBOARD_SECTIONS.admin ?? []), profileLink];
-      const donating = { href: "/donor.html", label: "Donating", icon: "hand-heart" };
-      const volunteering = { href: "/volunteer.html", label: "Volunteering", icon: "users" };
+      const donating = { href: "/donor.html", labelKey: "nav.donating", icon: "hand-heart" };
+      const volunteering = { href: "/volunteer.html", labelKey: "nav.volunteering", icon: "users" };
       const donorSections = DASHBOARD_SECTIONS.donor ?? [];
       if (profile.is_donor && profile.is_volunteer) {
         // on donor.html: its sections, plus a way over to volunteering
         return location.pathname === "/donor.html" ? [...donorSections, volunteering] : [donating, volunteering, needs, profileLink];
       }
       if (profile.is_donor && !profile.is_volunteer) return [...donorSections, profileLink];
-      if (profile.is_volunteer) return [volunteering, { href: "/#events-heading", label: "Events", icon: "calendar" }, profileLink];
+      if (profile.is_volunteer) return [volunteering, { href: "/#events-heading", labelKey: "nav.events", icon: "calendar" }, profileLink];
       return [donating, needs, profileLink];
     },
 

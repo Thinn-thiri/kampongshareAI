@@ -13,7 +13,9 @@ document.addEventListener("alpine:init", () => {
     error: "",
     formatEventTime,
     badges: APPLICATION_BADGE,
-    confirmedNote: CONFIRMED_NOTE,
+    get confirmedNote() {
+      return confirmedNote();
+    },
 
     /** Why the organization cancelled it ("" when not cancelled or not readable) */
     cancelReason: "",
@@ -57,6 +59,8 @@ document.addEventListener("alpine:init", () => {
       if (this.event) {
         const event = this.event;
         document.title = `${event.title} · KampongShare`;
+        // the title is now what the organization wrote, so a language switch mustn't replace it
+        document.querySelector("title")?.removeAttribute("data-i18n");
         setTimeout(() => {
           const element = document.getElementById("event-map");
           if (element) createPinMap(element, { lat: event.latitude, lng: event.longitude, label: event.title });
@@ -127,8 +131,8 @@ document.addEventListener("alpine:init", () => {
         window.dispatchEvent(new CustomEvent("profile-changed"));
         toast(
           isApprovedVolunteer(this.profile)
-            ? "Volunteering is turned on. You can apply now."
-            : "Volunteering is turned on. An admin will approve your volunteer account before you can apply.",
+            ? t("viewer.volunteeringOn")
+            : t("viewer.volunteeringOnPending"),
         );
         await this.loadVolunteering();
       } catch (error) {
@@ -142,7 +146,7 @@ document.addEventListener("alpine:init", () => {
       this.busy = true;
       try {
         this.profile = await requestVolunteerReview();
-        toast("Thanks — your volunteer account was sent to the admin for review again.");
+        toast(t("event.reviewSent"));
       } catch (error) {
         toast(friendlyError(error), "error");
       } finally {
@@ -165,7 +169,7 @@ document.addEventListener("alpine:init", () => {
       try {
         const withdrawn = this.myApplication?.status === "withdrawn" ? this.myApplication : undefined;
         await applyToEvent(this.event.id, this.applyMessage, withdrawn);
-        toast("You've applied! The organization will confirm your place.");
+        toast(t("event.applied"));
         this.showApply = false;
         await this.loadVolunteering();
       } catch (error) {
@@ -179,17 +183,17 @@ document.addEventListener("alpine:init", () => {
       const application = this.myApplication;
       // Only pending applications can be withdrawn; once approved the button is disabled.
       if (!application || application.status !== "pending") return;
-      const ok = await confirmDialog("Your application will be withdrawn. You can apply again later if there's room.", {
-        title: "Withdraw your application?",
-        confirmText: "Withdraw",
-        cancelText: "Keep it",
+      const ok = await confirmDialog(t("event.withdrawText"), {
+        title: t("event.withdrawTitle"),
+        confirmText: t("event.withdrawConfirm"),
+        cancelText: t("event.keepIt"),
         danger: true,
       });
       if (!ok) return;
       this.busy = true;
       try {
         await withdrawApplication(application.id);
-        toast("Your application was withdrawn.");
+        toast(t("event.withdrawn"));
         await this.loadVolunteering();
       } catch (error) {
         toast(friendlyError(error), "error");

@@ -1,13 +1,30 @@
 // @ts-check
 // The public impact numbers (public_stats), shared by the home page and the admin Overview.
 
+/**
+ * One impact number: the label and the friendly text for 0 follow the chosen language.
+ * @param {string} key  the public_stats column (also its translation key, stats.<key>)
+ * @param {string} emptyKey
+ */
+function statCard(key, emptyKey) {
+  return {
+    key,
+    get label() {
+      return t(`stats.${key}`);
+    },
+    get empty() {
+      return t(`stats.${emptyKey}`);
+    },
+  };
+}
+
 /** Impact numbers from public_stats(), with friendly text when a number is still 0. */
 const STAT_CARDS = [
-  { key: "items_delivered", label: "Items delivered", empty: "Be the first to give" },
-  { key: "completed_donations", label: "Completed donations", empty: "Be the first to give" },
-  { key: "open_requests", label: "Open requests", empty: "No needs right now" },
-  { key: "upcoming_events", label: "Upcoming events", empty: "Coming soon" },
-  { key: "organizations", label: "Organizations", empty: "Be the first to join" },
+  statCard("items_delivered", "beFirstGive"),
+  statCard("completed_donations", "beFirstGive"),
+  statCard("open_requests", "noNeeds"),
+  statCard("upcoming_events", "comingSoon"),
+  statCard("organizations", "beFirstJoin"),
 ];
 
 /**

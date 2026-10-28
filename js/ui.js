@@ -17,9 +17,10 @@ function escapeHtml(value) {
  * Formats a date for Singapore, e.g. "23 Oct 2026" or "Fri, 23 Oct 2026, 2:30 pm".
  * @param {string | Date | null | undefined} value
  * @param {boolean} [withTime]
+ * @param {Lang} [lang] another language than the page's (the downloaded poster is always English)
  * @returns {string}
  */
-function formatDate(value, withTime = false) {
+function formatDate(value, withTime = false, lang) {
   if (!value) return "";
   const date = value instanceof Date ? value : new Date(value);
   if (Number.isNaN(date.getTime())) return "";
@@ -27,7 +28,7 @@ function formatDate(value, withTime = false) {
   const options = withTime
     ? { weekday: "short", day: "numeric", month: "short", year: "numeric", hour: "numeric", minute: "2-digit" }
     : { day: "numeric", month: "short", year: "numeric" };
-  return date.toLocaleString("en-SG", options);
+  return date.toLocaleString(locale(lang), options);
 }
 
 /**
@@ -49,13 +50,15 @@ function isValidSgPhone(phone) {
   return /^[3689]\d{7}$/.test(normalisePhone(phone));
 }
 
-/** Singapore areas for pickers and filters (public area names only). */
+/** Singapore areas for pickers and filters (public area names only; shown with areaLabel()). */
+// i18n-ignore-start — stored values, not text
 const SG_AREAS = [
   "Ang Mo Kio", "Bedok", "Bishan", "Bukit Batok", "Bukit Merah", "Bukit Panjang", "Bukit Timah",
   "Choa Chu Kang", "Clementi", "Geylang", "Hougang", "Jurong East", "Jurong West", "Kallang",
   "Pasir Ris", "Punggol", "Queenstown", "Sembawang", "Sengkang", "Serangoon", "Tampines",
   "Toa Payoh", "Woodlands", "Yishun",
 ];
+// i18n-ignore-end
 
 /** @type {Record<'success' | 'error', string>} */
 const TOAST_CLASS = {
@@ -97,7 +100,7 @@ function toast(message, type = "success") {
   const close = document.createElement("button");
   close.type = "button";
   close.className = "toast-close";
-  close.setAttribute("aria-label", "Close message");
+  close.setAttribute("aria-label", t("ui.closeMessage"));
   close.textContent = "×";
   close.addEventListener("click", () => item.remove());
   item.append(text, close);
@@ -175,7 +178,7 @@ async function showMoreAndFocus(pager, list) {
  * @returns {Promise<boolean>}
  */
 function confirmDialog(message, options = {}) {
-  const { title = "Are you sure?", confirmText = "Confirm", cancelText = "Cancel", danger = false } = options;
+  const { title = t("ui.areYouSure"), confirmText = t("ui.confirm"), cancelText = t("common.cancel"), danger = false } = options;
   const dialog = document.createElement("dialog");
   dialog.className = "dialog";
   dialog.setAttribute("aria-labelledby", "confirm-dialog-title");
@@ -212,12 +215,12 @@ function confirmDialog(message, options = {}) {
  */
 function reasonDialog(message, options = {}) {
   const {
-    title = "Are you sure?",
-    label = "Reason",
+    title = t("ui.areYouSure"),
+    label = t("ui.reason"),
     required = false,
     maxLength = 300,
-    confirmText = "Confirm",
-    cancelText = "Cancel",
+    confirmText = t("ui.confirm"),
+    cancelText = t("common.cancel"),
     danger = false,
     warning = "",
     quickReasons = [],
@@ -226,7 +229,7 @@ function reasonDialog(message, options = {}) {
   dialog.className = "dialog";
   dialog.setAttribute("aria-labelledby", "reason-dialog-title");
   const chips = quickReasons.length
-    ? `<div class="mt-4 flex flex-wrap gap-2" role="group" aria-label="Quick reasons">${quickReasons
+    ? `<div class="mt-4 flex flex-wrap gap-2" role="group" aria-label="${escapeHtml(t("ui.quickReasons"))}">${quickReasons
         .map((reason) => `<button type="button" class="chip" data-reason="${escapeHtml(reason)}" aria-pressed="false">${escapeHtml(reason)}</button>`)
         .join("")}</div>`
     : "";
@@ -238,12 +241,12 @@ function reasonDialog(message, options = {}) {
       ${chips}
       <div class="mt-4">
         <label for="reason-dialog-input" class="label">${escapeHtml(label)}${
-          required ? ' <span class="text-danger" aria-hidden="true">*</span>' : ' <span class="font-normal text-muted">(optional)</span>'
+          required ? ' <span class="text-danger" aria-hidden="true">*</span>' : ` <span class="font-normal text-muted">${escapeHtml(t("common.optional"))}</span>`
         }</label>
         <textarea id="reason-dialog-input" class="input py-2" rows="3" maxlength="${maxLength}" ${required ? "required" : ""}
           aria-describedby="reason-dialog-count reason-dialog-error"></textarea>
-        <p id="reason-dialog-count" class="helper-text">0 / ${maxLength} characters</p>
-        <p id="reason-dialog-error" class="field-error" hidden>Please give a reason.</p>
+        <p id="reason-dialog-count" class="helper-text">${escapeHtml(t("ui.reasonCount", { count: 0, max: maxLength }))}</p>
+        <p id="reason-dialog-error" class="field-error" hidden>${escapeHtml(t("ui.reasonRequired"))}</p>
       </div>
       <div class="mt-6 flex flex-col-reverse gap-3 sm:flex-row sm:justify-end">
         <button class="btn btn-secondary" value="cancel" formnovalidate>${escapeHtml(cancelText)}</button>
@@ -254,7 +257,7 @@ function reasonDialog(message, options = {}) {
   const input = /** @type {HTMLTextAreaElement} */ (dialog.querySelector("textarea"));
   const count = /** @type {HTMLElement} */ (dialog.querySelector("#reason-dialog-count"));
   const error = /** @type {HTMLElement} */ (dialog.querySelector("#reason-dialog-error"));
-  const updateCount = () => (count.textContent = `${input.value.length} / ${maxLength} characters`);
+  const updateCount = () => (count.textContent = t("ui.reasonCount", { count: input.value.length, max: maxLength }));
   for (const chip of dialog.querySelectorAll("[data-reason]")) {
     chip.addEventListener("click", () => {
       input.value = (chip.getAttribute("data-reason") ?? "").slice(0, maxLength);
@@ -323,7 +326,7 @@ const HISTORY_PAGE_SIZE = 20;
  * @param {string | (() => string)} [noun] what the items are, e.g. "past offers"
  * @returns {HistoryPager<T>}
  */
-function historyPager(fetchPage = async () => [], noun = "past items") {
+function historyPager(fetchPage = async () => [], noun = () => t("ui.pastItems")) {
   return {
     /** @type {T[]} */
     items: [],
@@ -350,8 +353,8 @@ function historyPager(fetchPage = async () => [], noun = "past items") {
         const what = typeof noun === "function" ? noun() : noun;
         announce(
           this.items.length
-            ? `Showing ${this.items.length} ${what}${this.hasMore ? ". More can be loaded." : "."}`
-            : `No ${what} yet.`,
+            ? t(this.hasMore ? "ui.historyShowingMore" : "ui.historyShowing", { count: this.items.length, what })
+            : t("ui.historyNone", { what }),
         );
       } catch (error) {
         this.error = friendlyError(error);
@@ -365,39 +368,55 @@ function historyPager(fetchPage = async () => [], noun = "past items") {
 
 /** @typedef {'request' | 'offer' | 'event' | 'application' | 'approval'} StatusKind */
 
+/**
+ * A badge whose word comes from the translations (enumLabel), so it follows the chosen language.
+ * @param {string} className full class names, so Tailwind finds them
+ * @param {string} enumKind
+ * @param {string} value
+ * @returns {{ className: string, readonly label: string }}
+ */
+function badgeEntry(className, enumKind, value) {
+  return {
+    className,
+    get label() {
+      return enumLabel(enumKind, value);
+    },
+  };
+}
+
 /** One badge per status for every kind of record (full class names, so Tailwind finds them). */
-/** @type {Record<StatusKind, Record<string, { className: string, label: string }>>} */
+/** @type {Record<StatusKind, Record<string, { className: string, readonly label: string }>>} */
 const STATUS_BADGE = {
   request: {
-    pending_approval: { className: "badge badge-warning", label: "Waiting for approval" },
-    open: { className: "badge badge-info", label: "Open" },
-    fulfilled: { className: "badge badge-success", label: "Fulfilled" },
-    closed: { className: "badge badge-neutral", label: "Closed" },
-    rejected: { className: "badge badge-danger", label: "Rejected" },
+    pending_approval: badgeEntry("badge badge-warning", "requestStatus", "pending_approval"),
+    open: badgeEntry("badge badge-info", "requestStatus", "open"),
+    fulfilled: badgeEntry("badge badge-success", "requestStatus", "fulfilled"),
+    closed: badgeEntry("badge badge-neutral", "requestStatus", "closed"),
+    rejected: badgeEntry("badge badge-danger", "requestStatus", "rejected"),
   },
   offer: {
-    pending: { className: "badge badge-warning", label: "Pending" },
-    accepted: { className: "badge badge-info", label: "Accepted" },
-    delivered: { className: "badge badge-success", label: "Delivered" },
-    rejected: { className: "badge badge-neutral", label: "Rejected" },
-    cancelled: { className: "badge badge-neutral", label: "Cancelled" },
+    pending: badgeEntry("badge badge-warning", "offerStatus", "pending"),
+    accepted: badgeEntry("badge badge-info", "offerStatus", "accepted"),
+    delivered: badgeEntry("badge badge-success", "offerStatus", "delivered"),
+    rejected: badgeEntry("badge badge-neutral", "offerStatus", "rejected"),
+    cancelled: badgeEntry("badge badge-neutral", "offerStatus", "cancelled"),
   },
   event: {
-    upcoming: { className: "badge badge-info", label: "Upcoming" },
-    ongoing: { className: "badge badge-success", label: "Happening now" },
-    completed: { className: "badge badge-neutral", label: "Completed" },
-    cancelled: { className: "badge badge-neutral", label: "Cancelled" },
+    upcoming: badgeEntry("badge badge-info", "eventStatus", "upcoming"),
+    ongoing: badgeEntry("badge badge-success", "eventStatus", "ongoing"),
+    completed: badgeEntry("badge badge-neutral", "eventStatus", "completed"),
+    cancelled: badgeEntry("badge badge-neutral", "eventStatus", "cancelled"),
   },
   approval: {
-    pending: { className: "badge badge-warning", label: "Waiting for review" },
-    approved: { className: "badge badge-success", label: "Approved" },
-    rejected: { className: "badge badge-danger", label: "Rejected" },
+    pending: badgeEntry("badge badge-warning", "approval", "pending"),
+    approved: badgeEntry("badge badge-success", "approval", "approved"),
+    rejected: badgeEntry("badge badge-danger", "approval", "rejected"),
   },
   application: {
-    pending: { className: "badge badge-warning", label: "Waiting" },
-    approved: { className: "badge badge-success", label: "Approved" },
-    rejected: { className: "badge badge-neutral", label: "Not selected" },
-    withdrawn: { className: "badge badge-neutral", label: "Withdrawn" },
+    pending: badgeEntry("badge badge-warning", "applicationStatus", "pending"),
+    approved: badgeEntry("badge badge-success", "applicationStatus", "approved"),
+    rejected: badgeEntry("badge badge-neutral", "applicationStatus", "rejected"),
+    withdrawn: badgeEntry("badge badge-neutral", "applicationStatus", "withdrawn"),
   },
 };
 
@@ -425,19 +444,117 @@ function statusInfo(status, kind) {
 /**
  * The word and badge classes for an AI urgency score (never colour alone).
  * @param {number | null | undefined} score 0–100, or null when not scored yet
- * @returns {{ label: string, className: string }}
+ * @returns {{ level: 'not_scored' | 'critical' | 'high' | 'medium' | 'low', label: string, className: string }}
  */
 function urgencyLevel(score) {
-  if (score == null) return { label: "Not scored", className: "badge badge-neutral" };
-  if (score >= 80) return { label: "Critical", className: "badge badge-danger" };
-  if (score >= 60) return { label: "High", className: "badge badge-warning" };
-  if (score >= 40) return { label: "Medium", className: "badge badge-info" };
-  return { label: "Low", className: "badge badge-neutral" };
+  /** @type {'not_scored' | 'critical' | 'high' | 'medium' | 'low'} */
+  const level = score == null ? "not_scored" : score >= 80 ? "critical" : score >= 60 ? "high" : score >= 40 ? "medium" : "low";
+  /** @type {Record<typeof level, string>} */
+  const classes = {
+    not_scored: "badge badge-neutral",
+    critical: "badge badge-danger",
+    high: "badge badge-warning",
+    medium: "badge badge-info",
+    low: "badge badge-neutral",
+  };
+  return { level, label: enumLabel("urgency", level), className: classes[level] };
 }
 
 /**
- * Turns a Supabase / database error into a short, kind message that says how to fix it.
- * Messages the database raises on purpose (raise exception) are already plain English, so they pass through.
+ * Every message the database raises on purpose ("raise exception" in supabase/migrations/), plus the
+ * two the browser code throws itself, mapped to a translation key. Named groups fill the placeholders;
+ * `enums` turns status words into labels. node scripts/check-i18n.js checks every migration message matches.
+ * @type {{ pattern: RegExp, key: string, enums?: Record<string, string> }[]}
+ */
+const DB_ERRORS = [
+  { pattern: /^Event not found\.?$/, key: "errors.db.eventNotFound" },
+  { pattern: /^This event already has all the volunteers it needs\.?$/, key: "errors.db.eventFull" },
+  { pattern: /^Applications cannot be moved to another event or person\.?$/, key: "errors.db.applicationMove" },
+  {
+    pattern: /^An organization cannot change an application from (?<from>\w+) to (?<to>\w+)\.?$/,
+    key: "errors.db.orgApplicationChange",
+    enums: { from: "applicationStatus", to: "applicationStatus" },
+  },
+  { pattern: /^Your place is confirmed, so it can't be withdrawn here\./, key: "errors.db.placeConfirmed" },
+  { pattern: /^This event is no longer taking volunteers\.?$/, key: "errors.db.eventClosed" },
+  { pattern: /^You can withdraw a pending application, or apply again after withdrawing\.?$/, key: "errors.db.withdrawPending" },
+  { pattern: /^You can withdraw your application, or apply again after withdrawing\.?$/, key: "errors.db.withdrawOrApply" },
+  { pattern: /^Not allowed\.?$/, key: "errors.db.notAllowed" },
+  { pattern: /^Admins can only approve or reject volunteer accounts here\.?$/, key: "errors.db.volunteerApprovalOnly" },
+  { pattern: /^Please write a short note so the volunteer knows why\.?$/, key: "errors.db.volunteerNoteNeeded" },
+  { pattern: /^Only admins can approve volunteer accounts\.?$/, key: "errors.db.volunteerAdminOnly" },
+  { pattern: /^Your volunteer account is waiting for admin approval\./, key: "errors.db.volunteerPending" },
+  { pattern: /^Only admins can set the admin note\.?$/, key: "errors.db.adminNoteOnly" },
+  { pattern: /^After approval you can only change the deadline, urgency and item quantities\./, key: "errors.db.afterApprovalLimited" },
+  {
+    pattern: /^You cannot change this request from (?<from>\w+) to (?<to>\w+)\.?$/,
+    key: "errors.db.requestStatusChange",
+    enums: { from: "requestStatus", to: "requestStatus" },
+  },
+  { pattern: /^Items can't be added or removed after approval\./, key: "errors.db.itemsLocked" },
+  { pattern: /^After approval you can only change an item's quantity\.?$/, key: "errors.db.itemQuantityOnly" },
+  { pattern: /^Request item not found\.?$/, key: "errors.db.itemNotFound" },
+  { pattern: /^This request is not accepting donations right now\.?$/, key: "errors.db.requestNotOpen" },
+  { pattern: /^Only (?<count>\d+) (?<unit>.*?) of "(?<item>.*)" still needed\.?$/, key: "errors.db.onlyStillNeeded" },
+  { pattern: /^You already have an offer for "(?<item>.*)"\. Cancel it first/, key: "errors.db.alreadyOffered" },
+  { pattern: /^Please confirm the food is sealed, unopened and not past its expiry date\.?$/, key: "errors.db.foodSafety" },
+  { pattern: /^Offers cannot be edited\. Cancel it and make a new one\.?$/, key: "errors.db.offerNoEdit" },
+  {
+    pattern: /^An organization cannot change an offer from (?<from>\w+) to (?<to>\w+)\.?$/,
+    key: "errors.db.orgOfferChange",
+    enums: { from: "offerStatus", to: "offerStatus" },
+  },
+  { pattern: /^A donor can only cancel a pending or accepted offer\.?$/, key: "errors.db.donorCancelOnly" },
+  { pattern: /^Offers can only be accepted while the request is open\.?$/, key: "errors.db.acceptOnlyOpen" },
+  { pattern: /^Cannot accept: only (?<count>\d+) (?<unit>.*?) of "(?<item>.*)" still needed\.?$/, key: "errors.db.cannotAccept" },
+  { pattern: /^Only admins can approve or reject organizations\.?$/, key: "errors.db.orgApprovalAdminOnly" },
+  { pattern: /^Your organization name can't be changed after approval\./, key: "errors.db.orgNameLocked" },
+  { pattern: /^The linked donation request must belong to your organization\.?$/, key: "errors.db.linkedRequestOwn" },
+  { pattern: /^Only admins can approve or reject events\.?$/, key: "errors.db.eventApprovalAdminOnly" },
+  { pattern: /^Volunteers can only update the status of their tasks\.?$/, key: "errors.db.taskStatusOnly" },
+  { pattern: /^Only individual accounts can donate or volunteer\.?$/, key: "errors.db.individualsOnly" },
+  { pattern: /^Keep at least one turned on: donating or volunteering\.?$/, key: "errors.db.keepOneRole" },
+  // messaging (20261028040000_messaging.sql)
+  { pattern: /^Please log in to send messages\.?$/, key: "errors.db.loginToMessage" },
+  { pattern: /^This organization isn't available for messages\.?$/, key: "errors.db.orgUnavailableForMessages" },
+  { pattern: /^You can only message donors who offered on your requests/, key: "errors.db.orgMessageLimits" },
+  { pattern: /^You can only message organizations\.?$/, key: "errors.db.messageOrgsOnly" },
+  { pattern: /^Please give your privacy consent in your profile before sending messages\.?$/, key: "errors.db.consentToMessage" },
+  { pattern: /^Your account can't start conversations\.?$/, key: "errors.db.cannotStartConversations" },
+  { pattern: /^You've started a lot of new conversations today\./, key: "errors.db.tooManyConversations" },
+  { pattern: /^Conversation not found\.?$/, key: "errors.db.conversationNotFound" },
+  { pattern: /^Please type a message\.?$/, key: "errors.db.typeAMessage" },
+  { pattern: /^This conversation is blocked, so no new messages can be sent\.?$/, key: "errors.db.conversationBlocked" },
+  { pattern: /^You're sending messages very quickly\./, key: "errors.db.messagingTooFast" },
+  { pattern: /^Message not found\.?$/, key: "errors.db.messageNotFound" },
+  { pattern: /^You can't report your own message\.?$/, key: "errors.db.ownMessageReport" },
+  // thrown by js/events.js and js/requests.js
+  { pattern: /^Volunteers have applied, so this event can't be deleted/, key: "errors.db.eventHasApplicants" }, // i18n-ignore (translated by DB_ERRORS)
+  { pattern: /^This request can't be deleted any more/, key: "errors.db.requestNoDelete" }, // i18n-ignore (translated by DB_ERRORS)
+];
+
+/**
+ * A database message in the chosen language, or null when it isn't one we know.
+ * Names the database puts in (item names, units) are kept exactly as written.
+ * @param {string} message
+ * @returns {string | null}
+ */
+function translateDbMessage(message) {
+  for (const entry of DB_ERRORS) {
+    const match = entry.pattern.exec(message);
+    if (!match) continue;
+    /** @type {Record<string, string | number>} */
+    const params = { ...(match.groups ?? {}) };
+    for (const [name, kind] of Object.entries(entry.enums ?? {})) params[name] = enumLabel(kind, String(params[name]));
+    if (params.count !== undefined) params.count = Number(params.count);
+    return t(entry.key, params);
+  }
+  return null;
+}
+
+/**
+ * Turns a Supabase / database error into a short, kind message (in the chosen language) that says how to fix it.
+ * Messages the database raises on purpose go through DB_ERRORS; an unknown one is still shown, in English.
  * @param {unknown} error
  * @returns {string}
  */
@@ -446,49 +563,29 @@ function friendlyError(error) {
   const message = typeof err.message === "string" ? err.message : "";
   const lower = message.toLowerCase();
 
-  if (lower.includes("invalid login credentials")) {
-    return "That email and password don't match. Please check them and try again.";
+  if (lower.includes("invalid login credentials")) return t("errors.loginMismatch");
+  if (lower.includes("already registered") || err.code === "user_already_exists") return t("errors.alreadyRegistered");
+  if (lower.includes("password") && (lower.includes("at least") || err.code === "weak_password")) return t("errors.weakPassword");
+  if (lower.includes("email not confirmed")) return t("errors.emailNotConfirmed");
+  if (lower.includes("invalid format") || (lower.includes("email address") && lower.includes("invalid"))) return t("errors.invalidEmail");
+  if (lower.includes("rate limit") || err.status === 429) return t("errors.rateLimit");
+  if (lower.includes("failed to fetch") || lower.includes("networkerror") || lower.includes("load failed")) return t("errors.network");
+  if (lower.includes("database error saving new user")) return t("errors.signupFailed");
+  if (lower.includes("signups not allowed")) return t("errors.signupsOff");
+  if (lower.includes("committed_within_needed")) return t("errors.belowPromised");
+  if (lower.includes("quantity_needed")) return t("errors.quantityMin");
+  if (/_length\b/.test(lower)) return t("errors.tooLong");
+  if (err.code === "23514") return t("errors.format");
+  if (err.code === "23505") return t("errors.duplicate");
+  if (err.code === "23503") return t("errors.dependents");
+  if (err.code === "42501" || lower.includes("row-level security")) return t("errors.permission");
+  if (err.code === "PGRST202") return t("errors.dbUpdate");
+  if (err.code === "P0001" && message) {
+    const known = translateDbMessage(message);
+    if (known) return known;
+    return getLang() === "en" ? message : t("errors.somethingWrongWith", { message });
   }
-  if (lower.includes("already registered") || err.code === "user_already_exists") {
-    return "There's already an account with this email. Try logging in instead.";
-  }
-  if (lower.includes("password") && (lower.includes("at least") || err.code === "weak_password")) {
-    return "Your password needs at least 8 characters.";
-  }
-  if (lower.includes("email not confirmed")) {
-    return "Please confirm your email first, using the link we sent you.";
-  }
-  if (lower.includes("invalid format") || (lower.includes("email address") && lower.includes("invalid"))) {
-    return "Please enter a valid email address, like name@example.com.";
-  }
-  if (lower.includes("rate limit") || err.status === 429) {
-    return "Too many tries. Please wait a minute and try again.";
-  }
-  if (lower.includes("failed to fetch") || lower.includes("networkerror") || lower.includes("load failed")) {
-    return "We couldn't reach the server. Check your internet connection and try again.";
-  }
-  if (lower.includes("database error saving new user")) {
-    return "We couldn't create your account. Please check your details and try again.";
-  }
-  if (lower.includes("signups not allowed")) {
-    return "Sign-ups are switched off right now. Please try again later.";
-  }
-  if (lower.includes("committed_within_needed")) {
-    return "The quantity can't be lower than what donors have already promised.";
-  }
-  if (lower.includes("quantity_needed")) return "Each item needs a quantity of at least 1.";
-  if (/_length\b/.test(lower)) return "Some text is too long. Please shorten it and try again.";
-  if (err.code === "23514") return "Some details aren't in the right format. Please check the form.";
-  if (err.code === "23505") return "That already exists, so nothing was changed.";
-  if (err.code === "23503") return "Other records still depend on this, so it can't be deleted. Close or cancel it instead.";
-  if (err.code === "42501" || lower.includes("row-level security")) {
-    return "You don't have permission to do that.";
-  }
-  if (err.code === "PGRST202") {
-    return "The database needs an update: run the newest file in supabase/migrations/ in the Supabase SQL Editor.";
-  }
-  if (err.code === "P0001" && message) return message;
-  return "Something went wrong. Please try again.";
+  return t("errors.generic");
 }
 
 /**
@@ -523,6 +620,45 @@ function startIcons() {
 }
 
 document.addEventListener("DOMContentLoaded", startIcons);
+
+/**
+ * Tab lists scroll sideways on phones (and Malay or Chinese labels can be longer): whenever a tab
+ * becomes selected, scroll its list so the selected tab is in view. Only the list moves, never the page.
+ * @returns {void}
+ */
+function revealSelectedTabs() {
+  for (const list of document.querySelectorAll(".tablist")) {
+    const selected = list.querySelector('[aria-selected="true"]');
+    if (!(selected instanceof HTMLElement) || list.scrollWidth <= list.clientWidth) continue;
+    const box = list.getBoundingClientRect();
+    const tab = selected.getBoundingClientRect();
+    if (tab.left < box.left) list.scrollLeft -= box.left - tab.left + 16;
+    else if (tab.right > box.right) list.scrollLeft += tab.right - box.right + 16;
+  }
+}
+
+document.addEventListener("DOMContentLoaded", () => {
+  let queued = false;
+  const reveal = () => {
+    if (queued) return;
+    queued = true;
+    requestAnimationFrame(() => {
+      queued = false;
+      revealSelectedTabs();
+    });
+  };
+  // a tab becomes selected, or its section is shown (Alpine's x-show changes style): the list only has a width once visible
+  new MutationObserver(reveal).observe(document.body, { subtree: true, attributes: true, attributeFilter: ["aria-selected", "style"] });
+  window.addEventListener("hashchange", reveal);
+  window.addEventListener("language-changed", reveal);
+  window.addEventListener("resize", reveal);
+});
+
+// A screen-reader announcement from before a language switch would be read in the old language: clear it.
+window.addEventListener("language-changed", () => {
+  const region = document.getElementById("sr-announcer");
+  if (region) region.textContent = "";
+});
 
 // Create the toast area early so screen readers already know about it when the first toast appears.
 document.addEventListener("DOMContentLoaded", getToastRegion);

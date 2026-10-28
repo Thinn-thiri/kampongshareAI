@@ -24,11 +24,12 @@ function shareLink(eventId) {
  */
 function messageTemplate(event, orgName) {
   const link = shareLink(event.id);
+  // in the chosen language; the event's own title and place stay as the organization wrote them
   return [
-    `${event.title} by ${orgName}`,
-    `${formatEventTime(event.starts_at, event.ends_at)} at ${event.location_name ?? "Singapore"}`,
-    `Donate: ${link}`,
-    `Volunteer: ${link}`,
+    t("share.templateTitle", { title: event.title, org: orgName }),
+    t("share.templateWhen", { when: formatEventTime(event.starts_at, event.ends_at), place: event.location_name ?? t("share.singapore") }),
+    t("share.templateDonate", { link }),
+    t("share.templateVolunteer", { link }),
   ].join("\n");
 }
 
@@ -130,6 +131,7 @@ async function downloadPoster(event, orgName) {
   canvas.width = W;
   canvas.height = H;
   const ctx = /** @type {CanvasRenderingContext2D} */ (canvas.getContext("2d"));
+  // i18n-ignore-start — the poster is a downloaded image and always uses English
   const font = '"Plus Jakarta Sans", system-ui, sans-serif';
   try {
     await document.fonts.load(`700 64px ${font}`);
@@ -190,7 +192,7 @@ async function downloadPoster(event, orgName) {
   ctx.font = `500 40px ${font}`;
   ctx.fillStyle = ink;
   y += 30;
-  for (const line of wrapLines(ctx, formatEventTime(event.starts_at, event.ends_at), W - 240, 2)) {
+  for (const line of wrapLines(ctx, formatEventTime(event.starts_at, event.ends_at, "en"), W - 240, 2)) {
     ctx.fillText(line, 120, y);
     y += 54;
   }
@@ -228,6 +230,7 @@ async function downloadPoster(event, orgName) {
 
   const blob = await new Promise((resolve) => canvas.toBlob(resolve, "image/png"));
   if (!blob) throw new Error("Could not make the poster");
+  // i18n-ignore-end
   const link = document.createElement("a");
   link.href = URL.createObjectURL(blob);
   link.download = "kampongshare-event.png";
@@ -292,21 +295,21 @@ document.addEventListener("alpine:init", () => {
       },
 
       async copyLink() {
-        toast((await copyText(this.link)) ? "Link copied." : "Couldn't copy — please copy it by hand.", "success");
+        toast((await copyText(this.link)) ? t("share.linkCopied") : t("share.copyFailed"), "success");
       },
 
       async copyCaption() {
         const text = this.captionIsAi ? `${this.caption}\n\n${this.link}` : this.caption;
-        toast((await copyText(text)) ? "Caption copied. Paste it with your poster on Instagram." : "Couldn't copy — please copy it by hand.");
+        toast((await copyText(text)) ? t("share.captionCopied") : t("share.copyFailed"));
       },
 
       async poster() {
         this.makingPoster = true;
         try {
           await downloadPoster(event, orgName);
-          toast("Poster downloaded. Post it on Instagram with the caption.");
+          toast(t("share.posterDone"));
         } catch {
-          toast("Couldn't make the poster on this device.", "error");
+          toast(t("share.posterFailed"), "error");
         } finally {
           this.makingPoster = false;
         }
@@ -322,7 +325,7 @@ document.addEventListener("alpine:init", () => {
         } else {
           this.caption = messageTemplate(event, orgName);
           this.captionIsAi = false;
-          toast("Couldn't write a caption right now — here's a ready-made one.", "error");
+          toast(t("share.captionFailed"), "error");
         }
       },
     }),

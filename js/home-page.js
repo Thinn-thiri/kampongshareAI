@@ -40,15 +40,16 @@ document.addEventListener("alpine:init", () => {
       const viewer = this.viewer;
       if (!viewer) return [];
       /** @type {{ href: string, label: string }[]} */
-      const links = [{ href: viewer.dashboardUrl, label: "Go to my dashboard" }];
-      if (viewer.role === "organization") links.push({ href: "/organization.html?new=request", label: "Post a request" });
+      const links = [{ href: viewer.dashboardUrl, label: t("index.goToDashboard") }];
+      if (viewer.role === "organization") links.push({ href: "/organization.html?new=request", label: t("index.postRequest") });
       else if (viewer.role === "admin") {
         const waiting = this.adminWaiting;
-        const count = waiting === null ? "" : waiting === 0 ? " (nothing waiting)" : ` (${waiting} waiting)`;
-        links.push({ href: "/admin.html#review", label: `Review queue${count}` });
+        const label =
+          waiting === null ? t("index.reviewQueue") : waiting === 0 ? t("index.reviewQueueNothing") : t("index.reviewQueueCount", { count: waiting });
+        links.push({ href: "/admin.html#review", label });
       } else {
-        if (viewer.isDonor) links.push({ href: "/needs.html", label: "Browse needs" });
-        if (viewer.isVolunteer) links.push({ href: "/volunteer.html#events-heading", label: "Find events" });
+        if (viewer.isDonor) links.push({ href: "/needs.html", label: t("nav.browseNeeds") });
+        if (viewer.isVolunteer) links.push({ href: "/volunteer.html#events-heading", label: t("index.findEvents") });
       }
       return links;
     },
@@ -81,7 +82,7 @@ document.addEventListener("alpine:init", () => {
     goOffer(itemId) {
       if (this.donorMode() === "turn_on") {
         document.getElementById("turn-on-donating")?.focus();
-        toast("Turn on donating first — it's one tap.", "error");
+        toast(t("index.turnOnFirst"), "error");
         return;
       }
       location.href = offerHref(itemId, this.viewer);

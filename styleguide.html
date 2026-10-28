@@ -5,7 +5,12 @@
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <!-- sets light / dark before anything is drawn (no white flash) -->
     <script src="/js/theme.js"></script>
-    <title>Style guide · KampongShare</title>
+    <!-- languages: the three dictionaries, then js/i18n.js sets <html lang> and translates before drawing -->
+    <script src="/js/i18n/en.js"></script>
+    <script src="/js/i18n/zh.js"></script>
+    <script src="/js/i18n/ms.js"></script>
+    <script src="/js/i18n.js"></script>
+    <title data-i18n="styleguide.pageTitle">Style guide · KampongShare</title>
     <link rel="icon" href="/img/favicon.svg" type="image/svg+xml" />
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
@@ -17,74 +22,95 @@
     <script src="/js/supabase.js"></script>
     <script src="/js/auth.js"></script>
     <script src="/js/ui.js"></script>
+    <script src="/js/chat-questions.js"></script>
+    <script src="/js/chat.js"></script>
     <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3/dist/cdn.min.js"></script>
   </head>
   <body class="pb-24 sm:pb-0">
-    <a href="#main" class="skip-link">Skip to main content</a>
+    <a href="#main" class="skip-link" data-i18n="nav.skip">Skip to main content</a>
     <header class="topbar" x-data="topBar">
-      <div class="container-page flex min-h-16 flex-wrap items-center gap-x-3 gap-y-2 py-2">
-        <a href="/" class="flex items-center gap-2 rounded-sm font-bold text-primary focus-visible:outline-2 focus-visible:outline-primary" aria-label="KampongShare home">
+      <div class="container-page flex min-h-16 flex-wrap items-center gap-x-2 gap-y-2 py-2 sm:gap-x-3">
+        <a href="/" class="flex items-center gap-2 rounded-sm font-bold text-primary focus-visible:outline-2 focus-visible:outline-primary" aria-label="KampongShare home" data-i18n-attr="aria-label:nav.homeLink">
           <img src="/img/favicon.svg" alt="" class="size-8" />
           <span class="hidden sm:inline">KampongShare</span>
         </a>
         <!-- the logged-in person's own name (only they see it) -->
-        <span class="max-w-28 truncate rounded-full bg-primary-soft px-2.5 py-1 text-xs font-semibold text-primary sm:max-w-48"
-          x-show="profile?.full_name" x-cloak :title="profile?.full_name"><span class="sr-only">Logged in as </span><span x-text="profile?.full_name"></span></span>
+        <span class="max-w-24 truncate rounded-full bg-primary-soft px-2.5 py-1 text-xs font-semibold text-primary sm:max-w-48"
+          x-show="profile?.full_name" x-cloak :title="profile?.full_name"><span class="sr-only" data-i18n="nav.loggedInAs">Logged in as</span> <span x-text="profile?.full_name"></span></span>
         <!-- pushes the links and buttons to the right -->
         <span class="flex-1" aria-hidden="true"></span>
         <!-- Desktop links (phones use the bottom navigation) -->
-        <nav class="hidden items-center gap-1 sm:flex" aria-label="Site" x-show="ready" x-cloak>
+        <nav class="hidden items-center gap-1 sm:flex" aria-label="Site" data-i18n-attr="aria-label:nav.site" x-show="ready" x-cloak>
           <template x-for="link in topLinks" :key="link.href">
             <a :href="link.href" class="top-link gap-2" :aria-current="isCurrent(link.href) ? 'page' : null">
-              <span x-text="link.label"></span>
-              <span class="badge badge-warning" x-show="link.badge" x-text="link.badge" :aria-label="`${link.badge} waiting`"></span>
+              <span x-text="$t(link.labelKey)"></span>
+              <span class="badge badge-warning" x-show="link.badge" x-text="link.badge" :aria-label="$t('nav.waiting', { count: link.badge })"></span>
             </a>
           </template>
         </nav>
-        <nav class="segmented order-last w-full sm:order-none sm:w-auto" aria-label="Switch between donating and volunteering" x-show="canSwitch" x-cloak>
-          <a href="/donor.html" class="segmented-link" :aria-current="here('/donor.html') ? 'page' : null">Donating</a>
-          <a href="/volunteer.html" class="segmented-link" :aria-current="here('/volunteer.html') ? 'page' : null">Volunteering</a>
+        <nav class="segmented order-last w-full sm:order-none sm:w-auto" aria-label="Switch between donating and volunteering" data-i18n-attr="aria-label:nav.switchRole" x-show="canSwitch" x-cloak>
+          <a href="/donor.html" class="segmented-link" :aria-current="here('/donor.html') ? 'page' : null" data-i18n="nav.donating">Donating</a>
+          <a href="/volunteer.html" class="segmented-link" :aria-current="here('/volunteer.html') ? 'page' : null" data-i18n="nav.volunteering">Volunteering</a>
         </nav>
+        <!-- Language: English / 中文 / Bahasa Melayu (js/i18n.js) -->
+        <div class="relative" x-data="langMenu" @keydown.escape="close(true)" @click.outside="close(false)">
+          <button type="button" x-ref="langButton" class="btn btn-ghost min-w-11 gap-1.5 px-2" :aria-label="buttonLabel" aria-label="Language / 语言 / Bahasa"
+            aria-haspopup="menu" :aria-expanded="open.toString()" aria-controls="lang-menu" @click="toggle()">
+            <i data-lucide="globe" class="size-5" aria-hidden="true"></i>
+            <span class="text-sm sm:hidden" :lang="current.htmlLang" x-text="current.short"></span>
+            <span class="hidden text-sm sm:inline" :lang="current.htmlLang" x-text="current.name"></span>
+          </button>
+          <div id="lang-menu" class="menu w-48" role="menu" aria-label="Language / 语言 / Bahasa" x-show="open" x-cloak @keydown.down.prevent="move(1)" @keydown.up.prevent="move(-1)">
+            <template x-for="option in options" :key="option.code">
+              <button type="button" class="menu-item gap-2" role="menuitemradio" :lang="option.htmlLang" :aria-checked="(lang === option.code).toString()" @click="pick(option.code)">
+                <span class="flex-1" x-text="option.name"></span>
+                <span class="text-primary" x-show="lang === option.code"><i data-lucide="check" class="size-4" aria-hidden="true"></i></span>
+              </button>
+            </template>
+          </div>
+        </div>
         <!-- Theme: System / Light / Dark (js/theme.js) -->
         <div class="relative" x-data="themeMenu" @keydown.escape="close(true)" @click.outside="close(false)">
-          <button type="button" x-ref="themeButton" class="btn btn-ghost size-11 px-0" :aria-label="`Theme: ${label}`" aria-label="Theme"
+          <button type="button" x-ref="themeButton" class="btn btn-ghost size-11 px-0" :aria-label="$t('theme.button', { name: label })" aria-label="Theme"
             aria-haspopup="menu" :aria-expanded="open.toString()" aria-controls="theme-menu" @click="toggle()">
             <span x-show="choice === 'system'"><i data-lucide="monitor" class="size-5" aria-hidden="true"></i></span>
             <span x-show="choice === 'light'" x-cloak><i data-lucide="sun" class="size-5" aria-hidden="true"></i></span>
             <span x-show="choice === 'dark'" x-cloak><i data-lucide="moon" class="size-5" aria-hidden="true"></i></span>
           </button>
-          <div id="theme-menu" class="menu w-40" role="menu" aria-label="Theme" x-show="open" x-cloak @keydown.down.prevent="move(1)" @keydown.up.prevent="move(-1)">
+          <div id="theme-menu" class="menu w-40" role="menu" aria-label="Theme" data-i18n-attr="aria-label:theme.menu" x-show="open" x-cloak @keydown.down.prevent="move(1)" @keydown.up.prevent="move(-1)">
             <template x-for="option in options" :key="option.value">
               <button type="button" class="menu-item gap-2" role="menuitemradio" :aria-checked="(choice === option.value).toString()" @click="pick(option.value)">
                 <span x-show="option.icon === 'monitor'"><i data-lucide="monitor" class="size-4" aria-hidden="true"></i></span>
                 <span x-show="option.icon === 'sun'"><i data-lucide="sun" class="size-4" aria-hidden="true"></i></span>
                 <span x-show="option.icon === 'moon'"><i data-lucide="moon" class="size-4" aria-hidden="true"></i></span>
-                <span class="flex-1" x-text="option.label"></span>
+                <span class="flex-1" x-text="$t(`theme.${option.value}`)"></span>
                 <span class="text-primary" x-show="choice === option.value"><i data-lucide="check" class="size-4" aria-hidden="true"></i></span>
               </button>
             </template>
           </div>
         </div>
-        <nav class="flex items-center gap-1" aria-label="Account" x-show="ready && !profile" x-cloak>
-          <a href="/login.html" class="btn btn-ghost px-3">Log in</a>
-          <a href="/signup.html" class="btn btn-primary px-4">Sign up</a>
+        <nav class="flex items-center gap-1" aria-label="Account" data-i18n-attr="aria-label:nav.account" x-show="ready && !profile" x-cloak>
+          <a href="/login.html" class="btn btn-ghost hidden px-3 sm:inline-flex" data-i18n="nav.logIn">Log in</a>
+          <a href="/signup.html" class="btn btn-primary px-4" data-i18n="nav.signUp">Sign up</a>
         </nav>
         <div class="relative" x-show="profile" x-cloak @keydown.escape="if (open) { open = false; $refs.accountButton.focus() }" @click.outside="open = false">
-          <button type="button" x-ref="accountButton" class="btn btn-secondary px-4" :aria-expanded="open.toString()" aria-controls="account-menu" @click="open = !open">
-            Account
+          <button type="button" x-ref="accountButton" class="btn btn-secondary min-w-11 px-2 sm:px-4" :aria-expanded="open.toString()" aria-controls="account-menu" @click="open = !open">
+            <!-- phones: an icon (the name is still read out), so the top bar fits on one row -->
+            <i data-lucide="user-round" class="size-5 sm:hidden" aria-hidden="true"></i>
+            <span class="sr-only sm:not-sr-only" data-i18n="nav.account">Account</span>
           </button>
           <div id="account-menu" class="menu" x-show="open" x-cloak>
-            <a :href="dashboard" href="/" class="menu-item sm:hidden">My dashboard</a>
-            <a href="/profile.html" class="menu-item">My profile</a>
-            <button type="button" class="menu-item" @click="logout()">Log out</button>
+            <a :href="dashboard" href="/" class="menu-item sm:hidden" data-i18n="nav.myDashboard">My dashboard</a>
+            <a href="/profile.html" class="menu-item" data-i18n="nav.myProfile">My profile</a>
+            <button type="button" class="menu-item" @click="logout()" data-i18n="nav.logOut">Log out</button>
           </div>
         </div>
       </div>
-        <nav class="bottom-nav" aria-label="Main" x-show="ready" x-cloak>
+        <nav class="bottom-nav" aria-label="Main" data-i18n-attr="aria-label:nav.main" x-show="ready" x-cloak>
           <template x-for="link in bottomLinks" :key="link.href">
             <a :href="link.href" class="bottom-nav-link" :aria-current="isCurrent(link.href) ? 'page' : null">
               <i :data-lucide="link.icon" class="size-5" aria-hidden="true"></i>
-              <span x-text="link.label"></span>
+              <span x-text="$t(link.labelKey)"></span>
             </a>
           </template>
         </nav>
@@ -92,221 +118,218 @@
 
     <main id="main" tabindex="-1" class="container-page space-y-12 py-8 focus:outline-none">
       <div>
-        <h1 class="text-2xl font-bold sm:text-3xl">Style guide</h1>
-        <p class="mt-2 text-muted">Every shared component from <code>src/input.css</code>, with sample data. All names here are made up.</p>
+        <h1 class="text-2xl font-bold sm:text-3xl" data-i18n="styleguide.title">Style guide</h1>
+        <p class="mt-2 text-muted"><span data-i18n="styleguide.introBefore">Every shared component from</span> <code translate="no">src/input.css</code><span data-i18n="styleguide.introAfter">, with sample data. All names here are made up.</span></p>
       </div>
 
       <!-- Colours -->
       <!-- Light and dark -->
       <section aria-labelledby="sg-themes" class="space-y-4">
-        <h2 id="sg-themes" class="text-xl font-semibold">Light and dark</h2>
-        <p class="text-muted">
-          Switch the whole page with the theme button in the top bar: <strong class="text-ink">System</strong> follows your device's setting,
-          or choose <strong class="text-ink">Light</strong> or <strong class="text-ink">Dark</strong>. The panels below always show one theme each.
-        </p>
+        <h2 id="sg-themes" class="text-xl font-semibold" data-i18n="styleguide.themesTitle">Light and dark</h2>
+        <p class="text-muted" data-i18n-rich="styleguide.themesText">Switch the whole page with the theme button in the top bar: <strong>System</strong> follows your device's setting, or choose <strong>Light</strong> or <strong>Dark</strong>. The panels below always show one theme each.</p>
         <div class="grid gap-4 md:grid-cols-2">
           <div data-theme="light" class="space-y-4 rounded-lg border border-line bg-canvas p-4">
-            <p class="text-sm font-semibold text-muted">Light theme</p>
+            <p class="text-sm font-semibold text-muted" data-i18n="styleguide.lightTheme">Light theme</p>
             <div class="card space-y-3">
               <div class="flex flex-wrap gap-2">
-                <span class="badge badge-warning">Pending</span>
-                <span class="badge badge-info">Open</span>
-                <span class="badge badge-success">Delivered</span>
-                <span class="badge badge-danger">Rejected</span>
-                <span class="badge badge-neutral">Closed</span>
-                <span class="badge badge-ai">AI-suggested</span>
+                <span class="badge badge-warning" data-i18n="enum.offerStatus.pending">Pending</span>
+                <span class="badge badge-info" data-i18n="enum.requestStatus.open">Open</span>
+                <span class="badge badge-success" data-i18n="enum.offerStatus.delivered">Delivered</span>
+                <span class="badge badge-danger" data-i18n="enum.requestStatus.rejected">Rejected</span>
+                <span class="badge badge-neutral" data-i18n="enum.requestStatus.closed">Closed</span>
+                <span class="badge badge-ai" data-i18n="common.aiSuggested">AI-suggested</span>
               </div>
-              <p class="font-semibold">Rice 5kg</p>
-              <p class="text-sm text-muted">6 of 10 bags received</p>
+              <p translate="no" class="font-semibold">Rice 5kg</p>
+              <p translate="no" class="text-sm text-muted">6 of 10 bags received</p>
               <div>
-                <label for="sg-theme-input-light" class="label">Quantity</label>
+                <label for="sg-theme-input-light" class="label" data-i18n="field.quantity">Quantity</label>
                 <input id="sg-theme-input-light" class="input" type="number" value="4" />
               </div>
               <div class="flex flex-wrap gap-2">
-                <button type="button" class="btn btn-primary">Offer</button>
-                <button type="button" class="btn btn-secondary">Cancel</button>
-                <button type="button" class="btn btn-danger">Delete</button>
-                <button type="button" class="btn btn-ghost">Why this score?</button>
+                <button type="button" class="btn btn-primary" data-i18n="common.offer">Offer</button>
+                <button type="button" class="btn btn-secondary" data-i18n="common.cancel">Cancel</button>
+                <button type="button" class="btn btn-danger" data-i18n="common.delete">Delete</button>
+                <button type="button" class="btn btn-ghost" data-i18n="requests.whyScore">Why this score?</button>
               </div>
             </div>
-            <div class="toast toast-success">Your offer was sent.</div>
-            <div class="toast toast-error">We couldn't reach the server.</div>
+            <div class="toast toast-success" data-i18n="styleguide.sampleSent">Your offer was sent.</div>
+            <div class="toast toast-error" data-i18n="styleguide.sampleError">We couldn't reach the server.</div>
           </div>
           <div data-theme="dark" class="space-y-4 rounded-lg border border-line bg-canvas p-4">
-            <p class="text-sm font-semibold text-muted">Dark theme</p>
+            <p class="text-sm font-semibold text-muted" data-i18n="styleguide.darkTheme">Dark theme</p>
             <div class="card space-y-3">
               <div class="flex flex-wrap gap-2">
-                <span class="badge badge-warning">Pending</span>
-                <span class="badge badge-info">Open</span>
-                <span class="badge badge-success">Delivered</span>
-                <span class="badge badge-danger">Rejected</span>
-                <span class="badge badge-neutral">Closed</span>
-                <span class="badge badge-ai">AI-suggested</span>
+                <span class="badge badge-warning" data-i18n="enum.offerStatus.pending">Pending</span>
+                <span class="badge badge-info" data-i18n="enum.requestStatus.open">Open</span>
+                <span class="badge badge-success" data-i18n="enum.offerStatus.delivered">Delivered</span>
+                <span class="badge badge-danger" data-i18n="enum.requestStatus.rejected">Rejected</span>
+                <span class="badge badge-neutral" data-i18n="enum.requestStatus.closed">Closed</span>
+                <span class="badge badge-ai" data-i18n="common.aiSuggested">AI-suggested</span>
               </div>
-              <p class="font-semibold">Rice 5kg</p>
-              <p class="text-sm text-muted">6 of 10 bags received</p>
+              <p translate="no" class="font-semibold">Rice 5kg</p>
+              <p translate="no" class="text-sm text-muted">6 of 10 bags received</p>
               <div>
-                <label for="sg-theme-input-dark" class="label">Quantity</label>
+                <label for="sg-theme-input-dark" class="label" data-i18n="field.quantity">Quantity</label>
                 <input id="sg-theme-input-dark" class="input" type="number" value="4" />
               </div>
               <div class="flex flex-wrap gap-2">
-                <button type="button" class="btn btn-primary">Offer</button>
-                <button type="button" class="btn btn-secondary">Cancel</button>
-                <button type="button" class="btn btn-danger">Delete</button>
-                <button type="button" class="btn btn-ghost">Why this score?</button>
+                <button type="button" class="btn btn-primary" data-i18n="common.offer">Offer</button>
+                <button type="button" class="btn btn-secondary" data-i18n="common.cancel">Cancel</button>
+                <button type="button" class="btn btn-danger" data-i18n="common.delete">Delete</button>
+                <button type="button" class="btn btn-ghost" data-i18n="requests.whyScore">Why this score?</button>
               </div>
             </div>
-            <div class="toast toast-success">Your offer was sent.</div>
-            <div class="toast toast-error">We couldn't reach the server.</div>
+            <div class="toast toast-success" data-i18n="styleguide.sampleSent">Your offer was sent.</div>
+            <div class="toast toast-error" data-i18n="styleguide.sampleError">We couldn't reach the server.</div>
           </div>
         </div>
       </section>
 
       <section aria-labelledby="sg-colours" class="space-y-4">
-        <h2 id="sg-colours" class="text-xl font-semibold">Colours</h2>
+        <h2 id="sg-colours" class="text-xl font-semibold" data-i18n="styleguide.colours">Colours</h2>
         <div class="grid grid-cols-2 gap-3 sm:grid-cols-4 lg:grid-cols-6">
-          <div class="rounded-md bg-primary p-4 text-sm font-semibold text-on-primary">primary</div>
-          <div class="rounded-md bg-primary-hover p-4 text-sm font-semibold text-on-primary">primary-hover</div>
-          <div class="rounded-md bg-primary-soft p-4 text-sm font-semibold text-primary">primary-soft</div>
-          <div class="rounded-md bg-accent p-4 text-sm font-semibold text-ink dark:text-canvas">accent</div>
-          <div class="rounded-md border border-line bg-canvas p-4 text-sm font-semibold text-ink">canvas</div>
-          <div class="rounded-md border border-line bg-surface p-4 text-sm font-semibold text-ink">surface</div>
-          <div class="rounded-md bg-ink p-4 text-sm font-semibold text-canvas">ink</div>
-          <div class="rounded-md bg-muted p-4 text-sm font-semibold text-canvas">muted</div>
-          <div class="rounded-md bg-success-soft p-4 text-sm font-semibold text-success">success</div>
-          <div class="rounded-md bg-warning-soft p-4 text-sm font-semibold text-warning">warning</div>
-          <div class="rounded-md bg-danger-soft p-4 text-sm font-semibold text-danger">danger</div>
-          <div class="rounded-md bg-info-soft p-4 text-sm font-semibold text-info">info</div>
+          <div class="rounded-md bg-primary p-4 text-sm font-semibold text-on-primary" translate="no">primary</div>
+          <div class="rounded-md bg-primary-hover p-4 text-sm font-semibold text-on-primary" translate="no">primary-hover</div>
+          <div class="rounded-md bg-primary-soft p-4 text-sm font-semibold text-primary" translate="no">primary-soft</div>
+          <div class="rounded-md bg-accent p-4 text-sm font-semibold text-ink dark:text-canvas" translate="no">accent</div>
+          <div class="rounded-md border border-line bg-canvas p-4 text-sm font-semibold text-ink" translate="no">canvas</div>
+          <div class="rounded-md border border-line bg-surface p-4 text-sm font-semibold text-ink" translate="no">surface</div>
+          <div class="rounded-md bg-ink p-4 text-sm font-semibold text-canvas" translate="no">ink</div>
+          <div class="rounded-md bg-muted p-4 text-sm font-semibold text-canvas" translate="no">muted</div>
+          <div class="rounded-md bg-success-soft p-4 text-sm font-semibold text-success" translate="no">success</div>
+          <div class="rounded-md bg-warning-soft p-4 text-sm font-semibold text-warning" translate="no">warning</div>
+          <div class="rounded-md bg-danger-soft p-4 text-sm font-semibold text-danger" translate="no">danger</div>
+          <div class="rounded-md bg-info-soft p-4 text-sm font-semibold text-info" translate="no">info</div>
         </div>
       </section>
 
       <!-- Buttons -->
       <section aria-labelledby="sg-buttons" class="space-y-4">
-        <h2 id="sg-buttons" class="text-xl font-semibold">Buttons</h2>
+        <h2 id="sg-buttons" class="text-xl font-semibold" data-i18n="styleguide.buttons">Buttons</h2>
         <div class="flex flex-wrap gap-3">
-          <button type="button" class="btn btn-primary">Make an offer</button>
-          <button type="button" class="btn btn-secondary">View details</button>
-          <button type="button" class="btn btn-danger">Reject</button>
-          <button type="button" class="btn btn-ghost">Cancel</button>
-          <button type="button" class="btn btn-primary" disabled>Disabled</button>
+          <button type="button" class="btn btn-primary" data-i18n="styleguide.makeOffer">Make an offer</button>
+          <button type="button" class="btn btn-secondary" data-i18n="admin.viewDetails">View details</button>
+          <button type="button" class="btn btn-danger" data-i18n="common.reject">Reject</button>
+          <button type="button" class="btn btn-ghost" data-i18n="common.cancel">Cancel</button>
+          <button type="button" class="btn btn-primary" disabled data-i18n="styleguide.disabled">Disabled</button>
         </div>
         <div x-data="{ busy: false }">
           <button type="button" class="btn btn-primary" :disabled="busy" @click="busy = true; setTimeout(() => busy = false, 1500)">
             <span class="spinner" x-show="busy" x-cloak aria-hidden="true"></span>
-            <span x-text="busy ? 'Sending…' : 'Click to see loading state'">Click to see loading state</span>
+            <span x-text="busy ? $t('common.sending') : $t('styleguide.loadingDemo')">Click to see loading state</span>
           </button>
         </div>
       </section>
 
       <!-- Badges -->
       <section aria-labelledby="sg-badges" class="space-y-4">
-        <h2 id="sg-badges" class="text-xl font-semibold">Badges</h2>
+        <h2 id="sg-badges" class="text-xl font-semibold" data-i18n="styleguide.badges">Badges</h2>
         <div class="space-y-3">
-          <p class="text-sm font-medium text-muted">Request status</p>
+          <p class="text-sm font-medium text-muted" data-i18n="styleguide.requestStatus">Request status</p>
           <div class="flex flex-wrap gap-2">
-            <span class="badge badge-warning">Waiting for approval</span>
-            <span class="badge badge-info">Open</span>
-            <span class="badge badge-success">Fulfilled</span>
-            <span class="badge badge-neutral">Closed</span>
-            <span class="badge badge-danger">Rejected</span>
+            <span class="badge badge-warning" data-i18n="enum.requestStatus.pending_approval">Waiting for approval</span>
+            <span class="badge badge-info" data-i18n="enum.requestStatus.open">Open</span>
+            <span class="badge badge-success" data-i18n="enum.requestStatus.fulfilled">Fulfilled</span>
+            <span class="badge badge-neutral" data-i18n="enum.requestStatus.closed">Closed</span>
+            <span class="badge badge-danger" data-i18n="enum.requestStatus.rejected">Rejected</span>
           </div>
-          <p class="text-sm font-medium text-muted">Offer status</p>
+          <p class="text-sm font-medium text-muted" data-i18n="styleguide.offerStatus">Offer status</p>
           <div class="flex flex-wrap gap-2">
-            <span class="badge badge-warning">Pending</span>
-            <span class="badge badge-info">Accepted</span>
-            <span class="badge badge-success">Delivered</span>
-            <span class="badge badge-neutral">Rejected</span>
-            <span class="badge badge-neutral">Cancelled</span>
+            <span class="badge badge-warning" data-i18n="enum.offerStatus.pending">Pending</span>
+            <span class="badge badge-info" data-i18n="enum.offerStatus.accepted">Accepted</span>
+            <span class="badge badge-success" data-i18n="enum.offerStatus.delivered">Delivered</span>
+            <span class="badge badge-neutral" data-i18n="enum.requestStatus.rejected">Rejected</span>
+            <span class="badge badge-neutral" data-i18n="enum.offerStatus.cancelled">Cancelled</span>
           </div>
-          <p class="text-sm font-medium text-muted">Urgency (score and word, never colour alone)</p>
+          <p class="text-sm font-medium text-muted" data-i18n="styleguide.urgencyNote">Urgency (score and word, never colour alone)</p>
           <div class="flex flex-wrap gap-2">
-            <span class="badge badge-danger">92 · Critical</span>
-            <span class="badge badge-warning">68 · High</span>
-            <span class="badge badge-info">45 · Medium</span>
-            <span class="badge badge-neutral">20 · Low</span>
-            <span class="badge badge-ai">AI-suggested</span>
+            <span class="badge badge-danger">92 · <span data-i18n="enum.urgency.critical">Critical</span></span>
+            <span class="badge badge-warning">68 · <span data-i18n="enum.urgency.high">High</span></span>
+            <span class="badge badge-info">45 · <span data-i18n="enum.urgency.medium">Medium</span></span>
+            <span class="badge badge-neutral">20 · <span data-i18n="enum.urgency.low">Low</span></span>
+            <span class="badge badge-ai" data-i18n="common.aiSuggested">AI-suggested</span>
           </div>
         </div>
       </section>
 
       <!-- Cards -->
       <section aria-labelledby="sg-cards" class="space-y-4">
-        <h2 id="sg-cards" class="text-xl font-semibold">Request cards</h2>
-        <p class="text-muted">One column on mobile, two on tablets, three on desktop.</p>
+        <h2 id="sg-cards" class="text-xl font-semibold" data-i18n="styleguide.requestCards">Request cards</h2>
+        <p class="text-muted" data-i18n="styleguide.cardsNote">One column on mobile, two on tablets, three on desktop.</p>
         <div class="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
           <article class="card space-y-4" x-data="{ why: false }">
             <div class="flex flex-wrap items-center gap-2">
-              <span class="badge badge-danger">88 · Critical</span>
-              <span class="badge badge-info">Open</span>
+              <span class="badge badge-danger">88 · <span data-i18n="enum.urgency.critical">Critical</span></span>
+              <span class="badge badge-info" data-i18n="enum.requestStatus.open">Open</span>
             </div>
             <div>
-              <h3 class="text-lg font-semibold">Rice and cooking oil for 40 families</h3>
-              <p class="mt-1 text-sm text-muted">Sunrise Community Pantry · Tampines · Needed by 30 Oct 2026</p>
+              <h3 translate="no" class="text-lg font-semibold">Rice and cooking oil for 40 families</h3>
+              <p translate="no" class="mt-1 text-sm text-muted">Sunrise Community Pantry · Tampines · Needed by 30 Oct 2026</p>
             </div>
             <div class="space-y-1">
               <div class="flex justify-between text-sm">
-                <span class="font-medium">Rice (5 kg bags)</span>
-                <span class="text-muted">6 of 10 bags</span>
+                <span translate="no" class="font-medium">Rice (5 kg bags)</span>
+                <span translate="no" class="text-muted">6 of 10 bags</span>
               </div>
-              <div class="progress" role="img" aria-label="4 bags received, 2 promised, 4 still needed">
+              <div class="progress" role="img" translate="no" aria-label="4 bags received, 2 promised, 4 still needed">
                 <div class="progress-received" style="width: 40%"></div>
                 <div class="progress-committed" style="width: 20%"></div>
               </div>
-              <p class="helper-text">4 received · 2 promised</p>
+              <p translate="no" class="helper-text">4 received · 2 promised</p>
             </div>
             <div>
-              <button type="button" class="btn btn-ghost -ml-3 px-3" :aria-expanded="why.toString()" aria-controls="why-1" @click="why = !why">
+              <button type="button" class="btn btn-ghost -ml-3 px-3" :aria-expanded="why.toString()" aria-controls="why-1" @click="why = !why" data-i18n="requests.whyScore">
                 Why this score?
               </button>
               <div id="why-1" class="mt-2 space-y-2 rounded-md bg-canvas p-3 text-sm" x-show="why" x-cloak>
-                <span class="badge badge-ai">AI-suggested</span>
+                <span class="badge badge-ai" data-i18n="common.aiSuggested">AI-suggested</span>
                 <ul class="list-disc space-y-1 pl-5">
-                  <li>Deadline is in 7 days</li>
-                  <li>Only 60% of the items are covered so far</li>
-                  <li>Organization marked this request as high urgency</li>
+                  <li translate="no">Deadline is in 7 days</li>
+                  <li translate="no">Only 60% of the items are covered so far</li>
+                  <li translate="no">Organization marked this request as high urgency</li>
                 </ul>
-                <p class="text-muted">The score comes from a fixed formula. People always make the final decision.</p>
+                <p class="text-muted" data-i18n="styleguide.formulaNote">The score comes from a fixed formula. People always make the final decision.</p>
               </div>
             </div>
-            <button type="button" class="btn btn-primary w-full">Offer rice</button>
+            <button translate="no" type="button" class="btn btn-primary w-full">Offer rice</button>
           </article>
 
           <article class="card space-y-4">
             <div class="flex flex-wrap items-center gap-2">
-              <span class="badge badge-warning">64 · High</span>
-              <span class="badge badge-info">Open</span>
+              <span class="badge badge-warning">64 · <span data-i18n="enum.urgency.high">High</span></span>
+              <span class="badge badge-info" data-i18n="enum.requestStatus.open">Open</span>
             </div>
             <div>
-              <h3 class="text-lg font-semibold">School supplies for after-school club</h3>
-              <p class="mt-1 text-sm text-muted">Harbour Kids Club · Jurong West · Needed by 15 Nov 2026</p>
+              <h3 translate="no" class="text-lg font-semibold">School supplies for after-school club</h3>
+              <p translate="no" class="mt-1 text-sm text-muted">Harbour Kids Club · Jurong West · Needed by 15 Nov 2026</p>
             </div>
             <div class="space-y-1">
               <div class="flex justify-between text-sm">
-                <span class="font-medium">Exercise books</span>
-                <span class="text-muted">12 of 50 books</span>
+                <span translate="no" class="font-medium">Exercise books</span>
+                <span translate="no" class="text-muted">12 of 50 books</span>
               </div>
-              <div class="progress" role="img" aria-label="12 books received, 0 promised, 38 still needed">
+              <div class="progress" role="img" translate="no" aria-label="12 books received, 0 promised, 38 still needed">
                 <div class="progress-received" style="width: 24%"></div>
               </div>
             </div>
-            <button type="button" class="btn btn-primary w-full">Offer exercise books</button>
+            <button translate="no" type="button" class="btn btn-primary w-full">Offer exercise books</button>
           </article>
 
           <article class="card space-y-4">
             <div class="flex flex-wrap items-center gap-2">
-              <span class="badge badge-neutral">22 · Low</span>
-              <span class="badge badge-success">Fulfilled</span>
+              <span class="badge badge-neutral">22 · <span data-i18n="enum.urgency.low">Low</span></span>
+              <span class="badge badge-success" data-i18n="enum.requestStatus.fulfilled">Fulfilled</span>
             </div>
             <div>
-              <h3 class="text-lg font-semibold">Winter blankets for shelter</h3>
-              <p class="mt-1 text-sm text-muted">Bedok Care Home · Bedok · Closed 1 Oct 2026</p>
+              <h3 translate="no" class="text-lg font-semibold">Winter blankets for shelter</h3>
+              <p translate="no" class="mt-1 text-sm text-muted">Bedok Care Home · Bedok · Closed 1 Oct 2026</p>
             </div>
             <div class="space-y-1">
               <div class="flex justify-between text-sm">
-                <span class="font-medium">Blankets</span>
-                <span class="text-muted">20 of 20 blankets</span>
+                <span translate="no" class="font-medium">Blankets</span>
+                <span translate="no" class="text-muted">20 of 20 blankets</span>
               </div>
-              <div class="progress" role="img" aria-label="All 20 blankets received">
+              <div class="progress" role="img" translate="no" aria-label="All 20 blankets received">
                 <div class="progress-received" style="width: 100%"></div>
               </div>
             </div>
@@ -316,22 +339,22 @@
 
       <!-- Stat cards -->
       <section aria-labelledby="sg-stats" class="space-y-4">
-        <h2 id="sg-stats" class="text-xl font-semibold">Summary stat cards</h2>
+        <h2 id="sg-stats" class="text-xl font-semibold" data-i18n="styleguide.statCards">Summary stat cards</h2>
         <div class="grid grid-cols-2 gap-4 lg:grid-cols-4">
           <div class="card">
-            <p class="text-sm text-muted">Open requests</p>
+            <p class="text-sm text-muted" data-i18n="orgDash.openRequests">Open requests</p>
             <p class="mt-1 text-3xl font-bold">12</p>
           </div>
           <div class="card">
-            <p class="text-sm text-muted">Items still needed</p>
+            <p class="text-sm text-muted" data-i18n="orgDash.itemsNeeded">Items still needed</p>
             <p class="mt-1 text-3xl font-bold">248</p>
           </div>
           <div class="card">
-            <p class="text-sm text-muted">Offers waiting</p>
+            <p class="text-sm text-muted" data-i18n="orgDash.offersWaiting">Offers waiting</p>
             <p class="mt-1 text-3xl font-bold">5</p>
           </div>
           <div class="card">
-            <p class="text-sm text-muted">Upcoming events</p>
+            <p class="text-sm text-muted" data-i18n="orgDash.upcomingEvents">Upcoming events</p>
             <p class="mt-1 text-3xl font-bold">3</p>
           </div>
         </div>
@@ -339,70 +362,70 @@
 
       <!-- Forms -->
       <section aria-labelledby="sg-forms" class="space-y-4">
-        <h2 id="sg-forms" class="text-xl font-semibold">Form fields</h2>
+        <h2 id="sg-forms" class="text-xl font-semibold" data-i18n="styleguide.formFields">Form fields</h2>
         <form class="card max-w-xl space-y-5" novalidate @submit.prevent>
           <div>
-            <label for="sg-name" class="label">Full name <span class="text-danger" aria-hidden="true">*</span></label>
-            <input id="sg-name" class="input" type="text" required autocomplete="name" value="Tan Mei Ling" />
+            <label for="sg-name" class="label"><span data-i18n="profile.fullName">Full name</span> <span class="text-danger" aria-hidden="true">*</span></label>
+            <input id="sg-name" class="input" type="text" required autocomplete="name" value="Tan Mei Ling" translate="no" />
           </div>
           <div>
-            <label for="sg-password" class="label">Password <span class="text-danger" aria-hidden="true">*</span></label>
+            <label for="sg-password" class="label"><span data-i18n="login.password">Password</span> <span class="text-danger" aria-hidden="true">*</span></label>
             <div class="password-field" x-data="passwordToggle">
               <input id="sg-password" class="input" type="password" :type="shown ? 'text' : 'password'" x-ref="input" autocomplete="new-password" required aria-describedby="sg-password-help" />
               <button type="button" class="password-toggle" @mousedown.prevent @click="toggle($event)" aria-controls="sg-password"
-                aria-label="Show password" :aria-label="shown ? 'Hide password' : 'Show password'" :aria-pressed="shown ? 'true' : 'false'">
+                aria-label="Show password" :aria-label="shown ? $t('ui.hidePassword') : $t('ui.showPassword')" :aria-pressed="shown ? 'true' : 'false'">
                 <span x-show="!shown"><i data-lucide="eye" class="size-5" aria-hidden="true"></i></span>
                 <span x-show="shown" x-cloak><i data-lucide="eye-off" class="size-5" aria-hidden="true"></i></span>
               </button>
             </div>
-            <p id="sg-password-help" class="helper-text">Tap the eye to show or hide what you typed.</p>
+            <p id="sg-password-help" class="helper-text" data-i18n="styleguide.passwordHelp">Tap the eye to show or hide what you typed.</p>
           </div>
           <div>
-            <label for="sg-postal" class="label">Postal code</label>
+            <label for="sg-postal" class="label" data-i18n="field.postalCode">Postal code</label>
             <input id="sg-postal" class="input" type="text" inputmode="numeric" maxlength="6" aria-describedby="sg-postal-help" />
-            <p id="sg-postal-help" class="helper-text">6 digits. We only use it to show needs near you, never your full address.</p>
+            <p id="sg-postal-help" class="helper-text" data-i18n="styleguide.postalHelp">6 digits. We only use it to show needs near you, never your full address.</p>
           </div>
           <div>
-            <label for="sg-qty" class="label">Quantity <span class="text-danger" aria-hidden="true">*</span></label>
+            <label for="sg-qty" class="label"><span data-i18n="field.quantity">Quantity</span> <span class="text-danger" aria-hidden="true">*</span></label>
             <input id="sg-qty" class="input" type="number" required value="12" aria-invalid="true" aria-describedby="sg-qty-error" />
-            <p id="sg-qty-error" class="field-error">You can offer up to 4 bags — that's all that's still needed.</p>
+            <p id="sg-qty-error" class="field-error" data-i18n="styleguide.quantityError">You can offer up to 4 bags — that's all that's still needed.</p>
           </div>
           <div>
-            <label for="sg-category" class="label">Category</label>
+            <label for="sg-category" class="label" data-i18n="field.category">Category</label>
             <select id="sg-category" class="input">
-              <option>Food</option>
-              <option>Clothing</option>
-              <option>Hygiene</option>
-              <option>Household</option>
-              <option>Baby</option>
-              <option>Education</option>
+              <option data-i18n="enum.category.food">Food</option>
+              <option data-i18n="enum.category.clothing">Clothing</option>
+              <option data-i18n="enum.category.hygiene">Hygiene</option>
+              <option data-i18n="enum.category.household">Household</option>
+              <option data-i18n="enum.category.baby">Baby</option>
+              <option data-i18n="enum.category.education">Education</option>
             </select>
           </div>
           <div>
-            <label for="sg-message" class="label">Message to the organization</label>
+            <label for="sg-message" class="label" data-i18n="needs.message">Message to the organization</label>
             <textarea id="sg-message" class="input py-2" rows="3" maxlength="500"></textarea>
-            <p class="helper-text">Up to 500 characters.</p>
+            <p class="helper-text" data-i18n="styleguide.messageHelp">Up to 500 characters.</p>
           </div>
           <label class="flex items-start gap-3 text-sm">
             <input type="checkbox" class="mt-0.5 size-5 accent-primary" />
-            <span>Items are sealed, unopened and not past their expiry date.</span>
+            <span data-i18n="needs.foodConfirm">Items are sealed, unopened and not past their expiry date.</span>
           </label>
-          <p class="text-sm text-muted"><span class="text-danger" aria-hidden="true">*</span> Required</p>
-          <button type="submit" class="btn btn-primary">Send offer</button>
+          <p class="text-sm text-muted"><span class="text-danger" aria-hidden="true">*</span> <span data-i18n="styleguide.required">Required</span></p>
+          <button type="submit" class="btn btn-primary" data-i18n="needs.sendOffer">Send offer</button>
         </form>
       </section>
 
       <!-- Toasts and dialog -->
       <section aria-labelledby="sg-feedback" class="space-y-4">
-        <h2 id="sg-feedback" class="text-xl font-semibold">Toasts and confirm dialog</h2>
+        <h2 id="sg-feedback" class="text-xl font-semibold" data-i18n="styleguide.feedbackTitle">Toasts and confirm dialog</h2>
         <div class="flex flex-wrap gap-3">
-          <button type="button" class="btn btn-secondary" onclick="toast('Your offer was sent. The organization will confirm within 2 days.')">Show success toast</button>
-          <button type="button" class="btn btn-secondary" onclick="toast('We couldn\'t send your offer. Please check your connection and try again.', 'error')">Show error toast</button>
+          <button type="button" class="btn btn-secondary" onclick="toast(t('donor.offerSent'))" data-i18n="styleguide.showSuccess">Show success toast</button>
+          <button type="button" class="btn btn-secondary" onclick="toast(t('styleguide.errorToast'), 'error')" data-i18n="styleguide.showError">Show error toast</button>
           <button
             type="button"
             class="btn btn-danger"
-            onclick="confirmDialog('The donor will be told their offer wasn\'t needed.', { title: 'Reject this offer?', confirmText: 'Reject offer', danger: true }).then((ok) => toast(ok ? 'Offer rejected.' : 'Nothing changed.'))"
-          >
+            onclick="confirmDialog(t('styleguide.confirmText'), { title: t('orgDash.rejectTitle'), confirmText: t('orgDash.rejectConfirm'), danger: true }).then((ok) => toast(ok ? t('orgDash.offerRejected') : t('styleguide.nothingChanged')))"
+           data-i18n="styleguide.openConfirm">
             Open confirm dialog
           </button>
         </div>
@@ -410,14 +433,14 @@
 
       <!-- Empty and loading states -->
       <section aria-labelledby="sg-states" class="space-y-4">
-        <h2 id="sg-states" class="text-xl font-semibold">Empty and loading states</h2>
+        <h2 id="sg-states" class="text-xl font-semibold" data-i18n="styleguide.statesTitle">Empty and loading states</h2>
         <div class="grid gap-4 sm:grid-cols-2">
           <div class="card flex flex-col items-center gap-3 py-10 text-center">
             <div class="grid size-12 place-items-center rounded-full bg-primary-soft text-2xl text-primary" aria-hidden="true">+</div>
-            <p class="text-muted">No requests yet.</p>
-            <button type="button" class="btn btn-primary">Create your first request</button>
+            <p class="text-muted" data-i18n="orgDash.noRequests">No requests yet.</p>
+            <button type="button" class="btn btn-primary" data-i18n="orgDash.firstRequest">Create your first request</button>
           </div>
-          <div class="card space-y-3" role="status"><span class="sr-only">Loading requests…</span>
+          <div class="card space-y-3" role="status"><span class="sr-only" data-i18n="donor.loadingRequests">Loading requests…</span>
             <div class="skeleton h-5 w-24"></div>
             <div class="skeleton h-6 w-3/4"></div>
             <div class="skeleton h-4 w-1/2"></div>
@@ -429,8 +452,8 @@
 
       <!-- Bottom nav -->
       <section aria-labelledby="sg-nav" class="space-y-4">
-        <h2 id="sg-nav" class="text-xl font-semibold">Mobile bottom navigation</h2>
-        <p class="text-muted">Shown only on phones (below 640px), fixed to the bottom of this page.</p>
+        <h2 id="sg-nav" class="text-xl font-semibold" data-i18n="styleguide.bottomNavTitle">Mobile bottom navigation</h2>
+        <p class="text-muted" data-i18n="styleguide.bottomNavNote">Shown only on phones (below 640px), fixed to the bottom of this page.</p>
       </section>
     </main>
 

@@ -135,7 +135,7 @@ document.addEventListener("alpine:init", () => {
           lat: this.form.latitude,
           lng: this.form.longitude,
           editable: true,
-          label: "Your organization",
+          label: t("orgDash.yourOrganization"),
           onPick: (lat, lng) => {
             this.form.latitude = lat;
             this.form.longitude = lng;
@@ -162,7 +162,7 @@ document.addEventListener("alpine:init", () => {
       /** @param {string} code */
       async lookUpPostalCode(code) {
         if (!/^\d{6}$/.test(code)) {
-          this.errors = { ...this.errors, postalCode: "A Singapore postal code has 6 digits, like 520123." };
+          this.errors = { ...this.errors, postalCode: t("orgDash.errPostal") };
           return;
         }
         const thisLookup = ++lookupCount;
@@ -204,11 +204,11 @@ document.addEventListener("alpine:init", () => {
         try {
           if (this.org) {
             await updateOrganization(this.org.id, this.form, !this.approved);
-            toast("Your changes were saved.");
+            toast(t("orgDash.detailsSaved"));
             this.editingDetails = false;
           } else {
             await createOrganization(this.form);
-            toast("Thanks! Your organization was sent to the admin for approval.");
+            toast(t("orgDash.sentForApproval"));
           }
           await this.load();
         } catch (error) {

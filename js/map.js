@@ -47,6 +47,32 @@ function keepMapSized(map, element, afterResize) {
 }
 
 /**
+ * The popup for one event pin, built with textContent (event text can't inject HTML).
+ * @param {{ id: string, title: string, starts_at: string, ends_at?: string | null, location_name?: string | null }} event
+ * @returns {HTMLElement}
+ */
+function eventPopup(event) {
+  const popup = document.createElement("div");
+  const title = document.createElement("p");
+  title.className = "font-semibold";
+  title.textContent = event.title;
+  const when = document.createElement("p");
+  when.textContent = formatEventTime(event.starts_at, event.ends_at);
+  popup.append(title, when);
+  if (event.location_name) {
+    const where = document.createElement("p");
+    where.textContent = event.location_name;
+    popup.append(where);
+  }
+  const link = document.createElement("a");
+  link.href = `/event.html?id=${encodeURIComponent(event.id)}`;
+  link.className = "font-semibold text-primary underline";
+  link.textContent = t("events.viewEvent");
+  popup.append(link);
+  return popup;
+}
+
+/**
  * A map with one pin per event; each popup links to event.html?id=.
  * Popups are built with textContent, so event text can't inject HTML.
  * @param {HTMLElement} element
@@ -63,27 +89,10 @@ function createEventsMap(element, events) {
   }).addTo(map);
 
   for (const event of events) {
-    const popup = document.createElement("div");
-    const title = document.createElement("p");
-    title.className = "font-semibold";
-    title.textContent = event.title;
-    const when = document.createElement("p");
-    when.textContent = formatEventTime(event.starts_at, event.ends_at);
-    popup.append(title, when);
-    if (event.location_name) {
-      const where = document.createElement("p");
-      where.textContent = event.location_name;
-      popup.append(where);
-    }
-    const link = document.createElement("a");
-    link.href = `/event.html?id=${encodeURIComponent(event.id)}`;
-    link.className = "font-semibold text-primary underline";
-    link.textContent = "View event";
-    popup.append(link);
-
-    L.marker([event.latitude, event.longitude], { title: event.title, alt: `${event.title} pin` })
+    L.marker([event.latitude, event.longitude], { title: event.title, alt: t("events.pinAlt", { title: event.title }) })
       .addTo(map)
-      .bindPopup(popup);
+      // a function, so the popup is built when opened, in the language chosen at that moment
+      .bindPopup(() => eventPopup(event));
   }
 
   const fit = () => {
@@ -113,7 +122,7 @@ function createEventsMap(element, events) {
  */
 function createPinMap(element, options) {
   const L = /** @type {any} */ (window).L;
-  const { lat, lng, editable = false, label = "Location", onPick } = options;
+  const { lat, lng, editable = false, label = t("events.location"), onPick } = options;
   const hasPin = lat != null && lng != null;
 
   const map = L.map(element, { scrollWheelZoom: false }).setView(

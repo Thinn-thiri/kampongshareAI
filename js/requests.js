@@ -73,22 +73,10 @@ const PUBLIC_REQUEST_COLUMNS =
   "id, organization_id, title, description, urgency, deadline, dropoff_instructions, status, ai_score, ai_reasons, created_at";
 
 /** The item_category enum. Medicines were removed on purpose (REQUIREMENTS.md 4.7). */
-const ITEM_CATEGORIES = /** @type {{ value: ItemCategory, label: string }[]} */ ([
-  { value: "food", label: "Food" },
-  { value: "clothing", label: "Clothing" },
-  { value: "hygiene", label: "Hygiene" },
-  { value: "household", label: "Household" },
-  { value: "baby", label: "Baby" },
-  { value: "education", label: "Education" },
-  { value: "other", label: "Other" },
-]);
+/** Labels follow the chosen language (enumOptions in js/i18n.js). */
+const ITEM_CATEGORIES = enumOptions("category", /** @type {ItemCategory[]} */ (["food", "clothing", "hygiene", "household", "baby", "education", "other"]));
 
-const URGENCY_OPTIONS = /** @type {{ value: Urgency, label: string }[]} */ ([
-  { value: "low", label: "Low" },
-  { value: "medium", label: "Medium" },
-  { value: "high", label: "High" },
-  { value: "critical", label: "Critical" },
-]);
+const URGENCY_OPTIONS = enumOptions("urgency", /** @type {Urgency[]} */ (["low", "medium", "high", "critical"]));
 
 /**
  * Urgency badge for a request: the AI score as number + word when scored, otherwise the
@@ -99,18 +87,28 @@ const URGENCY_OPTIONS = /** @type {{ value: Urgency, label: string }[]} */ ([
 function requestUrgency(request) {
   if (request.ai_score != null) {
     const level = urgencyLevel(request.ai_score);
-    return { className: level.className, label: `${request.ai_score} · ${level.label}`, scored: true };
+    return { className: level.className, label: t("requests.urgencyScored", { score: request.ai_score, level: level.label }), scored: true };
   }
   /** @type {Record<Urgency, string>} */
   const classes = { critical: "badge badge-danger", high: "badge badge-warning", medium: "badge badge-info", low: "badge badge-neutral" };
-  const label = URGENCY_OPTIONS.find((option) => option.value === request.urgency)?.label ?? request.urgency;
-  return { className: classes[request.urgency] ?? "badge badge-neutral", label: `${label} urgency`, scored: false };
+  return { className: classes[request.urgency] ?? "badge badge-neutral", label: t("requests.urgencyOwn", { level: enumLabel("urgency", request.urgency) }), scored: false };
 }
 
 /**
  * @typedef {{ key: string, label: string, points: number, max: number }} ScoreFactor
  * @typedef {{ explanation: string, ai: boolean, factors: ScoreFactor[] }} ScoreDetails
  */
+
+/**
+ * A "Why this score?" factor's name. English keeps the saved wording (e.g. "Deadline in 3 days");
+ * other languages use the factor's translated name, since the saved text is English.
+ * @param {ScoreFactor} factor
+ * @returns {string}
+ */
+function factorLabel(factor) {
+  if (getLang() === "en" || !hasKey(`requests.factor.${factor.key}`)) return factor.label;
+  return t(`requests.factor.${factor.key}`);
+}
 
 /**
  * The "Why this score?" details saved with a request (ai_reasons), or null when not scored yet.
@@ -160,7 +158,7 @@ async function scoreRequest(requestId) {
  */
 function urgencyWordOf(request) {
   if (request.ai_score == null) return request.urgency;
-  return /** @type {Urgency} */ (urgencyLevel(request.ai_score).label.toLowerCase());
+  return /** @type {Urgency} */ (urgencyLevel(request.ai_score).level);
 }
 
 /**
@@ -181,7 +179,11 @@ function itemBarStyles(item) {
  * @returns {string}
  */
 function itemBarLabel(item) {
-  return `${item.quantity_received} received, ${item.quantity_committed - item.quantity_received} promised, ${item.quantity_remaining} still needed`;
+  return t("requests.barLabel", {
+    received: item.quantity_received,
+    promised: item.quantity_committed - item.quantity_received,
+    remaining: item.quantity_remaining,
+  });
 }
 
 /**
@@ -255,8 +257,8 @@ async function listMyRequestHistory(orgId, from, to) {
  * @returns {string}
  */
 function requestEndedText(request) {
-  const word = { fulfilled: "Fulfilled", closed: "Closed", rejected: "Rejected" }[/** @type {string} */ (request.status)] ?? "Updated";
-  return `${word} ${formatDate(request.closed_at ?? request.updated_at ?? request.created_at)}`;
+  const key = ["fulfilled", "closed", "rejected"].includes(request.status) ? request.status : "updated";
+  return t(`history.${key}`, { date: formatDate(request.closed_at ?? request.updated_at ?? request.created_at) });
 }
 
 /**
@@ -327,7 +329,7 @@ async function updateRequest(request, form) {
   }
   const { data, error } = await client.from("donation_requests").update(changes).eq("id", request.id).select("id");
   if (error) throw error;
-  if (!data?.length) throw { code: "42501", message: "No request was updated" };
+  if (!data?.length) throw { code: "42501", message: "No request was updated" }; // i18n-ignore (shown via friendlyError by its code)
 
   if (locked) {
     for (const row of form.items) {
@@ -375,7 +377,7 @@ async function closeRequest(id, reason = "") {
     .eq("id", id)
     .select("id");
   if (error) throw error;
-  if (!data?.length) throw { code: "42501", message: "No request was updated" };
+  if (!data?.length) throw { code: "42501", message: "No request was updated" }; // i18n-ignore (shown via friendlyError by its code)
 }
 
 /**
@@ -387,7 +389,7 @@ async function closeRequest(id, reason = "") {
 async function deleteRequest(id) {
   const { data, error } = await db().from("donation_requests").delete().eq("id", id).select("id");
   if (error) throw error;
-  if (!data?.length) throw { code: "P0001", message: "This request can't be deleted any more — close it instead." };
+  if (!data?.length) throw { code: "P0001", message: "This request can't be deleted any more — close it instead." }; // i18n-ignore (translated by DB_ERRORS)
 }
 
 /**
@@ -426,7 +428,7 @@ async function adminUpdateRequest(id, changes) {
     .eq("id", id)
     .select("id");
   if (error) throw error;
-  if (!data?.length) throw { code: "42501", message: "No request was updated" };
+  if (!data?.length) throw { code: "42501", message: "No request was updated" }; // i18n-ignore (shown via friendlyError by its code)
 }
 
 /**
@@ -457,7 +459,7 @@ async function setRequestApproval(id, status, note = "") {
     .eq("id", id)
     .select("id");
   if (error) throw error;
-  if (!data?.length) throw { code: "42501", message: "No request was updated" };
+  if (!data?.length) throw { code: "42501", message: "No request was updated" }; // i18n-ignore (shown via friendlyError by its code)
 }
 
 /**
@@ -479,28 +481,28 @@ function validateRequest(form, mode) {
   const errors = {};
   if (!mode.locked) {
     const title = form.title.trim();
-    if (!title) errors.title = "Please give your request a title.";
-    else if (title.length > 100) errors.title = "Please keep the title under 100 characters.";
-    if (form.description.trim().length > 1000) errors.description = "Please keep the description under 1,000 characters.";
+    if (!title) errors.title = t("form.errTitle");
+    else if (title.length > 100) errors.title = t("form.errTitleLong");
+    if (form.description.trim().length > 1000) errors.description = t("form.errDescLong");
   }
-  if (form.dropoff.trim().length > 500) errors.dropoff = "Please keep the drop-off instructions under 500 characters.";
-  if (mode.isNew && form.deadline && form.deadline < todayIso()) errors.deadline = "The deadline can't be in the past.";
-  if (form.items.length === 0) errors.items = "Add at least one item.";
+  if (form.dropoff.trim().length > 500) errors.dropoff = t("form.errDropoffLong");
+  if (mode.isNew && form.deadline && form.deadline < todayIso()) errors.deadline = t("form.errDeadlinePast");
+  if (form.items.length === 0) errors.items = t("form.errNoItems");
 
   for (const row of form.items) {
     if (!mode.locked) {
       const name = row.name.trim();
-      if (!name) errors[`items.${row.key}.name`] = "What's the item?";
-      else if (name.length > 100) errors[`items.${row.key}.name`] = "Please keep the name under 100 characters.";
+      if (!name) errors[`items.${row.key}.name`] = t("form.errItemName");
+      else if (name.length > 100) errors[`items.${row.key}.name`] = t("form.errItemNameLong");
       const unit = row.unit.trim();
-      if (!unit) errors[`items.${row.key}.unit`] = "Add a unit, like bags or bottles.";
-      else if (unit.length > 30) errors[`items.${row.key}.unit`] = "Please keep the unit short.";
+      if (!unit) errors[`items.${row.key}.unit`] = t("form.errUnit");
+      else if (unit.length > 30) errors[`items.${row.key}.unit`] = t("form.errUnitLong");
     }
     const quantity = Number(row.quantity);
     if (!Number.isInteger(quantity) || quantity < 1) {
-      errors[`items.${row.key}.quantity`] = "Enter a whole number, 1 or more.";
+      errors[`items.${row.key}.quantity`] = t("form.errQuantity");
     } else if (quantity < row.committed) {
-      errors[`items.${row.key}.quantity`] = `Donors have already promised ${row.committed}, so it can't be lower.`;
+      errors[`items.${row.key}.quantity`] = t("form.errBelowPromised", { count: row.committed });
     }
   }
   return errors;

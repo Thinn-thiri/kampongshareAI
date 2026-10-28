@@ -1,5 +1,6 @@
 // @ts-check
-// POST /api/match-items  { text: "5 bags of rice, baby diapers" }  or  { category: "food" }
+// POST /api/match-items  { text: "5 bags of rice, baby diapers", lang? }  or  { category: "food", lang? }
+// lang (en, zh or ms — the site's language) sets the language of the reasons; anything else → 400.
 // "What can you give?" (REQUIREMENTS.md 6.4 and 4.6):
 //   1. remove anything that looks like personal data from the text
 //   2. ask NVIDIA Build to turn the cleaned text into items { name, category, quantity }
@@ -12,6 +13,9 @@
 
 // The model and the personal-data filter live in netlify/lib/ai.js (one MODEL constant for all functions).
 import { chat, stripPersonalData } from "../lib/ai.js";
+import { isLang, serverT } from "../lib/messages.js";
+
+/** @typedef {import("../lib/messages.js").Lang} Lang */
 
 export { stripPersonalData };
 
@@ -66,7 +70,7 @@ async function extractItems(cleanText, deps) {
         content:
           "You turn a short note about donations into a list of items. " +
           `Reply with JSON only, no other text: {"items":[{"name":string,"category":one of ${JSON.stringify(ALL_CATEGORIES)},"quantity":integer or null}]}. ` +
-          "Use short item names (e.g. \"rice\", \"baby diapers\"). Ignore anything that isn't an item. " +
+          "Use short item names in English (e.g. \"rice\", \"baby diapers\"), even when the note is in Chinese or Malay. Ignore anything that isn't an item. " +
           'If there are no items, reply {"items":[]}.',
       },
       { role: "user", content: cleanText },
@@ -207,8 +211,9 @@ const URGENCY_POINTS = { critical: 15, high: 10, medium: 5, low: 0 };
  * @param {OpenRequest[]} requests
  * @param {string | null} area
  * @param {Date} today
+ * @param {Lang} lang  the language of the reasons
  */
-function scoreMatches(wanted, requests, area, today) {
+function scoreMatches(wanted, requests, area, today, lang) {
   /** @type {Map<string, { score: number, match: Record<string, unknown> }>} */
   const best = new Map();
   const areaLower = area?.toLowerCase() ?? null;
@@ -237,14 +242,19 @@ function scoreMatches(wanted, requests, area, today) {
           urgencyScore +
           (nearby ? 10 : 0);
 
+        // in the chosen language; the item name and unit stay as the organization wrote them
         const reason = [
-          `Needs ${item.quantity_remaining} more ${item.unit} of ${item.name}`,
-          days != null && days >= 0 && days <= 14 ? (days === 0 ? "due today" : `due in ${days} day${days === 1 ? "" : "s"}`) : null,
-          urgencyLevel === "critical" || urgencyLevel === "high" ? `${urgencyLevel} urgency` : null,
-          nearby ? `near you (${area})` : null,
+          serverT(lang, "reasonNeeds", { count: item.quantity_remaining, unit: item.unit, item: item.name }),
+          days != null && days >= 0 && days <= 14
+            ? days === 0
+              ? serverT(lang, "dueToday")
+              : serverT(lang, days === 1 ? "dueInOne" : "dueInMany", { days })
+            : null,
+          urgencyLevel === "critical" ? serverT(lang, "urgencyCritical") : urgencyLevel === "high" ? serverT(lang, "urgencyHigh") : null,
+          nearby && area ? serverT(lang, "nearYou", { area }) : null,
         ]
           .filter(Boolean)
-          .join(" · ");
+          .join(serverT(lang, "separator"));
 
         const previous = best.get(item.id);
         if (!previous || score > previous.score) {
@@ -291,6 +301,10 @@ export async function handle(req, deps = { env: process.env, fetch, today: new D
     return json(400, { error: "invalid_request" });
   }
 
+  // the site's language, for the reasons: only en, zh or ms
+  const lang = body?.lang ?? "en";
+  if (!isLang(lang)) return json(400, { error: "invalid_lang" });
+
   /** @type {WantedItem[]} */
   let wanted;
   if (typeof body?.category === "string") {
@@ -308,7 +322,7 @@ export async function handle(req, deps = { env: process.env, fetch, today: new D
 
   try {
     const [requests, area] = await Promise.all([loadOpenRequests(deps), callerArea(req, deps)]);
-    const matches = wanted.length ? scoreMatches(wanted, requests, area, deps.today) : [];
+    const matches = wanted.length ? scoreMatches(wanted, requests, area, deps.today, lang) : [];
     return json(200, { fallback: false, items: wanted.filter((w) => w.name), matches });
   } catch {
     return json(502, { error: "unavailable" });

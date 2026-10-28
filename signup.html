@@ -5,7 +5,12 @@
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <!-- sets light / dark before anything is drawn (no white flash) -->
     <script src="/js/theme.js"></script>
-    <title>Sign up · KampongShare</title>
+    <!-- languages: the three dictionaries, then js/i18n.js sets <html lang> and translates before drawing -->
+    <script src="/js/i18n/en.js"></script>
+    <script src="/js/i18n/zh.js"></script>
+    <script src="/js/i18n/ms.js"></script>
+    <script src="/js/i18n.js"></script>
+    <title data-i18n="signup.pageTitle">Sign up · KampongShare</title>
     <link rel="icon" href="/img/favicon.svg" type="image/svg+xml" />
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
@@ -19,74 +24,95 @@
     <script src="/js/ui.js"></script>
     <script src="/js/volunteer-options.js"></script>
     <script src="/js/signup.js"></script>
+    <script src="/js/chat-questions.js"></script>
+    <script src="/js/chat.js"></script>
     <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3/dist/cdn.min.js"></script>
   </head>
   <body>
-    <a href="#main" class="skip-link">Skip to main content</a>
+    <a href="#main" class="skip-link" data-i18n="nav.skip">Skip to main content</a>
     <header class="topbar" x-data="topBar">
-      <div class="container-page flex min-h-16 flex-wrap items-center gap-x-3 gap-y-2 py-2">
-        <a href="/" class="flex items-center gap-2 rounded-sm font-bold text-primary focus-visible:outline-2 focus-visible:outline-primary" aria-label="KampongShare home">
+      <div class="container-page flex min-h-16 flex-wrap items-center gap-x-2 gap-y-2 py-2 sm:gap-x-3">
+        <a href="/" class="flex items-center gap-2 rounded-sm font-bold text-primary focus-visible:outline-2 focus-visible:outline-primary" aria-label="KampongShare home" data-i18n-attr="aria-label:nav.homeLink">
           <img src="/img/favicon.svg" alt="" class="size-8" />
           <span class="hidden sm:inline">KampongShare</span>
         </a>
         <!-- the logged-in person's own name (only they see it) -->
-        <span class="max-w-28 truncate rounded-full bg-primary-soft px-2.5 py-1 text-xs font-semibold text-primary sm:max-w-48"
-          x-show="profile?.full_name" x-cloak :title="profile?.full_name"><span class="sr-only">Logged in as </span><span x-text="profile?.full_name"></span></span>
+        <span class="max-w-24 truncate rounded-full bg-primary-soft px-2.5 py-1 text-xs font-semibold text-primary sm:max-w-48"
+          x-show="profile?.full_name" x-cloak :title="profile?.full_name"><span class="sr-only" data-i18n="nav.loggedInAs">Logged in as</span> <span x-text="profile?.full_name"></span></span>
         <!-- pushes the links and buttons to the right -->
         <span class="flex-1" aria-hidden="true"></span>
         <!-- Desktop links (phones use the bottom navigation) -->
-        <nav class="hidden items-center gap-1 sm:flex" aria-label="Site" x-show="ready" x-cloak>
+        <nav class="hidden items-center gap-1 sm:flex" aria-label="Site" data-i18n-attr="aria-label:nav.site" x-show="ready" x-cloak>
           <template x-for="link in topLinks" :key="link.href">
             <a :href="link.href" class="top-link gap-2" :aria-current="isCurrent(link.href) ? 'page' : null">
-              <span x-text="link.label"></span>
-              <span class="badge badge-warning" x-show="link.badge" x-text="link.badge" :aria-label="`${link.badge} waiting`"></span>
+              <span x-text="$t(link.labelKey)"></span>
+              <span class="badge badge-warning" x-show="link.badge" x-text="link.badge" :aria-label="$t('nav.waiting', { count: link.badge })"></span>
             </a>
           </template>
         </nav>
-        <nav class="segmented order-last w-full sm:order-none sm:w-auto" aria-label="Switch between donating and volunteering" x-show="canSwitch" x-cloak>
-          <a href="/donor.html" class="segmented-link" :aria-current="here('/donor.html') ? 'page' : null">Donating</a>
-          <a href="/volunteer.html" class="segmented-link" :aria-current="here('/volunteer.html') ? 'page' : null">Volunteering</a>
+        <nav class="segmented order-last w-full sm:order-none sm:w-auto" aria-label="Switch between donating and volunteering" data-i18n-attr="aria-label:nav.switchRole" x-show="canSwitch" x-cloak>
+          <a href="/donor.html" class="segmented-link" :aria-current="here('/donor.html') ? 'page' : null" data-i18n="nav.donating">Donating</a>
+          <a href="/volunteer.html" class="segmented-link" :aria-current="here('/volunteer.html') ? 'page' : null" data-i18n="nav.volunteering">Volunteering</a>
         </nav>
+        <!-- Language: English / 中文 / Bahasa Melayu (js/i18n.js) -->
+        <div class="relative" x-data="langMenu" @keydown.escape="close(true)" @click.outside="close(false)">
+          <button type="button" x-ref="langButton" class="btn btn-ghost min-w-11 gap-1.5 px-2" :aria-label="buttonLabel" aria-label="Language / 语言 / Bahasa"
+            aria-haspopup="menu" :aria-expanded="open.toString()" aria-controls="lang-menu" @click="toggle()">
+            <i data-lucide="globe" class="size-5" aria-hidden="true"></i>
+            <span class="text-sm sm:hidden" :lang="current.htmlLang" x-text="current.short"></span>
+            <span class="hidden text-sm sm:inline" :lang="current.htmlLang" x-text="current.name"></span>
+          </button>
+          <div id="lang-menu" class="menu w-48" role="menu" aria-label="Language / 语言 / Bahasa" x-show="open" x-cloak @keydown.down.prevent="move(1)" @keydown.up.prevent="move(-1)">
+            <template x-for="option in options" :key="option.code">
+              <button type="button" class="menu-item gap-2" role="menuitemradio" :lang="option.htmlLang" :aria-checked="(lang === option.code).toString()" @click="pick(option.code)">
+                <span class="flex-1" x-text="option.name"></span>
+                <span class="text-primary" x-show="lang === option.code"><i data-lucide="check" class="size-4" aria-hidden="true"></i></span>
+              </button>
+            </template>
+          </div>
+        </div>
         <!-- Theme: System / Light / Dark (js/theme.js) -->
         <div class="relative" x-data="themeMenu" @keydown.escape="close(true)" @click.outside="close(false)">
-          <button type="button" x-ref="themeButton" class="btn btn-ghost size-11 px-0" :aria-label="`Theme: ${label}`" aria-label="Theme"
+          <button type="button" x-ref="themeButton" class="btn btn-ghost size-11 px-0" :aria-label="$t('theme.button', { name: label })" aria-label="Theme"
             aria-haspopup="menu" :aria-expanded="open.toString()" aria-controls="theme-menu" @click="toggle()">
             <span x-show="choice === 'system'"><i data-lucide="monitor" class="size-5" aria-hidden="true"></i></span>
             <span x-show="choice === 'light'" x-cloak><i data-lucide="sun" class="size-5" aria-hidden="true"></i></span>
             <span x-show="choice === 'dark'" x-cloak><i data-lucide="moon" class="size-5" aria-hidden="true"></i></span>
           </button>
-          <div id="theme-menu" class="menu w-40" role="menu" aria-label="Theme" x-show="open" x-cloak @keydown.down.prevent="move(1)" @keydown.up.prevent="move(-1)">
+          <div id="theme-menu" class="menu w-40" role="menu" aria-label="Theme" data-i18n-attr="aria-label:theme.menu" x-show="open" x-cloak @keydown.down.prevent="move(1)" @keydown.up.prevent="move(-1)">
             <template x-for="option in options" :key="option.value">
               <button type="button" class="menu-item gap-2" role="menuitemradio" :aria-checked="(choice === option.value).toString()" @click="pick(option.value)">
                 <span x-show="option.icon === 'monitor'"><i data-lucide="monitor" class="size-4" aria-hidden="true"></i></span>
                 <span x-show="option.icon === 'sun'"><i data-lucide="sun" class="size-4" aria-hidden="true"></i></span>
                 <span x-show="option.icon === 'moon'"><i data-lucide="moon" class="size-4" aria-hidden="true"></i></span>
-                <span class="flex-1" x-text="option.label"></span>
+                <span class="flex-1" x-text="$t(`theme.${option.value}`)"></span>
                 <span class="text-primary" x-show="choice === option.value"><i data-lucide="check" class="size-4" aria-hidden="true"></i></span>
               </button>
             </template>
           </div>
         </div>
-        <nav class="flex items-center gap-1" aria-label="Account" x-show="ready && !profile" x-cloak>
-          <a href="/login.html" class="btn btn-ghost px-3">Log in</a>
-          <a href="/signup.html" class="btn btn-primary px-4">Sign up</a>
+        <nav class="flex items-center gap-1" aria-label="Account" data-i18n-attr="aria-label:nav.account" x-show="ready && !profile" x-cloak>
+          <a href="/login.html" class="btn btn-ghost hidden px-3 sm:inline-flex" data-i18n="nav.logIn">Log in</a>
+          <a href="/signup.html" class="btn btn-primary px-4" data-i18n="nav.signUp">Sign up</a>
         </nav>
         <div class="relative" x-show="profile" x-cloak @keydown.escape="if (open) { open = false; $refs.accountButton.focus() }" @click.outside="open = false">
-          <button type="button" x-ref="accountButton" class="btn btn-secondary px-4" :aria-expanded="open.toString()" aria-controls="account-menu" @click="open = !open">
-            Account
+          <button type="button" x-ref="accountButton" class="btn btn-secondary min-w-11 px-2 sm:px-4" :aria-expanded="open.toString()" aria-controls="account-menu" @click="open = !open">
+            <!-- phones: an icon (the name is still read out), so the top bar fits on one row -->
+            <i data-lucide="user-round" class="size-5 sm:hidden" aria-hidden="true"></i>
+            <span class="sr-only sm:not-sr-only" data-i18n="nav.account">Account</span>
           </button>
           <div id="account-menu" class="menu" x-show="open" x-cloak>
-            <a :href="dashboard" href="/" class="menu-item sm:hidden">My dashboard</a>
-            <a href="/profile.html" class="menu-item">My profile</a>
-            <button type="button" class="menu-item" @click="logout()">Log out</button>
+            <a :href="dashboard" href="/" class="menu-item sm:hidden" data-i18n="nav.myDashboard">My dashboard</a>
+            <a href="/profile.html" class="menu-item" data-i18n="nav.myProfile">My profile</a>
+            <button type="button" class="menu-item" @click="logout()" data-i18n="nav.logOut">Log out</button>
           </div>
         </div>
       </div>
-        <nav class="bottom-nav" aria-label="Main" x-show="ready" x-cloak>
+        <nav class="bottom-nav" aria-label="Main" data-i18n-attr="aria-label:nav.main" x-show="ready" x-cloak>
           <template x-for="link in bottomLinks" :key="link.href">
             <a :href="link.href" class="bottom-nav-link" :aria-current="isCurrent(link.href) ? 'page' : null">
               <i :data-lucide="link.icon" class="size-5" aria-hidden="true"></i>
-              <span x-text="link.label"></span>
+              <span x-text="$t(link.labelKey)"></span>
             </a>
           </template>
         </nav>
@@ -94,27 +120,27 @@
 
     <main id="main" tabindex="-1" class="container-page py-8 focus:outline-none">
       <div class="mx-auto max-w-xl">
-        <h1 class="text-2xl font-bold sm:text-3xl">Create your account</h1>
-        <p class="mt-2 text-muted">It takes about a minute. Fields marked <span class="text-danger">*</span> are required.</p>
+        <h1 class="text-2xl font-bold sm:text-3xl" data-i18n="signup.title">Create your account</h1>
+        <p class="mt-2 text-muted"><span data-i18n="signup.introBefore">It takes about a minute. Fields marked</span> <span class="text-danger">*</span> <span data-i18n="signup.introAfter">are required.</span></p>
 
         <form class="mt-6 space-y-6" novalidate x-data="signupForm" @submit.prevent="submit">
           <!-- 1. Account type -->
           <fieldset class="card space-y-3" aria-describedby="err-type">
-            <legend class="sr-only">Account type</legend>
-            <h2 class="text-lg font-semibold">I'm signing up as… <span class="text-danger" aria-hidden="true">*</span></h2>
+            <legend class="sr-only" data-i18n="signup.accountType">Account type</legend>
+            <h2 class="text-lg font-semibold"><span data-i18n="signup.signingUpAs">I'm signing up as…</span> <span class="text-danger" aria-hidden="true">*</span></h2>
             <div class="grid gap-3 sm:grid-cols-2">
               <label class="choice-card">
                 <input id="su-type-individual" type="radio" name="account-type" value="individual" class="mt-1 size-4 accent-primary" x-model="accountType" />
                 <span>
-                  <span class="block font-semibold">An individual</span>
-                  <span class="block text-sm text-muted">Donate items, volunteer, or both.</span>
+                  <span class="block font-semibold" data-i18n="signup.individual">An individual</span>
+                  <span class="block text-sm text-muted" data-i18n="signup.individualText">Donate items, volunteer, or both.</span>
                 </span>
               </label>
               <label class="choice-card">
                 <input type="radio" name="account-type" value="organization" class="mt-1 size-4 accent-primary" x-model="accountType" />
                 <span>
-                  <span class="block font-semibold">An organization</span>
-                  <span class="block text-sm text-muted">Post what you need and run volunteer events.</span>
+                  <span class="block font-semibold" data-i18n="signup.organization">An organization</span>
+                  <span class="block text-sm text-muted" data-i18n="signup.organizationText">Post what you need and run volunteer events.</span>
                 </span>
               </label>
             </div>
@@ -124,17 +150,17 @@
           <div class="space-y-6" x-show="accountType" x-cloak>
             <!-- 2. Donate / volunteer (individuals) -->
             <fieldset class="card space-y-3" x-show="accountType === 'individual'" aria-describedby="err-roles">
-              <legend class="sr-only">What would you like to do?</legend>
-              <h2 class="text-lg font-semibold">What would you like to do? <span class="text-danger" aria-hidden="true">*</span></h2>
-              <p class="helper-text mt-0">Tick one or both. You can change this later in your profile.</p>
+              <legend class="sr-only" data-i18n="signup.whatToDo">What would you like to do?</legend>
+              <h2 class="text-lg font-semibold"><span data-i18n="signup.whatToDo">What would you like to do?</span> <span class="text-danger" aria-hidden="true">*</span></h2>
+              <p class="helper-text mt-0" data-i18n="signup.tickOne">Tick one or both. You can change this later in your profile.</p>
               <div class="grid gap-3 sm:grid-cols-2">
                 <label class="choice-card">
                   <input id="su-donate" type="checkbox" class="mt-1 size-4 accent-primary" x-model="wantDonate" />
-                  <span class="font-semibold">I want to donate</span>
+                  <span class="font-semibold" data-i18n="signup.wantDonate">I want to donate</span>
                 </label>
                 <label class="choice-card">
                   <input type="checkbox" class="mt-1 size-4 accent-primary" x-model="wantVolunteer" />
-                  <span class="font-semibold">I want to volunteer</span>
+                  <span class="font-semibold" data-i18n="signup.wantVolunteer">I want to volunteer</span>
                 </label>
               </div>
               <p id="err-roles" class="field-error" x-show="errors.roles" x-text="errors.roles"></p>
@@ -142,63 +168,63 @@
 
             <!-- 3. Your details -->
             <div class="card space-y-5">
-              <h2 class="text-lg font-semibold">Your details</h2>
+              <h2 class="text-lg font-semibold" data-i18n="signup.yourDetails">Your details</h2>
 
               <div>
                 <label for="su-name" class="label">
-                  <span x-text="accountType === 'organization' ? 'Your name' : 'Full name'">Full name</span>
+                  <span x-text="accountType === 'organization' ? $t('signup.yourName') : $t('signup.fullName')">Full name</span>
                   <span class="text-danger" aria-hidden="true">*</span>
                 </label>
                 <input id="su-name" class="input" type="text" autocomplete="name" maxlength="100" required
                   x-model="fullName" :aria-invalid="errors.fullName ? 'true' : null"
                   :aria-describedby="accountType === 'organization' ? 'help-name err-name' : 'err-name'" />
-                <p id="help-name" class="helper-text" x-show="accountType === 'organization'">You'll add your organization's details after signing up.</p>
+                <p id="help-name" class="helper-text" x-show="accountType === 'organization'" data-i18n="signup.orgNameHelp">You'll add your organization's details after signing up.</p>
                 <p id="err-name" class="field-error" x-show="errors.fullName" x-text="errors.fullName"></p>
               </div>
 
               <div>
-                <label for="su-email" class="label">Email <span class="text-danger" aria-hidden="true">*</span></label>
+                <label for="su-email" class="label"><span data-i18n="signup.email">Email</span> <span class="text-danger" aria-hidden="true">*</span></label>
                 <input id="su-email" class="input" type="email" autocomplete="email" required
                   x-model="email" :aria-invalid="errors.email ? 'true' : null" aria-describedby="err-email" />
                 <p id="err-email" class="field-error" x-show="errors.email" x-text="errors.email"></p>
               </div>
 
               <div>
-                <label for="su-password" class="label">Password <span class="text-danger" aria-hidden="true">*</span></label>
+                <label for="su-password" class="label"><span data-i18n="signup.password">Password</span> <span class="text-danger" aria-hidden="true">*</span></label>
                 <div class="password-field" x-data="passwordToggle">
                   <input id="su-password" class="input" type="password" :type="shown ? 'text' : 'password'" x-ref="input" autocomplete="new-password" minlength="8" required
                     x-model="password" :aria-invalid="errors.password ? 'true' : null" aria-describedby="help-password err-password" />
                   <button type="button" class="password-toggle" @mousedown.prevent @click="toggle($event)" aria-controls="su-password"
-                    aria-label="Show password" :aria-label="shown ? 'Hide password' : 'Show password'" :aria-pressed="shown ? 'true' : 'false'">
+                    aria-label="Show password" :aria-label="shown ? $t('ui.hidePassword') : $t('ui.showPassword')" :aria-pressed="shown ? 'true' : 'false'">
                     <span x-show="!shown"><i data-lucide="eye" class="size-5" aria-hidden="true"></i></span>
                     <span x-show="shown" x-cloak><i data-lucide="eye-off" class="size-5" aria-hidden="true"></i></span>
                   </button>
                 </div>
-                <p id="help-password" class="helper-text">At least 8 characters.</p>
+                <p id="help-password" class="helper-text" data-i18n="signup.passwordHelp">At least 8 characters.</p>
                 <p id="err-password" class="field-error" x-show="errors.password" x-text="errors.password"></p>
               </div>
 
               <div>
-                <label for="su-phone" class="label">Phone <span class="font-normal text-muted">(optional)</span></label>
+                <label for="su-phone" class="label"><span data-i18n="signup.phone">Phone</span> <span class="font-normal text-muted" data-i18n="common.optional">(optional)</span></label>
                 <input id="su-phone" class="input" type="tel" autocomplete="tel-national" inputmode="tel"
                   x-model="phone" :aria-invalid="errors.phone ? 'true' : null" aria-describedby="help-phone err-phone" />
-                <p id="help-phone" class="helper-text">Only shown to organizations you give to or volunteer with, so they can arrange things with you.</p>
+                <p id="help-phone" class="helper-text" data-i18n="signup.phoneHelp">Only shown to organizations you give to or volunteer with, so they can arrange things with you.</p>
                 <p id="err-phone" class="field-error" x-show="errors.phone" x-text="errors.phone"></p>
               </div>
 
               <template x-if="accountType === 'individual'">
                 <div class="grid gap-5 sm:grid-cols-2">
                   <div>
-                    <label for="su-postal" class="label">Postal code <span class="font-normal text-muted">(optional)</span></label>
+                    <label for="su-postal" class="label"><span data-i18n="signup.postal">Postal code</span> <span class="font-normal text-muted" data-i18n="common.optional">(optional)</span></label>
                     <input id="su-postal" class="input" type="text" inputmode="numeric" autocomplete="postal-code" maxlength="6"
                       x-model="postalCode" :aria-invalid="errors.postalCode ? 'true' : null" aria-describedby="help-postal err-postal" />
-                    <p id="help-postal" class="helper-text">Only used to show needs near you. We never ask for your full address.</p>
+                    <p id="help-postal" class="helper-text" data-i18n="signup.postalHelp">Only used to show needs near you. We never ask for your full address.</p>
                     <p id="err-postal" class="field-error" x-show="errors.postalCode" x-text="errors.postalCode"></p>
                   </div>
                   <div>
-                    <label for="su-area" class="label">Area <span class="font-normal text-muted">(optional)</span></label>
+                    <label for="su-area" class="label"><span data-i18n="signup.area">Area</span> <span class="font-normal text-muted" data-i18n="common.optional">(optional)</span></label>
                     <input id="su-area" class="input" type="text" list="sg-areas" maxlength="50" x-model="area" aria-describedby="help-area" />
-                    <p id="help-area" class="helper-text">For example Tampines or Jurong West.</p>
+                    <p id="help-area" class="helper-text" data-i18n="signup.areaHelp">For example Tampines or Jurong West.</p>
                   </div>
                 </div>
               </template>
@@ -207,12 +233,12 @@
             <!-- 4. Volunteering (only when "I want to volunteer" is ticked) -->
             <div class="card space-y-5" x-show="accountType === 'individual' && wantVolunteer" x-cloak>
               <div>
-                <h2 class="text-lg font-semibold">Volunteering</h2>
-                <p class="helper-text">All optional. It helps organizations plan, and you can change it any time.</p>
+                <h2 class="text-lg font-semibold" data-i18n="signup.volunteering">Volunteering</h2>
+                <p class="helper-text" data-i18n="signup.volunteeringHelp">All optional. It helps organizations plan, and you can change it any time.</p>
               </div>
 
               <fieldset>
-                <legend class="label">Days you're usually free</legend>
+                <legend class="label" data-i18n="signup.days">Days you're usually free</legend>
                 <div class="flex flex-wrap gap-2">
                   <template x-for="option in dayOptions" :key="option.value">
                     <label class="check-pill">
@@ -224,7 +250,7 @@
               </fieldset>
 
               <fieldset>
-                <legend class="label">Times of day</legend>
+                <legend class="label" data-i18n="signup.times">Times of day</legend>
                 <div class="flex flex-wrap gap-2">
                   <template x-for="option in timeOptions" :key="option.value">
                     <label class="check-pill">
@@ -236,7 +262,7 @@
               </fieldset>
 
               <fieldset>
-                <legend class="label">Interests</legend>
+                <legend class="label" data-i18n="signup.interests">Interests</legend>
                 <div class="flex flex-wrap gap-2">
                   <template x-for="option in interestOptions" :key="option.value">
                     <label class="check-pill">
@@ -248,7 +274,7 @@
               </fieldset>
 
               <fieldset>
-                <legend class="label">Skills</legend>
+                <legend class="label" data-i18n="signup.skills">Skills</legend>
                 <div class="flex flex-wrap gap-2">
                   <template x-for="option in skillOptions" :key="option.value">
                     <label class="check-pill">
@@ -262,8 +288,8 @@
               <label class="flex items-start gap-3 text-sm">
                 <input type="checkbox" class="mt-0.5 size-5 shrink-0 accent-primary" x-model="matchingOptIn" />
                 <span>
-                  Use my availability, interests and skills to recommend volunteer events.
-                  <span class="block text-muted">Optional. If you leave this unticked, we won't use these details for AI suggestions.</span>
+                  <span data-i18n="signup.matching">Use my availability, interests and skills to recommend volunteer events.</span>
+                  <span class="block text-muted" data-i18n="signup.matchingHelp">Optional. If you leave this unticked, we won't use these details for AI suggestions.</span>
                 </span>
               </label>
             </div>
@@ -275,8 +301,9 @@
                   <input id="su-consent" type="checkbox" class="mt-0.5 size-5 shrink-0 accent-primary" required
                     x-model="privacyConsent" :aria-invalid="errors.privacyConsent ? 'true' : null" aria-describedby="err-consent" />
                   <span>
-                    I agree to the <a href="/privacy.html" target="_blank" rel="noopener" class="font-semibold text-primary underline">Privacy Notice</a>
-                    and to KampongShare using my details to coordinate donations and volunteering.
+                    <span data-i18n="signup.consentBefore">I agree to the</span>
+                    <a href="/privacy.html" target="_blank" rel="noopener" class="font-semibold text-primary underline" data-i18n="signup.consentLink">Privacy Notice</a>
+                    <span data-i18n="signup.consentAfter">and to KampongShare using my details to coordinate donations and volunteering.</span>
                     <span class="text-danger" aria-hidden="true">*</span>
                   </span>
                 </label>
@@ -286,7 +313,7 @@
                 <label class="flex items-start gap-3 text-sm">
                   <input id="su-age" type="checkbox" class="mt-0.5 size-5 shrink-0 accent-primary" required
                     x-model="ageConfirmed" :aria-invalid="errors.ageConfirmed ? 'true' : null" aria-describedby="err-age" />
-                  <span>I confirm I am 18 or older. <span class="text-danger" aria-hidden="true">*</span></span>
+                  <span><span data-i18n="signup.age">I confirm I am 18 or older.</span> <span class="text-danger" aria-hidden="true">*</span></span>
                 </label>
                 <p id="err-age" class="field-error ml-8" x-show="errors.ageConfirmed" x-text="errors.ageConfirmed"></p>
               </div>
@@ -301,12 +328,12 @@
 
             <button type="submit" class="btn btn-primary w-full" :disabled="busy">
               <span class="spinner" x-show="busy" x-cloak aria-hidden="true"></span>
-              <span x-text="busy ? 'Creating your account…' : 'Create account'">Create account</span>
+              <span x-text="busy ? $t('signup.busy') : $t('signup.submit')">Create account</span>
             </button>
           </div>
 
           <p class="text-center text-sm text-muted">
-            Already have an account? <a :href="loginHref" href="/login.html" class="font-semibold text-primary underline">Log in</a>
+            <span data-i18n="signup.haveAccount">Already have an account?</span> <a :href="loginHref" href="/login.html" class="font-semibold text-primary underline" data-i18n="signup.logIn">Log in</a>
           </p>
         </form>
       </div>

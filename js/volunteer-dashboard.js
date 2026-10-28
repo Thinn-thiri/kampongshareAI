@@ -42,7 +42,9 @@ document.addEventListener("alpine:init", () => {
     busyId: null,
 
     badges: APPLICATION_BADGE,
-    confirmedNote: CONFIRMED_NOTE,
+    get confirmedNote() {
+      return confirmedNote();
+    },
     taskOptions: TASK_STATUS_OPTIONS,
     formatEventTime,
 
@@ -53,8 +55,8 @@ document.addEventListener("alpine:init", () => {
         this.profile = null;
       }
       if (!this.profile?.is_volunteer) return; // the page guard is redirecting
-      this.appHistory = historyPager(async (from, to) => this.pastApplications.slice(from, to + 1), "past applications");
-      this.taskHistory = historyPager(async (from, to) => this.pastTasks.slice(from, to + 1), "past tasks");
+      this.appHistory = historyPager(async (from, to) => this.pastApplications.slice(from, to + 1), () => t("volunteer.pastApplications"));
+      this.taskHistory = historyPager(async (from, to) => this.pastTasks.slice(from, to + 1), () => t("volunteer.pastTasks"));
       await Promise.all([this.loadEvents(), this.loadApplications(), this.loadTasks()]);
     },
 
@@ -83,7 +85,7 @@ document.addEventListener("alpine:init", () => {
       this.askingReview = true;
       try {
         this.profile = await requestVolunteerReview();
-        toast("Thanks — your volunteer account was sent to the admin for review again.");
+        toast(t("volunteer.reviewSent"));
       } catch (error) {
         toast(friendlyError(error), "error");
       } finally {
@@ -209,9 +211,9 @@ document.addEventListener("alpine:init", () => {
      */
     spotsText(event) {
       const left = this.spots(event);
-      if (left === Infinity) return "Everyone welcome";
-      if (left === 0) return "Event full";
-      return `${left} of ${event.volunteers_needed} spots left`;
+      if (left === Infinity) return t("volunteer.everyoneWelcome");
+      if (left === 0) return t("volunteer.eventFull");
+      return t("volunteer.spotsLeft", { left, count: event.volunteers_needed });
     },
 
     /** @param {string} eventId */
@@ -233,7 +235,7 @@ document.addEventListener("alpine:init", () => {
       this.busyId = eventId;
       try {
         await applyToEvent(eventId, this.applyMessage, this.withdrawnFor(eventId));
-        toast("You've applied! The organization will confirm your place.");
+        toast(t("volunteer.applied"));
         this.applyEventId = null;
         await this.reloadAll();
       } catch (error) {
@@ -258,7 +260,7 @@ document.addEventListener("alpine:init", () => {
       this.busyId = application.id;
       try {
         await applyToEvent(application.event_id, "", application);
-        toast("You've applied again. The organization will confirm your place.");
+        toast(t("volunteer.appliedAgain"));
         await this.reloadAll();
       } catch (error) {
         toast(friendlyError(error), "error");
@@ -271,13 +273,18 @@ document.addEventListener("alpine:init", () => {
     async withdraw(application) {
       // Only pending applications can be withdrawn; once approved the button is disabled.
       if (application.status !== "pending") return;
-      const title = application.event?.title ?? "this event";
-      const ok = await confirmDialog(`Your application for "${title}" will be withdrawn. You can apply again later if there's room.`, { title: "Withdraw your application?", confirmText: "Withdraw", cancelText: "Keep it", danger: true });
+      const title = application.event?.title ?? t("volunteer.thisEvent");
+      const ok = await confirmDialog(t("volunteer.withdrawText", { title }), {
+        title: t("volunteer.withdrawTitle"),
+        confirmText: t("volunteer.withdraw"),
+        cancelText: t("common.keepIt"),
+        danger: true,
+      });
       if (!ok) return;
       this.busyId = application.id;
       try {
         await withdrawApplication(application.id);
-        toast("Your application was withdrawn. You can apply again if there's room.");
+        toast(t("volunteer.withdrawn"));
         focusHeading("apps-heading"); // the card may be gone: keep keyboard users in this section
         await this.reloadAll();
       } catch (error) {
@@ -296,7 +303,7 @@ document.addEventListener("alpine:init", () => {
       task.status = /** @type {TaskStatus} */ (status);
       try {
         await updateTaskStatus(task.id, task.status);
-        toast("Task updated.");
+        toast(t("volunteer.taskUpdated"));
       } catch (error) {
         task.status = previous;
         toast(friendlyError(error), "error");

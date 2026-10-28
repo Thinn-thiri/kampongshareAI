@@ -2,38 +2,30 @@
 // Volunteer choices shared by the sign-up form and the profile page.
 // Days and times must match the values the database accepts (profiles checks).
 
-const DAY_OPTIONS = [
-  { value: "mon", label: "Mon" },
-  { value: "tue", label: "Tue" },
-  { value: "wed", label: "Wed" },
-  { value: "thu", label: "Thu" },
-  { value: "fri", label: "Fri" },
-  { value: "sat", label: "Sat" },
-  { value: "sun", label: "Sun" },
-];
+// Labels follow the chosen language (enumOptions in js/i18n.js); the values never change.
 
-const TIME_OPTIONS = [
-  { value: "morning", label: "Morning" },
-  { value: "afternoon", label: "Afternoon" },
-  { value: "evening", label: "Evening" },
-];
+const DAY_OPTIONS = enumOptions("day", ["mon", "tue", "wed", "thu", "fri", "sat", "sun"]);
 
-const INTEREST_OPTIONS = [
-  { value: "food distribution", label: "Food distribution" },
-  { value: "elderly care", label: "Elderly care" },
-  { value: "children and education", label: "Children & education" },
-  { value: "packing and sorting", label: "Packing & sorting" },
-  { value: "environment", label: "Environment" },
-  { value: "events and outreach", label: "Events & outreach" },
-];
+const TIME_OPTIONS = enumOptions("time", ["morning", "afternoon", "evening"]);
 
-const SKILL_OPTIONS = [
-  { value: "driving", label: "Driving" },
-  { value: "first aid", label: "First aid" },
-  { value: "cooking", label: "Cooking" },
-  { value: "tutoring", label: "Tutoring" },
-  { value: "languages", label: "Languages" },
-  { value: "lifting and moving", label: "Lifting & moving" },
-  { value: "photography", label: "Photography" },
-  { value: "it support", label: "IT support" },
-];
+// i18n-ignore-start — stored values; the labels come from enumOptions
+const INTEREST_OPTIONS = enumOptions("interest", /** @type {string[]} */ ([
+  "food distribution",
+  "elderly care",
+  "children and education",
+  "packing and sorting",
+  "environment",
+  "events and outreach",
+]));
+
+const SKILL_OPTIONS = enumOptions("skill", /** @type {string[]} */ ([
+  "driving",
+  "first aid",
+  "cooking",
+  "tutoring",
+  "languages",
+  "lifting and moving",
+  "photography",
+  "it support",
+]));
+// i18n-ignore-end

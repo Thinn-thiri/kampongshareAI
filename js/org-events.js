@@ -70,7 +70,7 @@ document.addEventListener("alpine:init", () => {
         /** Upcoming (upcoming, ongoing) or Past & cancelled (completed, cancelled) */
         tab: "active",
         /** @type {HistoryPager<VolunteerEvent>} */
-        history: historyPager((from, to) => listMyEventHistory(orgId, from, to), "past events"),
+        history: historyPager((from, to) => listMyEventHistory(orgId, from, to), () => t("orgDash.pastEvents")),
         /** @type {Record<string, boolean>} active events that already have applications (can't be deleted) */
         hasApplications: {},
         /** @type {string | null} completed event whose outcome is being edited */
@@ -144,7 +144,7 @@ document.addEventListener("alpine:init", () => {
               lat: this.form.latitude,
               lng: this.form.longitude,
               editable: true,
-              label: "Event location",
+              label: t("orgDash.eventLocation"),
               onPick: (lat, lng) => {
                 this.form.latitude = lat;
                 this.form.longitude = lng;
@@ -201,7 +201,7 @@ document.addEventListener("alpine:init", () => {
         /** @param {string} code */
         async lookUpPostalCode(code) {
           if (!/^\d{6}$/.test(code)) {
-            this.errors = { ...this.errors, postal: "A Singapore postal code has 6 digits, like 520123." };
+            this.errors = { ...this.errors, postal: t("orgDash.errPostal") };
             return;
           }
           const thisLookup = ++lookupCount;
@@ -245,12 +245,12 @@ document.addEventListener("alpine:init", () => {
               const approval = await updateEvent(this.editing.id, this.form);
               toast(
                 wasApproved && approval === "pending"
-                  ? "Saved — your event was sent back to the admin for approval."
-                  : "Changes saved.",
+                  ? t("orgDash.eventResent")
+                  : t("orgDash.eventSaved"),
               );
             } else {
               await createEvent(orgId, this.form);
-              toast("Your event was sent to the admin for approval.");
+              toast(t("orgDash.eventSent"));
             }
             this.showForm = false;
             this.editing = null;
@@ -283,23 +283,23 @@ document.addEventListener("alpine:init", () => {
         async confirmComplete(event) {
           const summary = this.outcome.trim();
           if (!summary) {
-            this.outcomeError = "Please write a short summary, e.g. how many people helped and what was done.";
+            this.outcomeError = t("orgDash.errSummary");
             document.getElementById(`outcome-${event.id}`)?.focus();
             return;
           }
           if (summary.length > 1000) {
-            this.outcomeError = "Please keep the summary under 1,000 characters.";
+            this.outcomeError = t("orgDash.errSummaryLong");
             return;
           }
-          const ok = await confirmDialog(`"${event.title}" will be marked completed and won't take new volunteers.`, {
-            title: "Mark this event completed?",
-            confirmText: "Mark completed",
+          const ok = await confirmDialog(t("orgDash.completeText", { title: event.title }), {
+            title: t("orgDash.completeTitle"),
+            confirmText: t("orgDash.markCompleted"),
           });
           if (!ok) return;
           this.busyId = event.id;
           try {
             await completeEvent(event.id, summary);
-            toast("Event marked completed. Thank you for running it! You'll find it under Past & cancelled.");
+            toast(t("orgDash.completed"));
             focusHeading("events-heading"); // the card may be gone: keep keyboard users in this section
             this.completingId = null;
             await this.load();
@@ -315,21 +315,21 @@ document.addEventListener("alpine:init", () => {
          * @param {VolunteerEvent} event
          */
         async cancel(event) {
-          const reason = await reasonDialog(`"${event.title}" won't take new volunteers and will disappear from the map.`, {
-            title: "Cancel this event?",
-            label: "Why is it cancelled?",
+          const reason = await reasonDialog(t("orgDash.cancelText", { title: event.title }), {
+            title: t("orgDash.cancelTitle"),
+            label: t("orgDash.cancelLabel"),
             required: true,
             maxLength: REASON_MAX_LENGTH,
-            warning: "Approved volunteers will see this reason, and so will anyone who opens the event's link.",
-            confirmText: "Cancel event",
-            cancelText: "Keep it",
+            warning: t("orgDash.cancelWarning"),
+            confirmText: t("orgDash.cancelConfirm"),
+            cancelText: t("common.keepIt"),
             danger: true,
           });
           if (reason === null) return;
           this.busyId = event.id;
           try {
             await cancelEvent(event.id, reason);
-            toast("The event was cancelled. Volunteers can see the reason.");
+            toast(t("orgDash.cancelled"));
             focusHeading("events-heading"); // the card may be gone: keep keyboard users in this section
             if (this.editing?.id === event.id) this.cancelForm();
             await this.load();
@@ -342,16 +342,16 @@ document.addEventListener("alpine:init", () => {
 
         /** @param {VolunteerEvent} event */
         async remove(event) {
-          const ok = await confirmDialog("Nobody has applied yet, so it will be removed completely.", {
-            title: `Delete "${event.title}"?`,
-            confirmText: "Delete event",
+          const ok = await confirmDialog(t("orgDash.deleteEventText"), {
+            title: t("orgDash.deleteEventTitle", { title: event.title }),
+            confirmText: t("orgDash.deleteEventConfirm"),
             danger: true,
           });
           if (!ok) return;
           this.busyId = event.id;
           try {
             await deleteEvent(event.id);
-            toast("The event was deleted.");
+            toast(t("orgDash.eventDeleted"));
             focusHeading("events-heading"); // the card may be gone: keep keyboard users in this section
             if (this.editing?.id === event.id) this.cancelForm();
             await this.load();
@@ -375,11 +375,11 @@ document.addEventListener("alpine:init", () => {
         async saveOutcome(event) {
           const summary = this.outcome.trim();
           if (!summary) {
-            this.outcomeError = "Please write a short summary, e.g. how many people helped and what was done.";
+            this.outcomeError = t("orgDash.errSummary");
             return;
           }
           if (summary.length > 1000) {
-            this.outcomeError = "Please keep the summary under 1,000 characters.";
+            this.outcomeError = t("orgDash.errSummaryLong");
             return;
           }
           this.busyId = event.id;
@@ -387,7 +387,7 @@ document.addEventListener("alpine:init", () => {
             await updateOutcome(event.id, summary);
             event.outcome_summary = summary;
             this.editingOutcomeId = null;
-            toast("Outcome summary saved.");
+            toast(t("orgDash.outcomeSaved"));
           } catch (error) {
             this.outcomeError = friendlyError(error);
           } finally {

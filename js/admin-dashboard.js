@@ -7,17 +7,9 @@
 
 /** @typedef {'overview' | 'review' | 'browse'} AdminTab */
 
-const ADMIN_TABS = /** @type {{ value: AdminTab, label: string }[]} */ ([
-  { value: "overview", label: "Overview" },
-  { value: "review", label: "To review" },
-  { value: "browse", label: "Browse" },
-]);
+const ADMIN_TABS = labelledOptions(/** @type {Record<AdminTab, string>} */ ({ overview: "nav.overview", review: "nav.toReview", browse: "nav.browse" }));
 
-const BROWSE_VIEWS = /** @type {{ value: BrowseView, label: string }[]} */ ([
-  { value: "active", label: "Active" },
-  { value: "history", label: "History" },
-  { value: "all", label: "All" },
-]);
+const BROWSE_VIEWS = labelledOptions(/** @type {Record<BrowseView, string>} */ ({ active: "common.active", history: "common.history", all: "common.all" }));
 
 /** Days shown in "Recently closed or cancelled". */
 const RECENT_DAYS = 7;
@@ -153,14 +145,14 @@ document.addEventListener("alpine:init", () => {
        * @param {KeyboardEvent} event
        */
       onTabKey(event) {
-        const keys = ["ArrowLeft", "ArrowRight", "Home", "End"];
+        const keys = ["ArrowLeft", "ArrowRight", "Home", "End"]; // i18n-ignore (key names)
         if (!keys.includes(event.key)) return;
         event.preventDefault();
         const list = /** @type {HTMLElement} */ (event.currentTarget);
         const tabs = /** @type {HTMLElement[]} */ ([...list.querySelectorAll('[role="tab"]')]);
         const at = tabs.indexOf(/** @type {HTMLElement} */ (document.activeElement));
         const next =
-          event.key === "Home" ? 0 : event.key === "End" ? tabs.length - 1 : (at + (event.key === "ArrowRight" ? 1 : -1) + tabs.length) % tabs.length;
+          event.key === "Home" ? 0 : event.key === "End" ? tabs.length - 1 : (at + (event.key === "ArrowRight" ? 1 : -1) + tabs.length) % tabs.length; // i18n-ignore
         tabs[next].focus();
         tabs[next].click();
       },
@@ -294,16 +286,16 @@ document.addEventListener("alpine:init", () => {
         let note = "";
         if (item.subkind === "application") {
           // the rules have no note for event applications
-          const ok = await confirmDialog(wording.message, { title: wording.title, confirmText: "Reject", danger: true });
+          const ok = await confirmDialog(wording.message, { title: wording.title, confirmText: t("common.reject"), danger: true });
           if (!ok) return;
         } else {
           const reason = await reasonDialog(wording.message, {
             title: wording.title,
-            label: "Note for them (required)",
+            label: t("admin.noteLabel"),
             required: true,
             maxLength: ADMIN_NOTE_MAX,
-            quickReasons: QUICK_REJECT_REASONS,
-            confirmText: "Reject",
+            quickReasons: quickRejectReasons(),
+            confirmText: t("common.reject"),
             danger: true,
           });
           if (reason === null) return;
@@ -330,7 +322,8 @@ document.addEventListener("alpine:init", () => {
         this.review[item.kind] = list.filter((i) => i.key !== item.key);
         this.closePanel();
         const left = this.review[item.kind];
-        announce(left.length ? `${left.length} left in ${item.kind}.` : `All caught up in ${item.kind}.`);
+        const kind = t(`admin.noun.${item.kind}`);
+        announce(left.length ? t("admin.leftIn", { count: left.length, kind }) : t("admin.caughtUpIn", { kind }));
         setTimeout(() => {
           const next = left[Math.min(index, left.length - 1)];
           const button = next ? document.getElementById(`view-${next.key}`) : null;
@@ -345,7 +338,7 @@ document.addEventListener("alpine:init", () => {
       reloadBrowse() {
         this.browse = historyPager(
           (from, to) => listAdminBrowse(this.browseKind, this.browseView, this.browseSearch, from, to),
-          () => `${this.browseView === "all" ? "" : `${this.browseView} `}${this.browseKind === "volunteers" ? "volunteer accounts" : this.browseKind}`,
+          () => t(`admin.noun.${this.browseKind}`),
         );
         this.browse.load();
       },
@@ -382,14 +375,16 @@ document.addEventListener("alpine:init", () => {
 
       /** @param {string} action */
       actionLabel(action) {
-        return /** @type {Record<string, string>} */ ({
-          "reject-org": "Reject",
-          "approve-org": "Approve",
-          "edit-request": "Edit",
-          "close-request": "Close",
-          "cancel-event": "Cancel event",
-          "cancel-offer": "Cancel offer",
-        })[action];
+        return t(
+          /** @type {Record<string, string>} */ ({
+            "reject-org": "admin.action.reject",
+            "approve-org": "admin.action.approve",
+            "edit-request": "admin.action.edit",
+            "close-request": "admin.action.close",
+            "cancel-event": "admin.action.cancelEvent",
+            "cancel-offer": "admin.action.cancelOffer",
+          })[action],
+        );
       },
 
       /** @param {string} action */
@@ -408,48 +403,56 @@ document.addEventListener("alpine:init", () => {
         /** @type {() => Promise<string>} */
         let work;
         if (action === "reject-org") {
-          const note = await reasonDialog(
-            `${row.title} won't be able to post requests or events, and any it has will be hidden from the public. The organization will see your note.`,
-            { title: "Reject this organization?", label: "Note for them (required)", required: true, maxLength: ADMIN_NOTE_MAX, quickReasons: QUICK_REJECT_REASONS, confirmText: "Reject organization", danger: true },
-          );
-          if (note === null) return;
-          work = async () => (await setOrganizationApproval(row.id, "rejected", note), `${row.title} was rejected. Its requests and events are hidden.`);
-        } else if (action === "approve-org") {
-          const ok = await confirmDialog(`${row.title} will be able to post requests and events again.`, { title: "Approve this organization?", confirmText: "Approve" });
-          if (!ok) return;
-          work = async () => (await setOrganizationApproval(row.id, "approved"), `${row.title} is approved.`);
-        } else if (action === "close-request") {
-          const reason = await reasonDialog(
-            `"${row.title}" will stop taking donations. Waiting offers are declined automatically; accepted offers carry on.`,
-            { title: "Close this request?", label: "Reason the organization and donors will see", maxLength: REASON_MAX_LENGTH, confirmText: "Close request", danger: true },
-          );
-          if (reason === null) return;
-          work = async () => (await closeRequest(row.id, reason), "The request was closed.");
-        } else if (action === "cancel-event") {
-          const reason = await reasonDialog(`"${row.title}" won't take new volunteers and will disappear from the map.`, {
-            title: "Cancel this event?",
-            label: "Why is it cancelled?",
+          const note = await reasonDialog(t("admin.rejectOrgText", { title: row.title }), {
+            title: t("admin.rejectTitle.organization"),
+            label: t("admin.noteLabel"),
             required: true,
+            maxLength: ADMIN_NOTE_MAX,
+            quickReasons: quickRejectReasons(),
+            confirmText: t("admin.rejectOrgConfirm"),
+            danger: true,
+          });
+          if (note === null) return;
+          work = async () => (await setOrganizationApproval(row.id, "rejected", note), t("admin.orgRejected", { title: row.title }));
+        } else if (action === "approve-org") {
+          const ok = await confirmDialog(t("admin.approveOrgText", { title: row.title }), { title: t("admin.approveOrgTitle"), confirmText: t("common.approve") });
+          if (!ok) return;
+          work = async () => (await setOrganizationApproval(row.id, "approved"), t("admin.orgApproved", { title: row.title }));
+        } else if (action === "close-request") {
+          const reason = await reasonDialog(t("admin.closeText", { title: row.title }), {
+            title: t("admin.closeTitle"),
+            label: t("admin.closeLabel"),
             maxLength: REASON_MAX_LENGTH,
-            warning: "Approved volunteers will see this reason, and so will anyone who opens the event's link.",
-            confirmText: "Cancel event",
-            cancelText: "Keep it",
+            confirmText: t("admin.closeConfirm"),
             danger: true,
           });
           if (reason === null) return;
-          work = async () => (await cancelEvent(row.id, reason), "The event was cancelled. Volunteers can see the reason.");
+          work = async () => (await closeRequest(row.id, reason), t("admin.requestClosed"));
+        } else if (action === "cancel-event") {
+          const reason = await reasonDialog(t("admin.cancelEventText", { title: row.title }), {
+            title: t("admin.cancelEventTitle"),
+            label: t("admin.cancelEventLabel"),
+            required: true,
+            maxLength: REASON_MAX_LENGTH,
+            warning: t("admin.cancelEventWarning"),
+            confirmText: t("admin.action.cancelEvent"),
+            cancelText: t("common.keepIt"),
+            danger: true,
+          });
+          if (reason === null) return;
+          work = async () => (await cancelEvent(row.id, reason), t("admin.eventCancelledToast"));
         } else {
-          const ok = await confirmDialog(`Cancel ${row.title}? The donor and the organization will see it as cancelled, and the item is needed again.`, {
-            title: "Cancel this offer?",
-            confirmText: "Cancel offer",
-            cancelText: "Keep it",
+          const ok = await confirmDialog(t("admin.cancelOfferText", { title: row.title }), {
+            title: t("admin.cancelOfferTitle"),
+            confirmText: t("admin.action.cancelOffer"),
+            cancelText: t("common.keepIt"),
             danger: true,
           });
           if (!ok) return;
           work = async () => {
             await cancelOffer(row.id);
             if (row.raw.item?.request_id) await scoreRequest(row.raw.item.request_id); // how much is still needed changed
-            return "The offer was cancelled.";
+            return t("admin.offerCancelled");
           };
         }
         this.busyId = row.id;
@@ -491,9 +494,9 @@ document.addEventListener("alpine:init", () => {
         /** @type {Record<string, string>} */
         const errors = {};
         const title = this.reqForm.title.trim();
-        if (!title) errors.title = "Please keep a title.";
-        else if (title.length > 100) errors.title = "Please keep the title under 100 characters.";
-        if (this.reqForm.description.trim().length > 1000) errors.description = "Please keep the description under 1,000 characters.";
+        if (!title) errors.title = t("admin.errTitle");
+        else if (title.length > 100) errors.title = t("admin.errTitleLong");
+        if (this.reqForm.description.trim().length > 1000) errors.description = t("admin.errDescLong");
         this.reqFormErrors = errors;
         if (Object.keys(errors).length) {
           document.getElementById(errors.title ? "admin-req-title" : "admin-req-desc")?.focus();
@@ -502,7 +505,7 @@ document.addEventListener("alpine:init", () => {
         this.savingReq = true;
         try {
           await adminUpdateRequest(row.id, this.reqForm);
-          toast("The request was updated.");
+          toast(t("admin.requestUpdated"));
           this.closePanel();
           await scoreRequest(row.id); // the database cleared the score when the text or deadline changed
           await this.browse.load();

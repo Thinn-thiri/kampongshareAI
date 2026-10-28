@@ -108,7 +108,7 @@ async function updateOrganization(id, details, includeName) {
     .eq("id", id)
     .select("id");
   if (error) throw error;
-  if (!data?.length) throw { code: "42501", message: "No organization was updated" };
+  if (!data?.length) throw { code: "42501", message: "No organization was updated" }; // i18n-ignore (shown via friendlyError by its code)
 }
 
 /**
@@ -140,7 +140,7 @@ async function setOrganizationApproval(id, approval, note = "") {
     .eq("id", id)
     .select("id");
   if (error) throw error;
-  if (!data?.length) throw { code: "42501", message: "No organization was updated" };
+  if (!data?.length) throw { code: "42501", message: "No organization was updated" }; // i18n-ignore (shown via friendlyError by its code)
 }
 
 /**
@@ -152,20 +152,20 @@ function validateOrganization(form) {
   /** @type {OrganizationErrors} */
   const errors = {};
   const name = form.name.trim();
-  if (!name) errors.name = "Please enter your organization's name.";
-  else if (name.length > 100) errors.name = "Please keep the name under 100 characters.";
-  if (form.description.trim().length > 1000) errors.description = "Please keep the description under 1,000 characters.";
+  if (!name) errors.name = t("orgDash.errName");
+  else if (name.length > 100) errors.name = t("orgDash.errNameLong");
+  if (form.description.trim().length > 1000) errors.description = t("orgDash.errDescLong");
   const address = form.address.trim();
-  if (!address) errors.address = "Please enter your organization's address.";
-  else if (address.length > 200) errors.address = "Please keep the address under 200 characters.";
+  if (!address) errors.address = t("orgDash.errAddress");
+  else if (address.length > 200) errors.address = t("orgDash.errAddressLong");
   if (form.postalCode.trim() && !/^\d{6}$/.test(form.postalCode.trim())) {
-    errors.postalCode = "A Singapore postal code has 6 digits, like 520123.";
+    errors.postalCode = t("orgDash.errPostal");
   }
   if (form.phone.trim() && !isValidSgPhone(form.phone)) {
-    errors.phone = "Please enter an 8-digit Singapore number, like 6123 4567.";
+    errors.phone = t("orgDash.errPhone");
   }
   if (form.latitude == null || form.longitude == null) {
-    errors.pin = "Please drop a pin on the map so people can find you.";
+    errors.pin = t("orgDash.errPin");
   }
   return errors;
 }

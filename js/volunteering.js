@@ -50,19 +50,24 @@
  */
 
 /** Application badges live in STATUS_BADGE (js/ui.js) with every other status. */
-/** @type {Record<ApplicationStatus, { className: string, label: string }>} */
+/** @type {Record<ApplicationStatus, { className: string, readonly label: string }>} */
 const APPLICATION_BADGE = /** @type {any} */ (STATUS_BADGE.application);
 
-/** Shown under the disabled Withdraw button once a volunteer is approved. */
-const CONFIRMED_NOTE = "Your place is confirmed — please contact the organization if you can't make it.";
+/** Shown under the disabled Withdraw button once a volunteer is approved (in the chosen language). */
+function confirmedNote() {
+  return t("event.confirmedNote");
+}
 
-const TASK_STATUS_OPTIONS = /** @type {{ value: TaskStatus, label: string, className: string }[]} */ ([
-  { value: "todo", label: "To do", className: "badge badge-neutral" },
-  { value: "in_progress", label: "In progress", className: "badge badge-info" },
-  { value: "done", label: "Done", className: "badge badge-success" },
-]);
+/** @type {Record<TaskStatus, string>} */
+const TASK_STATUS_CLASS = { todo: "badge badge-neutral", in_progress: "badge badge-info", done: "badge badge-success" };
 
-const DAY_NAMES = { mon: "Mon", tue: "Tue", wed: "Wed", thu: "Thu", fri: "Fri", sat: "Sat", sun: "Sun" };
+const TASK_STATUS_OPTIONS = enumOptions("taskStatus", /** @type {TaskStatus[]} */ (["todo", "in_progress", "done"])).map((option) => ({
+  ...option,
+  className: TASK_STATUS_CLASS[option.value],
+  get label() {
+    return enumLabel("taskStatus", option.value);
+  },
+}));
 
 /**
  * "Sat, Sun · morning, evening" (or "Not given").
@@ -71,9 +76,9 @@ const DAY_NAMES = { mon: "Mon", tue: "Tue", wed: "Wed", thu: "Thu", fri: "Fri", 
  * @returns {string}
  */
 function formatAvailability(days, times) {
-  const dayText = (days ?? []).map((d) => DAY_NAMES[/** @type {keyof typeof DAY_NAMES} */ (d)] ?? d).join(", ");
-  const timeText = (times ?? []).join(", ");
-  return [dayText, timeText].filter(Boolean).join(" · ") || "Not given";
+  const dayText = enumList("day", days);
+  const timeText = enumList("time", times);
+  return [dayText, timeText].filter(Boolean).join(" · ") || t("common.notGiven");
 }
 
 /**
@@ -108,7 +113,7 @@ function spotsLeft(event, approved) {
  */
 function expectUpdated(result, what) {
   if (result.error) throw result.error;
-  if (!result.data?.length) throw { code: "42501", message: `No ${what} was updated` };
+  if (!result.data?.length) throw { code: "42501", message: `No ${what} was updated` }; // i18n-ignore (shown via friendlyError by its code)
 }
 
 /**
@@ -147,12 +152,12 @@ function isActiveApplication(application) {
  */
 function applicationOutcome(application) {
   const event = application.event;
-  if (!event) return { text: "Event no longer available", detail: "" };
+  if (!event) return { text: t("history.eventGone"), detail: "" };
   if (event.status === "cancelled") {
-    return { text: event.cancel_reason ? `Event cancelled: ${event.cancel_reason}` : "Event cancelled", detail: "" };
+    return { text: event.cancel_reason ? t("history.eventCancelledReason", { reason: event.cancel_reason }) : t("history.eventCancelled"), detail: "" };
   }
-  if (event.status === "completed") return { text: "Event completed", detail: event.outcome_summary ?? "" };
-  if (!isNotOver(event)) return { text: "Event ended", detail: "" };
+  if (event.status === "completed") return { text: t("history.eventCompleted"), detail: event.outcome_summary ?? "" };
+  if (!isNotOver(event)) return { text: t("history.eventEnded"), detail: "" };
   return { text: "", detail: "" };
 }
 
@@ -163,9 +168,9 @@ function applicationOutcome(application) {
  */
 function applicationEndedText(application) {
   const event = application.event;
-  if (event?.status === "cancelled" && event.cancelled_at) return `Cancelled ${formatDate(event.cancelled_at)}`;
-  if (event && (event.status === "completed" || !isNotOver(event))) return `Ended ${formatDate(event.ends_at ?? event.starts_at)}`;
-  return `Applied ${formatDate(application.created_at)}`;
+  if (event?.status === "cancelled" && event.cancelled_at) return t("history.cancelled", { date: formatDate(event.cancelled_at) });
+  if (event && (event.status === "completed" || !isNotOver(event))) return t("history.ended", { date: formatDate(event.ends_at ?? event.starts_at) });
+  return t("history.applied", { date: formatDate(application.created_at) });
 }
 
 /**
@@ -373,7 +378,7 @@ async function setVolunteerApproval(profileId, approval, note = "") {
  * @returns {string} an error message, or "" when fine
  */
 function validateApplicationMessage(message) {
-  return message.trim().length > 500 ? "Please keep your message under 500 characters." : "";
+  return message.trim().length > 500 ? t("event.errMessage") : "";
 }
 
 /**
@@ -383,8 +388,8 @@ function validateApplicationMessage(message) {
 function validateTask(task) {
   /** @type {Record<string, string>} */
   const errors = {};
-  if (!task.title.trim()) errors.title = "What should they do?";
-  else if (task.title.trim().length > 100) errors.title = "Please keep the title under 100 characters.";
-  if (task.description.trim().length > 500) errors.description = "Please keep the details under 500 characters.";
+  if (!task.title.trim()) errors.title = t("form.errTaskTitle");
+  else if (task.title.trim().length > 100) errors.title = t("form.errTitleLong");
+  if (task.description.trim().length > 500) errors.description = t("form.errTaskDetailsLong");
   return errors;
 }

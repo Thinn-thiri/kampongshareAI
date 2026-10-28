@@ -1,7 +1,8 @@
 // @ts-check
 // Builds the help text the "Ask KampongShare" chat uses for typed questions (REQUIREMENTS.md 6.8).
-// One source: the questions and answers in js/chat-questions.js, plus the short "Site rules" below
-// (written from REQUIREMENTS.md). Writes two generated files — never edit those by hand:
+// One source: the questions in js/chat-questions.js with their words from js/i18n/en.js, zh.js and ms.js,
+// plus the short "Site rules" below (written from REQUIREMENTS.md). The help text is English (the AI
+// reads it and answers in the needed language); the pre-written answers are kept in all three languages. Writes two generated files — never edit those by hand:
 //   netlify/functions/_lib/chat-help.md   the help text, readable
 //   netlify/functions/_lib/chat-help.js   the same text + the questions, for chat-insights to import
 // Run with: npm run chat-help   (npm run build runs it too)
@@ -23,25 +24,58 @@ const SITE_RULES = `
 - AI: each request gets an urgency score from a clear formula (deadline, how much is still needed, the organization's own urgency). The AI only explains the score and helps match what people can give. AI results are labelled "AI-suggested", the AI never receives personal details, and people always make the decisions.
 - History: past offers, applications, requests and events stay in a History tab for 12 months.
 - Accounts: sign up on the Sign up page (/signup.html); log in on the Log in page (/login.html) with email and password; log out from the Account menu at the top right. Forgot, reset or change a password: the site can't reset or change passwords yet (there is no reset link); email the address shown in the Privacy Notice (/privacy.html) and the team will help you get back in. The Profile page (/profile.html) lets you change your name, phone, postal code, area, donating/volunteering, availability, interests and skills (press Save changes), withdraw your consent, and see your data. Your email can't be changed on the site. People who donate or volunteer can delete their own account on the Profile page ("Delete my account", tick "I understand this can't be undone"): it removes the login, details and applications, cancels waiting offers, and keeps past donations without the name. Organization and admin accounts can't be deleted there: email the address shown in the Privacy Notice.
+- Languages: the site can be used in English, Simplified Chinese (中文) and Malay (Bahasa Melayu). Change it with the globe button in the top bar; the choice is remembered in this browser.
 - Pages: Browse needs (/needs.html), Sign up (/signup.html), Log in (/login.html), Profile (/profile.html), How it works (/#how-heading), Privacy Notice (/privacy.html).
 `.trim();
 
-/** Reads CHAT_QUESTIONS from the browser file without running it in a page. */
-function readQuestions() {
-  const source = readFileSync(new URL("../js/chat-questions.js", import.meta.url), "utf8");
+const LANGS = /** @type {const} */ (["en", "zh", "ms"]);
+
+/** Runs browser script files in a sandbox (not in a page) and returns the named global. */
+/** @param {string[]} files @param {string} name @returns {any} */
+function loadGlobal(files, name) {
+  const source = files.map((file) => readFileSync(new URL(`../${file}`, import.meta.url), "utf8")).join("\n;\n");
   const sandbox = { result: null };
-  vm.runInNewContext(`${source}\nresult = CHAT_QUESTIONS;`, sandbox);
+  vm.runInNewContext(`${source}\nresult = ${name};`, sandbox);
+  return /** @type {any} */ (sandbox).result;
+}
+
+/**
+ * The pre-written questions with their words in every language (from js/i18n/*.js).
+ * label / answer / links[].label are English (the help text); labels / answers / links[].labels hold all three.
+ */
+function readQuestions() {
+  const dictionaries = {
+    en: loadGlobal(["js/i18n/en.js"], "I18N_EN"),
+    zh: loadGlobal(["js/i18n/zh.js"], "I18N_ZH"),
+    ms: loadGlobal(["js/i18n/ms.js"], "I18N_MS"),
+  };
+  /** @param {'en' | 'zh' | 'ms'} lang @param {string} key @returns {string} */
+  const text = (lang, key) => key.split(".").reduce((node, part) => node?.[part], dictionaries[lang]) ?? "";
+  /** @param {(lang: 'en' | 'zh' | 'ms') => string} pick */
+  const inEvery = (pick) => Object.fromEntries(LANGS.map((lang) => [lang, pick(lang)]));
   /** @type {any[]} */
-  const questions = /** @type {any} */ (sandbox.result) ?? [];
+  const questions = loadGlobal(["js/chat-questions.js"], "CHAT_QUESTIONS") ?? [];
   return questions
-    .filter((q) => typeof q.answer === "string")
-    .map((q) => ({ id: q.id, label: q.label, answer: q.answer, links: q.links ?? [], followUps: q.followUps ?? [] }));
+    .filter((q) => !q.live)
+    .map((q) => ({
+      id: q.id,
+      label: text("en", `chat.q.${q.id}.label`),
+      answer: text("en", `chat.q.${q.id}.answer`),
+      labels: inEvery((lang) => text(lang, `chat.q.${q.id}.label`)),
+      answers: inEvery((lang) => text(lang, `chat.q.${q.id}.answer`)),
+      links: (q.links ?? []).map((/** @type {{ labelKey: string, href: string }} */ link) => ({
+        href: link.href,
+        label: text("en", link.labelKey),
+        labels: inEvery((lang) => text(lang, link.labelKey)),
+      })),
+      followUps: q.followUps ?? [],
+    }));
 }
 
 function main() {
   const questions = readQuestions();
   const markdown = [
-    "<!-- Generated by scripts/build-chat-help.js — edit js/chat-questions.js (or the rules in that script) instead. -->",
+    "<!-- Generated by scripts/build-chat-help.js — edit js/chat-questions.js, js/i18n/en.js (or the rules in that script) instead. -->",
     "# KampongShare help",
     "",
     "## Site rules",
@@ -54,13 +88,14 @@ function main() {
   ].join("\n");
 
   const module = `// @ts-check
-// Generated by scripts/build-chat-help.js — do not edit. Edit js/chat-questions.js instead, then run npm run chat-help.
+// Generated by scripts/build-chat-help.js — do not edit. Edit js/chat-questions.js and js/i18n/*.js instead, then run npm run chat-help.
 
 /** The help text typed questions are answered from (same as chat-help.md). */
 export const HELP_TEXT = ${JSON.stringify(markdown)};
 
-/** The pre-written questions, for matching a typed question to one of them. */
-/** @type {{ id: string, label: string, answer: string, links: { label: string, href: string }[], followUps: string[] }[]} */
+/** The pre-written questions, for matching a typed question to one of them (words in en, zh and ms). */
+/** @typedef {{ en: string, zh: string, ms: string }} InEveryLanguage */
+/** @type {{ id: string, label: string, answer: string, labels: InEveryLanguage, answers: InEveryLanguage, links: { href: string, label: string, labels: InEveryLanguage }[], followUps: string[] }[]} */
 export const HELP_QUESTIONS = ${JSON.stringify(questions, null, 2)};
 `;
 

@@ -24,24 +24,24 @@ const SIGNUP_FIELD_IDS = {
 function validateSignup(form) {
   /** @type {Partial<Record<keyof typeof SIGNUP_FIELD_IDS, string>>} */
   const errors = {};
-  if (!form.accountType) errors.accountType = "Choose whether you're an individual or an organization.";
+  if (!form.accountType) errors.accountType = t("signup.errType");
   if (form.accountType === "individual" && !form.wantDonate && !form.wantVolunteer) {
-    errors.roles = "Tick at least one: donate or volunteer.";
+    errors.roles = t("signup.errRoles");
   }
-  if (!form.fullName.trim()) errors.fullName = "Please enter your name.";
-  else if (form.fullName.trim().length > 100) errors.fullName = "Please keep your name under 100 characters.";
+  if (!form.fullName.trim()) errors.fullName = t("signup.errName");
+  else if (form.fullName.trim().length > 100) errors.fullName = t("signup.errNameLong");
   if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.email.trim())) {
-    errors.email = "Please enter a valid email address, like name@example.com.";
+    errors.email = t("signup.errEmail");
   }
-  if (form.password.length < 8) errors.password = "Your password needs at least 8 characters.";
+  if (form.password.length < 8) errors.password = t("signup.errPassword");
   if (form.phone.trim() && !isValidSgPhone(form.phone)) {
-    errors.phone = "Please enter an 8-digit Singapore number, like 9123 4567.";
+    errors.phone = t("signup.errPhone");
   }
   if (form.accountType === "individual" && form.postalCode.trim() && !/^\d{6}$/.test(form.postalCode.trim())) {
-    errors.postalCode = "A Singapore postal code has 6 digits, like 520123.";
+    errors.postalCode = t("signup.errPostal");
   }
-  if (!form.privacyConsent) errors.privacyConsent = "Please agree to the Privacy Notice to create an account.";
-  if (!form.ageConfirmed) errors.ageConfirmed = "You need to be 18 or older to use KampongShare.";
+  if (!form.privacyConsent) errors.privacyConsent = t("signup.errConsent");
+  if (!form.ageConfirmed) errors.ageConfirmed = t("signup.errAge");
   return errors;
 }
 
@@ -128,7 +128,7 @@ document.addEventListener("alpine:init", () => {
           ageConfirmed: this.ageConfirmed,
         });
         if (!session) {
-          this.notice = "Almost done! Check your email to confirm your account, then log in.";
+          this.notice = t("signup.checkEmail");
           this.busy = false;
           return;
         }

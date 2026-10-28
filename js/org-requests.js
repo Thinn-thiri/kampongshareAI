@@ -61,7 +61,7 @@ document.addEventListener("alpine:init", () => {
     /** Active (pending approval, open) or History (fulfilled, closed, rejected) */
     tab: "active",
     /** @type {HistoryPager<DonationRequest>} */
-    history: historyPager((from, to) => listMyRequestHistory(orgId, from, to), "past requests"),
+    history: historyPager((from, to) => listMyRequestHistory(orgId, from, to), () => t("orgDash.pastRequests")),
 
     showForm: false,
     /** @type {DonationRequest | null} the request being edited, or null for a new one */
@@ -168,12 +168,12 @@ document.addEventListener("alpine:init", () => {
       try {
         if (this.editing) {
           await updateRequest(this.editing, this.form);
-          toast("Changes saved.");
+          toast(t("orgDash.requestSaved"));
           // The database clears the urgency score when an open request changes; work it out again.
           if (this.editing.status === "open") await scoreRequest(this.editing.id);
         } else {
           await createRequest(orgId, this.form);
-          toast("Your request was sent to the admin for approval.");
+          toast(t("orgDash.requestSent"));
         }
         this.showForm = false;
         this.editing = null;
@@ -188,12 +188,12 @@ document.addEventListener("alpine:init", () => {
     /** @param {DonationRequest} request */
     async close(request) {
       const reason = await reasonDialog(
-        "Donors won't be able to offer anything new. Waiting offers will be declined automatically; accepted offers carry on so promised items can still be delivered.",
+        t("orgDash.closeRequestText"),
         {
-          title: `Close "${request.title}"?`,
-          label: "Reason donors will see",
+          title: t("orgDash.closeRequestTitle", { title: request.title }),
+          label: t("orgDash.closeRequestLabel"),
           maxLength: REASON_MAX_LENGTH,
-          confirmText: "Close request",
+          confirmText: t("orgDash.closeRequest"),
           danger: true,
         },
       );
@@ -201,7 +201,7 @@ document.addEventListener("alpine:init", () => {
       this.closingId = request.id;
       try {
         await closeRequest(request.id, reason);
-        toast("The request was closed. You'll find it under History.");
+        toast(t("orgDash.requestClosed"));
         focusHeading("requests-heading"); // the card may be gone: keep keyboard users in this section
         if (this.editing?.id === request.id) this.cancelForm();
         await this.load();
@@ -219,16 +219,16 @@ document.addEventListener("alpine:init", () => {
      * @param {DonationRequest} request
      */
     async remove(request) {
-      const ok = await confirmDialog("Nobody has seen it yet, so it will be removed completely.", {
-        title: `Delete "${request.title}"?`,
-        confirmText: "Delete request",
+      const ok = await confirmDialog(t("orgDash.deleteRequestText"), {
+        title: t("orgDash.deleteRequestTitle", { title: request.title }),
+        confirmText: t("orgDash.deleteRequestConfirm"),
         danger: true,
       });
       if (!ok) return;
       this.closingId = request.id;
       try {
         await deleteRequest(request.id);
-        toast("The request was deleted.");
+        toast(t("orgDash.requestDeleted"));
         focusHeading("requests-heading"); // the card may be gone: keep keyboard users in this section
         if (this.editing?.id === request.id) this.cancelForm();
         await this.load();
@@ -258,7 +258,12 @@ document.addEventListener("alpine:init", () => {
      * @returns {string}
      */
     itemDetail(item) {
-      return `Needed ${item.quantity_needed} · Promised ${item.quantity_committed} · Received ${item.quantity_received} · Still needed ${item.quantity_remaining}`;
+      return t("orgDash.itemSummary", {
+        needed: item.quantity_needed,
+        promised: item.quantity_committed,
+        received: item.quantity_received,
+        remaining: item.quantity_remaining,
+      });
     },
 
     /**

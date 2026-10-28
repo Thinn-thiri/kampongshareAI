@@ -9,7 +9,6 @@
 /**
  * @typedef {Object} ChatChip
  * @property {string} key
- * @property {string} label
  * @property {string} [questionId]
  * @property {string} [area]
  */
@@ -40,7 +39,7 @@
  * @property {boolean} [ai]        label the answer "AI-suggested"
  * @property {boolean} [thinking]
  * @property {boolean} [error]
- * @property {{ label: string, href: string }[]} [links]
+ * @property {{ label?: string, labelKey?: string, href: string }[]} [links]  labelKey: pre-written answers; label: from the server
  * @property {ChatItemCard[]} [items]
  * @property {ChatEventCard[]} [events]
  */
@@ -103,33 +102,35 @@ async function askChatInsights(ask) {
     response = await fetch("/api/chat-insights", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(ask),
+      // the chosen language: chip answers come back in it (typed questions in the language they're typed in)
+      body: JSON.stringify({ ...ask, lang: getLang() }),
     });
   } catch {
-    throw new Error("We couldn't reach the server. Check your internet connection and try again.");
+    throw new Error(t("chat.errNetwork"));
   }
-  if (response.status === 429) throw new Error("Please wait a minute and try again.");
+  if (response.status === 429) throw new Error(t("chat.errRateLimit"));
   const body = await response.json().catch(() => ({}));
-  if (!response.ok) throw new Error(typeof body.message === "string" ? body.message : "Something went wrong. Please try again.");
+  if (response.status >= 500) throw new Error(t("chat.errUnavailable"));
+  if (!response.ok) throw new Error(t("chat.errGeneric"));
   return body;
 }
 
 /** The chat's markup: added once to every page. Static text only — answers are shown with x-text. */
 const CHAT_MARKUP = `
 <div x-data="chatAssistant">
-  <button type="button" class="chat-fab" x-ref="fab" aria-label="Ask KampongShare" aria-haspopup="dialog"
+  <button type="button" class="chat-fab" x-ref="fab" aria-label="Ask KampongShare" data-i18n-attr="aria-label:chat.open" aria-haspopup="dialog"
     aria-controls="chat-panel" :aria-expanded="open.toString()" @click="openChat()">
     <i data-lucide="message-circle-question" class="size-6" aria-hidden="true"></i>
-    <span class="hidden sm:inline">Ask KampongShare</span>
+    <span class="hidden sm:inline" data-i18n="chat.open">Ask KampongShare</span>
   </button>
 
   <dialog id="chat-panel" class="chat-panel" aria-labelledby="chat-title" @close="onClosed()" @click="if ($event.target === $el) closeChat()">
     <div class="flex h-full flex-col">
       <div class="flex items-center justify-between gap-2 border-b border-line px-4 py-3">
-        <h2 id="chat-title" class="text-base font-semibold">Ask KampongShare</h2>
+        <h2 id="chat-title" class="text-base font-semibold" data-i18n="chat.title">Ask KampongShare</h2>
         <div class="flex items-center gap-1">
-          <button type="button" class="btn btn-ghost px-3 text-sm" x-show="messages.length" @click="startOver()">Start over</button>
-          <button type="button" class="btn btn-ghost size-11 px-0" aria-label="Close chat" @click="closeChat()">
+          <button type="button" class="btn btn-ghost px-3 text-sm" x-show="messages.length" @click="startOver()" data-i18n="chat.startOver">Start over</button>
+          <button type="button" class="btn btn-ghost size-11 px-0" aria-label="Close chat" data-i18n-attr="aria-label:chat.close" @click="closeChat()">
             <i data-lucide="x" class="size-5" aria-hidden="true"></i>
           </button>
         </div>
@@ -137,23 +138,23 @@ const CHAT_MARKUP = `
 
       <div id="chat-log" class="flex-1 space-y-3 overflow-y-auto p-4">
         <!-- the conversation: new answers are read out by screen readers -->
-        <div class="space-y-3" role="log" aria-live="polite" aria-label="Conversation">
-          <p class="chat-bubble-bot">Hi! Tap a question below.</p>
+        <div class="space-y-3" role="log" aria-live="polite" aria-label="Conversation" data-i18n-attr="aria-label:chat.conversation">
+          <p class="chat-bubble-bot" data-i18n="chat.intro">Hi! Tap a question below, or type your own.</p>
           <template x-for="message in messages" :key="message.id">
             <div :class="message.from === 'user' ? 'flex justify-end' : ''">
               <div :class="message.from === 'user' ? 'chat-bubble-user' : message.error ? 'chat-bubble-bot text-danger' : 'chat-bubble-bot'">
-                <p class="flex items-center gap-2" x-show="message.thinking"><span class="spinner" aria-hidden="true"></span> Thinking…</p>
-                <span class="badge badge-ai mb-1" x-show="message.ai">AI-suggested</span>
+                <p class="flex items-center gap-2" x-show="message.thinking"><span class="spinner" aria-hidden="true"></span> <span data-i18n="chat.thinking">Thinking…</span></p>
+                <span class="badge badge-ai mb-1" x-show="message.ai" data-i18n="common.aiSuggested">AI-suggested</span>
                 <p class="whitespace-pre-line" x-show="!message.thinking" x-text="message.text"></p>
 
                 <ul class="mt-2 space-y-2" x-show="message.items?.length">
                   <template x-for="item in (message.items || [])" :key="item.id">
                     <li class="rounded-md border border-line bg-surface p-3">
                       <p class="font-semibold break-words" x-text="item.name"></p>
-                      <p class="text-sm text-muted" x-text="item.quantity_remaining + ' ' + item.unit + ' still needed'"></p>
+                      <p class="text-sm text-muted" x-text="$t('chat.stillNeeded', { count: item.quantity_remaining, unit: item.unit })"></p>
                       <p class="text-sm break-words" x-text="[item.request?.title, item.request?.organization?.name].filter(Boolean).join(' · ')"></p>
                       <a class="btn btn-secondary mt-2 min-h-11 px-3 text-sm" x-show="offerHrefFor(item.id)" :href="offerHrefFor(item.id)"
-                        :aria-label="'Offer ' + item.name">Offer</a>
+                        :aria-label="$t('chat.offerItem', { item: item.name })" data-i18n="common.offer">Offer</a>
                     </li>
                   </template>
                 </ul>
@@ -163,13 +164,13 @@ const CHAT_MARKUP = `
                       <p class="font-semibold break-words" x-text="event.title"></p>
                       <p class="text-sm text-muted" x-text="formatDate(event.starts_at, true)"></p>
                       <p class="text-sm break-words" x-text="[event.location_name, event.organization?.name].filter(Boolean).join(' · ')"></p>
-                      <a class="btn btn-secondary mt-2 min-h-11 px-3 text-sm" :href="'/event.html?id=' + event.id" :aria-label="'View event: ' + event.title">View event</a>
+                      <a class="btn btn-secondary mt-2 min-h-11 px-3 text-sm" :href="'/event.html?id=' + event.id" :aria-label="$t('chat.viewEvent', { event: event.title })" data-i18n="events.viewEvent">View event</a>
                     </li>
                   </template>
                 </ul>
                 <div class="mt-2 flex flex-wrap gap-2" x-show="message.links?.length">
                   <template x-for="link in (message.links || [])" :key="link.href">
-                    <a class="btn btn-secondary min-h-11 px-3 text-sm" :href="link.href" x-text="link.label"></a>
+                    <a class="btn btn-secondary min-h-11 px-3 text-sm" :href="link.href" x-text="link.labelKey ? $t(link.labelKey) : link.label"></a>
                   </template>
                 </div>
               </div>
@@ -179,12 +180,12 @@ const CHAT_MARKUP = `
 
         <!-- the questions you can tap next -->
         <div class="space-y-3 pt-1" x-show="!busy">
-          <template x-for="group in chipGroups" :key="group.title">
+          <template x-for="group in chipGroups" :key="group.key">
             <div>
-              <p class="mb-2 text-xs font-semibold tracking-wide text-muted uppercase" x-show="group.title" x-text="group.title"></p>
+              <p class="mb-2 text-xs font-semibold tracking-wide text-muted uppercase" x-show="group.titleKey" x-text="group.titleKey ? $t(group.titleKey) : ''"></p>
               <div class="flex flex-wrap gap-2">
                 <template x-for="chip in group.chips" :key="chip.key">
-                  <button type="button" class="chip text-left" @click="tap(chip)" x-text="chip.label"></button>
+                  <button type="button" class="chip text-left" @click="tap(chip)" x-text="chipLabel(chip)"></button>
                 </template>
               </div>
             </div>
@@ -194,23 +195,23 @@ const CHAT_MARKUP = `
 
       <!-- type your own question -->
       <form class="border-t border-line px-4 pt-3" @submit.prevent="send()" novalidate>
-        <label for="chat-input" class="sr-only">Ask about KampongShare</label>
+        <label for="chat-input" class="sr-only" data-i18n="chat.inputLabel">Ask about KampongShare</label>
         <div class="flex gap-2">
-          <input id="chat-input" class="input" type="text" maxlength="300" autocomplete="off" placeholder="Ask about KampongShare…"
+          <input id="chat-input" class="input" type="text" maxlength="300" autocomplete="off" placeholder="Ask about KampongShare…" data-i18n-attr="placeholder:chat.placeholder"
             x-model="draft" :readonly="busy" aria-describedby="chat-input-hint chat-input-count" />
-          <button type="submit" class="btn btn-primary size-11 shrink-0 px-0" :disabled="busy || !draft.trim()" aria-label="Send question">
+          <button type="submit" class="btn btn-primary size-11 shrink-0 px-0" :disabled="busy || !draft.trim()" aria-label="Send question" data-i18n-attr="aria-label:chat.send">
             <i data-lucide="send-horizontal" class="size-5" aria-hidden="true"></i>
           </button>
         </div>
         <div class="mt-1 flex justify-between gap-2 text-xs text-muted">
-          <span id="chat-input-hint">I can only answer questions about KampongShare.</span>
+          <span id="chat-input-hint" data-i18n="chat.hint">I can only answer questions about KampongShare.</span>
           <span id="chat-input-count" x-text="draft.length + ' / 300'"></span>
         </div>
       </form>
 
       <p class="px-4 pt-2 pb-3 text-xs text-muted">
-        Can't find your question? See <a class="font-semibold text-primary underline" href="/#how-heading">How it works</a>
-        · <a class="font-semibold text-primary underline" href="/privacy.html">Privacy Notice</a>
+        <span data-i18n="chat.cantFind">Can't find your question? See</span> <a class="font-semibold text-primary underline" href="/#how-heading" data-i18n="chat.howItWorks">How it works</a>
+        · <a class="font-semibold text-primary underline" href="/privacy.html" data-i18n="common.privacyNotice">Privacy Notice</a>
       </p>
     </div>
   </dialog>
@@ -228,7 +229,7 @@ document.addEventListener("alpine:init", () => {
       viewer: null,
       /** @type {ChatMessage[]} */
       messages: [],
-      /** @type {{ title: string, chips: ChatChip[] }[]} the questions to show now */
+      /** @type {{ key: string, titleKey: string, chips: ChatChip[] }[]} the questions to show now (titles are translation keys) */
       chipGroups: [],
       /** the question being typed */
       draft: "",
@@ -255,8 +256,9 @@ document.addEventListener("alpine:init", () => {
         const visible = this.visibleQuestions();
         this.chipGroups = /** @type {ChatQuestion['group'][]} */ (["start", "organization", "account", "live", "about", "privacy"])
           .map((group) => ({
-            title: CHAT_GROUPS[group],
-            chips: visible.filter((q) => q.group === group).map((q) => ({ key: q.id, label: q.label, questionId: q.id })),
+            key: group,
+            titleKey: `chat.group.${group}`,
+            chips: visible.filter((q) => q.group === group).map((q) => ({ key: q.id, questionId: q.id })),
           }))
           .filter((group) => group.chips.length);
       },
@@ -267,8 +269,8 @@ document.addEventListener("alpine:init", () => {
         const chips = ids
           .map((id) => visible.find((q) => q.id === id))
           .filter((q) => q !== undefined)
-          .map((q) => ({ key: q.id, label: q.label, questionId: q.id }));
-        this.chipGroups = chips.length ? [{ title: "", chips }] : [];
+          .map((q) => ({ key: q.id, questionId: q.id }));
+        this.chipGroups = chips.length ? [{ key: "next", titleKey: "", chips }] : [];
       },
 
       openChat() {
@@ -305,17 +307,27 @@ document.addEventListener("alpine:init", () => {
         return added;
       },
 
+      /**
+       * A chip's words in the chosen language: a question, or an area name.
+       * @param {ChatChip} chip
+       * @returns {string}
+       */
+      chipLabel(chip) {
+        return chip.area ? areaLabel(chip.area) : t(`chat.q.${chip.questionId}.label`);
+      },
+
       /** @param {ChatChip} chip */
       async tap(chip) {
-        this.add({ from: "user", text: chip.label });
-        this.lastAsked = chip.label;
+        const label = this.chipLabel(chip);
+        this.add({ from: "user", text: label });
+        this.lastAsked = label;
         if (chip.area) return this.answerLive({ id: "area", area: chip.area }, ["most_needed", "ending_soon"], false);
         const question = CHAT_QUESTIONS.find((q) => q.id === chip.questionId);
         if (!question) return;
         if (question.live) return this.answerLive({ id: question.live }, question.followUps, false);
         // pre-written: sign-up links make no sense once you're logged in
         const links = (question.links ?? []).filter((link) => !(this.viewer && link.href.startsWith("/signup")));
-        this.add({ from: "bot", text: question.answer ?? "", links });
+        this.add({ from: "bot", text: t(`chat.q.${question.id}.answer`), links });
         this.showFollowUps(question.followUps);
         this.focusNewChips();
       },
@@ -350,7 +362,7 @@ document.addEventListener("alpine:init", () => {
             this.showFollowUps(result.chips);
           } else if (result.areas) {
             this.chipGroups = result.areas.length
-              ? [{ title: "Choose an area", chips: result.areas.map((area) => ({ key: `area-${area}`, label: area, area })) }]
+              ? [{ key: "areas", titleKey: "chat.chooseArea", chips: result.areas.map((area) => ({ key: `area-${area}`, area })) }]
               : [];
             if (!result.areas.length) this.showFollowUps(followUps);
           } else {

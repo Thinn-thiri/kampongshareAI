@@ -51,14 +51,14 @@ const PUBLIC_EVENT_COLUMNS =
   "id, organization_id, title, description, location_name, latitude, longitude, starts_at, ends_at, volunteers_needed, status, outcome_summary, donation_request_id, approval, created_at";
 
 /** Event status badges live in STATUS_BADGE (js/ui.js) with every other status. */
-/** @type {Record<EventStatus, { className: string, label: string }>} */
+/** @type {Record<EventStatus, { className: string, readonly label: string }>} */
 const EVENT_STATUS_BADGE = /** @type {any} */ (STATUS_BADGE.event);
 
-/** @type {Record<Approval, { className: string, label: string }>} */
+/** @type {Record<Approval, { className: string, readonly label: string }>} */
 const APPROVAL_BADGE = {
-  pending: { className: "badge badge-warning", label: "Waiting for admin approval" },
-  approved: { className: "badge badge-success", label: "Approved" },
-  rejected: { className: "badge badge-danger", label: "Rejected" },
+  pending: badgeEntry("badge badge-warning", "eventApproval", "pending"),
+  approved: badgeEntry("badge badge-success", "eventApproval", "approved"),
+  rejected: badgeEntry("badge badge-danger", "eventApproval", "rejected"),
 };
 
 /**
@@ -86,16 +86,17 @@ function fromLocalInput(value) {
  * "Sat, 7 Nov 2026, 9:00 am – 12:00 pm" (end time only when it's the same day).
  * @param {string} start
  * @param {string | null | undefined} end
+ * @param {Lang} [lang] another language than the page's (the downloaded poster is always English)
  * @returns {string}
  */
-function formatEventTime(start, end) {
-  const from = formatDate(start, true);
+function formatEventTime(start, end, lang) {
+  const from = formatDate(start, true, lang);
   if (!end) return from;
   const startDate = new Date(start);
   const endDate = new Date(end);
   const sameDay = startDate.toDateString() === endDate.toDateString();
-  const to = sameDay ? endDate.toLocaleTimeString("en-SG", { hour: "numeric", minute: "2-digit" }) : formatDate(end, true);
-  return `${from} – ${to}`;
+  const to = sameDay ? endDate.toLocaleTimeString(locale(lang), { hour: "numeric", minute: "2-digit" }) : formatDate(end, true, lang);
+  return t("events.timeRange", { from, to }, lang);
 }
 
 /**
@@ -161,7 +162,7 @@ async function createEvent(orgId, form) {
 async function updateEvent(id, form) {
   const { data, error } = await db().from("events").update(eventRow(form)).eq("id", id).select("approval");
   if (error) throw error;
-  if (!data?.length) throw { code: "42501", message: "No event was updated" };
+  if (!data?.length) throw { code: "42501", message: "No event was updated" }; // i18n-ignore (shown via friendlyError by its code)
   return data[0].approval;
 }
 
@@ -178,7 +179,7 @@ async function completeEvent(id, summary) {
     .eq("id", id)
     .select("id");
   if (error) throw error;
-  if (!data?.length) throw { code: "42501", message: "No event was updated" };
+  if (!data?.length) throw { code: "42501", message: "No event was updated" }; // i18n-ignore (shown via friendlyError by its code)
 }
 
 /**
@@ -239,7 +240,7 @@ async function cancelEvent(id, reason) {
     .eq("id", id)
     .select("id");
   if (error) throw error;
-  if (!data?.length) throw { code: "42501", message: "No event was updated" };
+  if (!data?.length) throw { code: "42501", message: "No event was updated" }; // i18n-ignore (shown via friendlyError by its code)
 }
 
 /**
@@ -251,7 +252,7 @@ async function deleteEvent(id) {
   const { data, error } = await db().from("events").delete().eq("id", id).select("id");
   if (error) throw error;
   if (!data?.length) {
-    throw { code: "P0001", message: "Volunteers have applied, so this event can't be deleted — cancel it instead." };
+    throw { code: "P0001", message: "Volunteers have applied, so this event can't be deleted — cancel it instead." }; // i18n-ignore (translated by DB_ERRORS)
   }
 }
 
@@ -264,7 +265,7 @@ async function deleteEvent(id) {
 async function updateOutcome(id, summary) {
   const { data, error } = await db().from("events").update({ outcome_summary: summary.trim() }).eq("id", id).select("id");
   if (error) throw error;
-  if (!data?.length) throw { code: "42501", message: "No event was updated" };
+  if (!data?.length) throw { code: "42501", message: "No event was updated" }; // i18n-ignore (shown via friendlyError by its code)
 }
 
 /**
@@ -285,8 +286,8 @@ async function getEventCancelReason(id) {
  * @returns {string}
  */
 function eventEndedText(event) {
-  if (event.status === "cancelled") return `Cancelled ${formatDate(event.cancelled_at ?? event.starts_at)}`;
-  return `Ended ${formatDate(event.ends_at ?? event.starts_at)}`;
+  if (event.status === "cancelled") return t("history.cancelled", { date: formatDate(event.cancelled_at ?? event.starts_at) });
+  return t("history.ended", { date: formatDate(event.ends_at ?? event.starts_at) });
 }
 
 /**
@@ -317,7 +318,7 @@ async function setEventApproval(id, approval, note = "") {
     .eq("id", id)
     .select("id");
   if (error) throw error;
-  if (!data?.length) throw { code: "42501", message: "No event was updated" };
+  if (!data?.length) throw { code: "42501", message: "No event was updated" }; // i18n-ignore (shown via friendlyError by its code)
 }
 
 /**
@@ -378,22 +379,22 @@ function validateEvent(form, mode) {
   /** @type {EventErrors} */
   const errors = {};
   const title = form.title.trim();
-  if (!title) errors.title = "Please give your event a title.";
-  else if (title.length > 100) errors.title = "Please keep the title under 100 characters.";
-  if (form.description.trim().length > 1000) errors.description = "Please keep the description under 1,000 characters.";
+  if (!title) errors.title = t("form.errEventTitle");
+  else if (title.length > 100) errors.title = t("form.errTitleLong");
+  if (form.description.trim().length > 1000) errors.description = t("form.errDescLong");
   const place = form.locationName.trim();
-  if (!place) errors.locationName = "Where is it? e.g. Tampines Hub, Level 1.";
-  else if (place.length > 150) errors.locationName = "Please keep the place name under 150 characters.";
-  if (form.latitude == null || form.longitude == null) errors.pin = "Please drop a pin on the map.";
+  if (!place) errors.locationName = t("form.errPlace");
+  else if (place.length > 150) errors.locationName = t("form.errPlaceLong");
+  if (form.latitude == null || form.longitude == null) errors.pin = t("form.errPin");
 
-  if (!form.startsAt) errors.startsAt = "When does it start?";
-  else if (mode.isNew && new Date(form.startsAt).getTime() < Date.now()) errors.startsAt = "The start time can't be in the past.";
+  if (!form.startsAt) errors.startsAt = t("form.errStart");
+  else if (mode.isNew && new Date(form.startsAt).getTime() < Date.now()) errors.startsAt = t("form.errStartPast");
   if (form.startsAt && form.endsAt && new Date(form.endsAt) < new Date(form.startsAt)) {
-    errors.endsAt = "The end time must be after the start time.";
+    errors.endsAt = t("form.errEnd");
   }
 
   const needed = Number(form.volunteersNeeded);
-  if (!Number.isInteger(needed) || needed < 1) errors.volunteersNeeded = "Ask for at least 1 volunteer.";
-  else if (needed > 1000) errors.volunteersNeeded = "Please enter 1,000 or fewer.";
+  if (!Number.isInteger(needed) || needed < 1) errors.volunteersNeeded = t("form.errVolunteersMin");
+  else if (needed > 1000) errors.volunteersNeeded = t("form.errVolunteersMax");
   return errors;
 }
