@@ -14,7 +14,7 @@
     <link rel="icon" href="/img/favicon.svg" type="image/svg+xml" />
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" />
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Atkinson+Hyperlegible:wght@400;700&family=Bricolage+Grotesque:opsz,wght@12..96,600..800&display=swap" />
     <link rel="stylesheet" href="/css/style.css" />
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="https://unpkg.com/lucide@latest"></script>
@@ -58,7 +58,7 @@
         </nav>
         <!-- Language: English / 中文 / Bahasa Melayu (js/i18n.js) -->
         <div class="relative" x-data="langMenu" @keydown.escape="close(true)" @click.outside="close(false)">
-          <button type="button" x-ref="langButton" class="btn btn-ghost min-w-11 gap-1.5 px-2" :aria-label="buttonLabel" aria-label="Language / 语言 / Bahasa"
+          <button type="button" x-ref="langButton" class="btn btn-ghost icon-btn min-w-11 gap-1.5 px-2" :aria-label="buttonLabel" aria-label="Language / 语言 / Bahasa"
             aria-haspopup="menu" :aria-expanded="open.toString()" aria-controls="lang-menu" @click="toggle()">
             <i data-lucide="globe" class="size-5" aria-hidden="true"></i>
             <span class="text-sm sm:hidden" :lang="current.htmlLang" x-text="current.short"></span>
@@ -75,7 +75,7 @@
         </div>
         <!-- Theme: System / Light / Dark (js/theme.js) -->
         <div class="relative" x-data="themeMenu" @keydown.escape="close(true)" @click.outside="close(false)">
-          <button type="button" x-ref="themeButton" class="btn btn-ghost size-11 px-0" :aria-label="$t('theme.button', { name: label })" aria-label="Theme"
+          <button type="button" x-ref="themeButton" class="btn btn-ghost icon-btn size-11 px-0" :aria-label="$t('theme.button', { name: label })" aria-label="Theme"
             aria-haspopup="menu" :aria-expanded="open.toString()" aria-controls="theme-menu" @click="toggle()">
             <span x-show="choice === 'system'"><i data-lucide="monitor" class="size-5" aria-hidden="true"></i></span>
             <span x-show="choice === 'light'" x-cloak><i data-lucide="sun" class="size-5" aria-hidden="true"></i></span>
@@ -98,7 +98,7 @@
           <a href="/signup.html" class="btn btn-primary px-4" data-i18n="nav.signUp">Sign up</a>
         </nav>
         <!-- Messages with the unread count (js/messaging.js): individuals and organizations -->
-        <a href="/messages.html" class="btn btn-ghost relative size-11 px-0" x-show="showMessages" x-cloak
+        <a href="/messages.html" class="btn btn-ghost icon-btn relative size-11 px-0" x-show="showMessages" x-cloak
           :aria-current="here('/messages.html') ? 'page' : null" aria-label="Messages"
           :aria-label="unread ? $t('nav.messagesUnread', { count: unread }) : $t('nav.messages')">
           <i data-lucide="message-circle" class="size-5" aria-hidden="true"></i>
@@ -137,8 +137,11 @@
       <form class="card grid gap-4 sm:grid-cols-2 lg:grid-cols-4" role="search" aria-label="Filter needs" data-i18n-attr="aria-label:needs.filterLabel" @submit.prevent>
         <div class="sm:col-span-2 lg:col-span-1">
           <label for="f-q" class="label" data-i18n="needs.search">Search</label>
-          <input id="f-q" class="input" type="search" placeholder="e.g. rice, diapers" data-i18n-attr="placeholder:needs.searchPlaceholder" maxlength="60"
-            x-model.debounce.300ms="filters.q" />
+          <div class="search-field">
+            <i data-lucide="search" aria-hidden="true"></i>
+            <input id="f-q" class="input" type="search" placeholder="e.g. rice, diapers" data-i18n-attr="placeholder:needs.searchPlaceholder" maxlength="60"
+              x-model.debounce.300ms="filters.q" />
+          </div>
         </div>
         <div>
           <label for="f-category" class="label" data-i18n="needs.category">Category</label>
@@ -206,9 +209,9 @@
       </div>
 
       <!-- Requests -->
-      <div class="grid gap-4 md:grid-cols-2" x-show="!loading && !error">
+      <div class="noticeboard grid gap-4 md:grid-cols-2" x-show="!loading && !error">
         <template x-for="request in filtered" :key="request.id">
-          <article class="card flex flex-col gap-4">
+          <article class="notice flex flex-col gap-4">
             <div class="flex flex-wrap items-center gap-2">
               <span :class="requestUrgency(request).className" x-text="requestUrgency(request).label"></span>
               <span class="badge badge-ai" x-show="requestUrgency(request).scored" data-i18n="common.aiSuggested">AI-suggested</span>
@@ -261,14 +264,14 @@
               <template x-for="item in request.request_items" :key="item.id">
                 <li :id="`item-${item.id}`" class="scroll-mt-24 space-y-2 rounded-md border-t border-line pt-3 first:border-0 first:pt-0"
                   :class="focusItemId === item.id ? 'ring-2 ring-primary-soft ring-offset-4 ring-offset-surface' : ''">
-                  <div class="flex justify-between gap-3 text-sm">
-                    <span class="min-w-0 font-medium break-words" x-text="item.name"></span>
-                    <span class="shrink-0 text-muted" x-text="$t('requests.progress', { committed: item.quantity_committed, needed: item.quantity_needed, unit: item.unit })"></span>
+                  <p class="font-bold break-words" x-text="item.name"></p>
+                  <!-- still needed, as tear-off tabs: solid = received, striped = promised, empty = still needed -->
+                  <div class="tear-tabs" role="img" :aria-label="itemBarLabel(item)">
+                    <template x-for="(tab, index) in itemTabs(item)" :key="index">
+                      <span class="tear-tab" :class="{ received: 'tear-tab-received', promised: 'tear-tab-promised', needed: 'tear-tab-needed' }[tab]"></span>
+                    </template>
                   </div>
-                  <div class="progress" role="img" :aria-label="itemBarLabel(item)">
-                    <div class="progress-received" :style="itemBarStyles(item).received"></div>
-                    <div class="progress-committed" :style="itemBarStyles(item).promised"></div>
-                  </div>
+                  <p class="text-sm text-muted" x-text="$t('requests.progress', { committed: item.quantity_committed, needed: item.quantity_needed, unit: item.unit })"></p>
                   <div class="flex flex-wrap items-center justify-between gap-2">
                     <p class="text-sm font-semibold" x-text="item.quantity_remaining > 0 ? $t('requests.stillNeeded', { count: item.quantity_remaining, unit: item.unit }) : $t('requests.fullyPromisedThanks')"></p>
                     <template x-if="activeOfferFor(item)">
@@ -288,15 +291,23 @@
                     @submit.prevent="sendOffer(item)" :aria-label="$t('common.offerItem', { item: item.name })">
                     <div>
                       <label :for="`offer-qty-${item.id}`" class="label"><span data-i18n="needs.howMany">How many?</span> <span class="text-danger" aria-hidden="true">*</span></label>
-                      <input :id="`offer-qty-${item.id}`" class="input max-w-40" type="number" inputmode="numeric" step="1" min="1" :max="item.quantity_remaining"
-                        x-model.number="offerForm.quantity" :aria-invalid="offerErrors.quantity ? 'true' : null"
-                        :aria-describedby="`offer-qty-help-${item.id} offer-qty-err-${item.id}`" />
+                      <div class="stepper">
+                        <button type="button" class="stepper-btn" @click="stepNumber($el, -1)" aria-label="Decrease" data-i18n-attr="aria-label:common.decrease">
+                          <i data-lucide="minus" class="size-5" aria-hidden="true"></i>
+                        </button>
+                        <input :id="`offer-qty-${item.id}`" class="input" type="number" inputmode="numeric" step="1" min="1" :max="item.quantity_remaining"
+                          x-model.number="offerForm.quantity" :aria-invalid="offerErrors.quantity ? 'true' : null"
+                          :aria-describedby="`offer-qty-help-${item.id} offer-qty-err-${item.id}`" />
+                        <button type="button" class="stepper-btn" @click="stepNumber($el, 1)" aria-label="Increase" data-i18n-attr="aria-label:common.increase">
+                          <i data-lucide="plus" class="size-5" aria-hidden="true"></i>
+                        </button>
+                      </div>
                       <p :id="`offer-qty-help-${item.id}`" class="helper-text" x-text="$t('needs.upTo', { count: item.quantity_remaining, unit: item.unit })"></p>
                       <p :id="`offer-qty-err-${item.id}`" class="field-error" x-show="offerErrors.quantity" x-text="offerErrors.quantity"></p>
                     </div>
                     <div>
                       <label :for="`offer-msg-${item.id}`" class="label"><span data-i18n="needs.message">Message to the organization</span> <span class="font-normal text-muted" data-i18n="common.optional">(optional)</span></label>
-                      <textarea :id="`offer-msg-${item.id}`" class="input py-2" rows="2" maxlength="500" x-model="offerForm.message"
+                      <textarea :id="`offer-msg-${item.id}`" placeholder="e.g. I can drop it off on Saturday morning." data-i18n-attr="placeholder:needs.messagePlaceholder" class="input input-ruled py-2" rows="2" maxlength="500" x-model="offerForm.message"
                         :aria-invalid="offerErrors.message ? 'true' : null" :aria-describedby="`offer-msg-err-${item.id}`"></textarea>
                       <p :id="`offer-msg-err-${item.id}`" class="field-error" x-show="offerErrors.message" x-text="offerErrors.message"></p>
                     </div>

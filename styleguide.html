@@ -14,7 +14,7 @@
     <link rel="icon" href="/img/favicon.svg" type="image/svg+xml" />
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" />
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Atkinson+Hyperlegible:wght@400;700&family=Bricolage+Grotesque:opsz,wght@12..96,600..800&display=swap" />
     <link rel="stylesheet" href="/css/style.css" />
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="https://unpkg.com/lucide@latest"></script>
@@ -55,7 +55,7 @@
         </nav>
         <!-- Language: English / 中文 / Bahasa Melayu (js/i18n.js) -->
         <div class="relative" x-data="langMenu" @keydown.escape="close(true)" @click.outside="close(false)">
-          <button type="button" x-ref="langButton" class="btn btn-ghost min-w-11 gap-1.5 px-2" :aria-label="buttonLabel" aria-label="Language / 语言 / Bahasa"
+          <button type="button" x-ref="langButton" class="btn btn-ghost icon-btn min-w-11 gap-1.5 px-2" :aria-label="buttonLabel" aria-label="Language / 语言 / Bahasa"
             aria-haspopup="menu" :aria-expanded="open.toString()" aria-controls="lang-menu" @click="toggle()">
             <i data-lucide="globe" class="size-5" aria-hidden="true"></i>
             <span class="text-sm sm:hidden" :lang="current.htmlLang" x-text="current.short"></span>
@@ -72,7 +72,7 @@
         </div>
         <!-- Theme: System / Light / Dark (js/theme.js) -->
         <div class="relative" x-data="themeMenu" @keydown.escape="close(true)" @click.outside="close(false)">
-          <button type="button" x-ref="themeButton" class="btn btn-ghost size-11 px-0" :aria-label="$t('theme.button', { name: label })" aria-label="Theme"
+          <button type="button" x-ref="themeButton" class="btn btn-ghost icon-btn size-11 px-0" :aria-label="$t('theme.button', { name: label })" aria-label="Theme"
             aria-haspopup="menu" :aria-expanded="open.toString()" aria-controls="theme-menu" @click="toggle()">
             <span x-show="choice === 'system'"><i data-lucide="monitor" class="size-5" aria-hidden="true"></i></span>
             <span x-show="choice === 'light'" x-cloak><i data-lucide="sun" class="size-5" aria-hidden="true"></i></span>
@@ -95,7 +95,7 @@
           <a href="/signup.html" class="btn btn-primary px-4" data-i18n="nav.signUp">Sign up</a>
         </nav>
         <!-- Messages with the unread count (js/messaging.js): individuals and organizations -->
-        <a href="/messages.html" class="btn btn-ghost relative size-11 px-0" x-show="showMessages" x-cloak
+        <a href="/messages.html" class="btn btn-ghost icon-btn relative size-11 px-0" x-show="showMessages" x-cloak
           :aria-current="here('/messages.html') ? 'page' : null" aria-label="Messages"
           :aria-label="unread ? $t('nav.messagesUnread', { count: unread }) : $t('nav.messages')">
           <i data-lucide="message-circle" class="size-5" aria-hidden="true"></i>
@@ -124,308 +124,445 @@
         </nav>
     </header>
 
-    <main id="main" tabindex="-1" class="container-page space-y-12 py-8 focus:outline-none">
-      <div>
-        <h1 class="text-2xl font-bold sm:text-3xl" data-i18n="styleguide.title">Style guide</h1>
-        <p class="mt-2 text-muted"><span data-i18n="styleguide.introBefore">Every shared component from</span> <code translate="no">src/input.css</code><span data-i18n="styleguide.introAfter">, with sample data. All names here are made up.</span></p>
+    <main id="main" tabindex="-1" class="container-page space-y-14 py-8 focus:outline-none">
+      <div class="space-y-2">
+        <h1 class="text-3xl font-extrabold sm:text-4xl" data-i18n="styleguide.title">Style guide</h1>
+        <p class="text-muted"><span data-i18n="styleguide.introBefore">Every shared component from</span> <code translate="no">src/input.css</code><span data-i18n="styleguide.introAfter">, with sample data. All names here are made up.</span></p>
+        <p class="text-muted" data-i18n-rich="styleguide.themesText">Switch the whole page with the theme button in the top bar: <strong>System</strong> follows your device's setting, or choose <strong>Light</strong> or <strong>Dark</strong>. The panels below always show one theme each.</p>
       </div>
 
-      <!-- Colours -->
-      <!-- Light and dark -->
-      <section aria-labelledby="sg-themes" class="space-y-4">
-        <h2 id="sg-themes" class="text-xl font-semibold" data-i18n="styleguide.themesTitle">Light and dark</h2>
-        <p class="text-muted" data-i18n-rich="styleguide.themesText">Switch the whole page with the theme button in the top bar: <strong>System</strong> follows your device's setting, or choose <strong>Light</strong> or <strong>Dark</strong>. The panels below always show one theme each.</p>
-        <div class="grid gap-4 md:grid-cols-2">
-          <div data-theme="light" class="space-y-4 rounded-lg border border-line bg-canvas p-4">
-            <p class="text-sm font-semibold text-muted" data-i18n="styleguide.lightTheme">Light theme</p>
-            <div class="card space-y-3">
-              <div class="flex flex-wrap gap-2">
-                <span class="badge badge-warning" data-i18n="enum.offerStatus.pending">Pending</span>
-                <span class="badge badge-info" data-i18n="enum.requestStatus.open">Open</span>
-                <span class="badge badge-success" data-i18n="enum.offerStatus.delivered">Delivered</span>
-                <span class="badge badge-danger" data-i18n="enum.requestStatus.rejected">Rejected</span>
-                <span class="badge badge-neutral" data-i18n="enum.requestStatus.closed">Closed</span>
-                <span class="badge badge-ai" data-i18n="common.aiSuggested">AI-suggested</span>
-              </div>
-              <p translate="no" class="font-semibold">Rice 5kg</p>
-              <p translate="no" class="text-sm text-muted">6 of 10 bags received</p>
-              <div>
-                <label for="sg-theme-input-light" class="label" data-i18n="field.quantity">Quantity</label>
-                <input id="sg-theme-input-light" class="input" type="number" value="4" />
-              </div>
-              <div class="flex flex-wrap gap-2">
-                <button type="button" class="btn btn-primary" data-i18n="common.offer">Offer</button>
-                <button type="button" class="btn btn-secondary" data-i18n="common.cancel">Cancel</button>
-                <button type="button" class="btn btn-danger" data-i18n="common.delete">Delete</button>
-                <button type="button" class="btn btn-ghost" data-i18n="requests.whyScore">Why this score?</button>
-              </div>
-            </div>
-            <div class="toast toast-success" data-i18n="styleguide.sampleSent">Your offer was sent.</div>
-            <div class="toast toast-error" data-i18n="styleguide.sampleError">We couldn't reach the server.</div>
-          </div>
-          <div data-theme="dark" class="space-y-4 rounded-lg border border-line bg-canvas p-4">
-            <p class="text-sm font-semibold text-muted" data-i18n="styleguide.darkTheme">Dark theme</p>
-            <div class="card space-y-3">
-              <div class="flex flex-wrap gap-2">
-                <span class="badge badge-warning" data-i18n="enum.offerStatus.pending">Pending</span>
-                <span class="badge badge-info" data-i18n="enum.requestStatus.open">Open</span>
-                <span class="badge badge-success" data-i18n="enum.offerStatus.delivered">Delivered</span>
-                <span class="badge badge-danger" data-i18n="enum.requestStatus.rejected">Rejected</span>
-                <span class="badge badge-neutral" data-i18n="enum.requestStatus.closed">Closed</span>
-                <span class="badge badge-ai" data-i18n="common.aiSuggested">AI-suggested</span>
-              </div>
-              <p translate="no" class="font-semibold">Rice 5kg</p>
-              <p translate="no" class="text-sm text-muted">6 of 10 bags received</p>
-              <div>
-                <label for="sg-theme-input-dark" class="label" data-i18n="field.quantity">Quantity</label>
-                <input id="sg-theme-input-dark" class="input" type="number" value="4" />
-              </div>
-              <div class="flex flex-wrap gap-2">
-                <button type="button" class="btn btn-primary" data-i18n="common.offer">Offer</button>
-                <button type="button" class="btn btn-secondary" data-i18n="common.cancel">Cancel</button>
-                <button type="button" class="btn btn-danger" data-i18n="common.delete">Delete</button>
-                <button type="button" class="btn btn-ghost" data-i18n="requests.whyScore">Why this score?</button>
-              </div>
-            </div>
-            <div class="toast toast-success" data-i18n="styleguide.sampleSent">Your offer was sent.</div>
-            <div class="toast toast-error" data-i18n="styleguide.sampleError">We couldn't reach the server.</div>
-          </div>
-        </div>
-      </section>
-
       <section aria-labelledby="sg-colours" class="space-y-4">
-        <h2 id="sg-colours" class="text-xl font-semibold" data-i18n="styleguide.colours">Colours</h2>
-        <div class="grid grid-cols-2 gap-3 sm:grid-cols-4 lg:grid-cols-6">
-          <div class="rounded-md bg-primary p-4 text-sm font-semibold text-on-primary" translate="no">primary</div>
-          <div class="rounded-md bg-primary-hover p-4 text-sm font-semibold text-on-primary" translate="no">primary-hover</div>
-          <div class="rounded-md bg-primary-soft p-4 text-sm font-semibold text-primary" translate="no">primary-soft</div>
-          <div class="rounded-md bg-accent p-4 text-sm font-semibold text-ink dark:text-canvas" translate="no">accent</div>
-          <div class="rounded-md border border-line bg-canvas p-4 text-sm font-semibold text-ink" translate="no">canvas</div>
-          <div class="rounded-md border border-line bg-surface p-4 text-sm font-semibold text-ink" translate="no">surface</div>
-          <div class="rounded-md bg-ink p-4 text-sm font-semibold text-canvas" translate="no">ink</div>
-          <div class="rounded-md bg-muted p-4 text-sm font-semibold text-canvas" translate="no">muted</div>
-          <div class="rounded-md bg-success-soft p-4 text-sm font-semibold text-success" translate="no">success</div>
-          <div class="rounded-md bg-warning-soft p-4 text-sm font-semibold text-warning" translate="no">warning</div>
-          <div class="rounded-md bg-danger-soft p-4 text-sm font-semibold text-danger" translate="no">danger</div>
-          <div class="rounded-md bg-info-soft p-4 text-sm font-semibold text-info" translate="no">info</div>
-        </div>
-      </section>
-
-      <!-- Buttons -->
-      <section aria-labelledby="sg-buttons" class="space-y-4">
-        <h2 id="sg-buttons" class="text-xl font-semibold" data-i18n="styleguide.buttons">Buttons</h2>
-        <div class="flex flex-wrap gap-3">
-          <button type="button" class="btn btn-primary" data-i18n="styleguide.makeOffer">Make an offer</button>
-          <button type="button" class="btn btn-secondary" data-i18n="admin.viewDetails">View details</button>
-          <button type="button" class="btn btn-danger" data-i18n="common.reject">Reject</button>
-          <button type="button" class="btn btn-ghost" data-i18n="common.cancel">Cancel</button>
-          <button type="button" class="btn btn-primary" disabled data-i18n="styleguide.disabled">Disabled</button>
-        </div>
-        <div x-data="{ busy: false }">
-          <button type="button" class="btn btn-primary" :disabled="busy" @click="busy = true; setTimeout(() => busy = false, 1500)">
-            <span class="spinner" x-show="busy" x-cloak aria-hidden="true"></span>
-            <span x-text="busy ? $t('common.sending') : $t('styleguide.loadingDemo')">Click to see loading state</span>
-          </button>
-        </div>
-      </section>
-
-      <!-- Badges -->
-      <section aria-labelledby="sg-badges" class="space-y-4">
-        <h2 id="sg-badges" class="text-xl font-semibold" data-i18n="styleguide.badges">Badges</h2>
-        <div class="space-y-3">
-          <p class="text-sm font-medium text-muted" data-i18n="styleguide.requestStatus">Request status</p>
-          <div class="flex flex-wrap gap-2">
-            <span class="badge badge-warning" data-i18n="enum.requestStatus.pending_approval">Waiting for approval</span>
-            <span class="badge badge-info" data-i18n="enum.requestStatus.open">Open</span>
-            <span class="badge badge-success" data-i18n="enum.requestStatus.fulfilled">Fulfilled</span>
-            <span class="badge badge-neutral" data-i18n="enum.requestStatus.closed">Closed</span>
-            <span class="badge badge-danger" data-i18n="enum.requestStatus.rejected">Rejected</span>
-          </div>
-          <p class="text-sm font-medium text-muted" data-i18n="styleguide.offerStatus">Offer status</p>
-          <div class="flex flex-wrap gap-2">
-            <span class="badge badge-warning" data-i18n="enum.offerStatus.pending">Pending</span>
-            <span class="badge badge-info" data-i18n="enum.offerStatus.accepted">Accepted</span>
-            <span class="badge badge-success" data-i18n="enum.offerStatus.delivered">Delivered</span>
-            <span class="badge badge-neutral" data-i18n="enum.requestStatus.rejected">Rejected</span>
-            <span class="badge badge-neutral" data-i18n="enum.offerStatus.cancelled">Cancelled</span>
-          </div>
-          <p class="text-sm font-medium text-muted" data-i18n="styleguide.urgencyNote">Urgency (score and word, never colour alone)</p>
-          <div class="flex flex-wrap gap-2">
-            <span class="badge badge-danger">92 · <span data-i18n="enum.urgency.critical">Critical</span></span>
-            <span class="badge badge-warning">68 · <span data-i18n="enum.urgency.high">High</span></span>
-            <span class="badge badge-info">45 · <span data-i18n="enum.urgency.medium">Medium</span></span>
-            <span class="badge badge-neutral">20 · <span data-i18n="enum.urgency.low">Low</span></span>
-            <span class="badge badge-ai" data-i18n="common.aiSuggested">AI-suggested</span>
-          </div>
-        </div>
-      </section>
-
-      <!-- Cards -->
-      <section aria-labelledby="sg-cards" class="space-y-4">
-        <h2 id="sg-cards" class="text-xl font-semibold" data-i18n="styleguide.requestCards">Request cards</h2>
-        <p class="text-muted" data-i18n="styleguide.cardsNote">One column on mobile, two on tablets, three on desktop.</p>
-        <div class="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-          <article class="card space-y-4" x-data="{ why: false }">
-            <div class="flex flex-wrap items-center gap-2">
-              <span class="badge badge-danger">88 · <span data-i18n="enum.urgency.critical">Critical</span></span>
-              <span class="badge badge-info" data-i18n="enum.requestStatus.open">Open</span>
+        <h2 id="sg-colours" class="text-2xl font-bold" data-i18n="styleguide.colours">Colours</h2>
+        <p class="text-muted" data-i18n="styleguide.coloursNote">Paper, cork, kopi-brown ink, noticeboard green and marigold. Marigold is for pins, tape and highlights, never for text on paper.</p>
+        <div class="grid gap-4 md:grid-cols-2">
+          <div data-theme="light" class="min-w-0 space-y-4 rounded-lg border border-line bg-canvas p-4">
+            <p class="text-sm font-bold text-muted" data-i18n="styleguide.lightTheme">Light theme</p>
+            <div class="grid grid-cols-2 gap-2 sm:grid-cols-4">
+              <div class="flex items-center gap-2"><span class="size-9 shrink-0 rounded-md border border-line bg-primary" aria-hidden="true"></span><span class="text-sm font-bold" translate="no">primary</span></div>
+              <div class="flex items-center gap-2"><span class="size-9 shrink-0 rounded-md border border-line bg-primary-hover" aria-hidden="true"></span><span class="text-sm font-bold" translate="no">primary-hover</span></div>
+              <div class="flex items-center gap-2"><span class="size-9 shrink-0 rounded-md border border-line bg-primary-soft" aria-hidden="true"></span><span class="text-sm font-bold" translate="no">primary-soft</span></div>
+              <div class="flex items-center gap-2"><span class="size-9 shrink-0 rounded-md border border-line bg-accent" aria-hidden="true"></span><span class="text-sm font-bold" translate="no">accent</span></div>
+              <div class="flex items-center gap-2"><span class="size-9 shrink-0 rounded-md border border-line bg-board" aria-hidden="true"></span><span class="text-sm font-bold" translate="no">board</span></div>
+              <div class="flex items-center gap-2"><span class="size-9 shrink-0 rounded-md border border-line bg-canvas" aria-hidden="true"></span><span class="text-sm font-bold" translate="no">canvas</span></div>
+              <div class="flex items-center gap-2"><span class="size-9 shrink-0 rounded-md border border-line bg-surface" aria-hidden="true"></span><span class="text-sm font-bold" translate="no">surface</span></div>
+              <div class="flex items-center gap-2"><span class="size-9 shrink-0 rounded-md border border-line bg-ink" aria-hidden="true"></span><span class="text-sm font-bold" translate="no">ink</span></div>
+              <div class="flex items-center gap-2"><span class="size-9 shrink-0 rounded-md border border-line bg-muted" aria-hidden="true"></span><span class="text-sm font-bold" translate="no">muted</span></div>
+              <div class="flex items-center gap-2"><span class="size-9 shrink-0 rounded-md border border-line bg-line" aria-hidden="true"></span><span class="text-sm font-bold" translate="no">line</span></div>
+              <div class="flex items-center gap-2"><span class="size-9 shrink-0 rounded-md border border-line bg-field-border" aria-hidden="true"></span><span class="text-sm font-bold" translate="no">field-border</span></div>
+              <div class="flex items-center gap-2"><span class="size-9 shrink-0 rounded-md border border-line bg-highlight" aria-hidden="true"></span><span class="text-sm font-bold" translate="no">highlight</span></div>
+              <div class="flex items-center gap-2"><span class="size-9 shrink-0 rounded-md border border-line bg-success" aria-hidden="true"></span><span class="text-sm font-bold" translate="no">success</span></div>
+              <div class="flex items-center gap-2"><span class="size-9 shrink-0 rounded-md border border-line bg-warning" aria-hidden="true"></span><span class="text-sm font-bold" translate="no">warning</span></div>
+              <div class="flex items-center gap-2"><span class="size-9 shrink-0 rounded-md border border-line bg-danger" aria-hidden="true"></span><span class="text-sm font-bold" translate="no">danger</span></div>
+              <div class="flex items-center gap-2"><span class="size-9 shrink-0 rounded-md border border-line bg-info" aria-hidden="true"></span><span class="text-sm font-bold" translate="no">info</span></div>
             </div>
-            <div>
+          </div>
+          <div data-theme="dark" class="min-w-0 space-y-4 rounded-lg border border-line bg-canvas p-4">
+            <p class="text-sm font-bold text-muted" data-i18n="styleguide.darkTheme">Dark theme</p>
+            <div class="grid grid-cols-2 gap-2 sm:grid-cols-4">
+              <div class="flex items-center gap-2"><span class="size-9 shrink-0 rounded-md border border-line bg-primary" aria-hidden="true"></span><span class="text-sm font-bold" translate="no">primary</span></div>
+              <div class="flex items-center gap-2"><span class="size-9 shrink-0 rounded-md border border-line bg-primary-hover" aria-hidden="true"></span><span class="text-sm font-bold" translate="no">primary-hover</span></div>
+              <div class="flex items-center gap-2"><span class="size-9 shrink-0 rounded-md border border-line bg-primary-soft" aria-hidden="true"></span><span class="text-sm font-bold" translate="no">primary-soft</span></div>
+              <div class="flex items-center gap-2"><span class="size-9 shrink-0 rounded-md border border-line bg-accent" aria-hidden="true"></span><span class="text-sm font-bold" translate="no">accent</span></div>
+              <div class="flex items-center gap-2"><span class="size-9 shrink-0 rounded-md border border-line bg-board" aria-hidden="true"></span><span class="text-sm font-bold" translate="no">board</span></div>
+              <div class="flex items-center gap-2"><span class="size-9 shrink-0 rounded-md border border-line bg-canvas" aria-hidden="true"></span><span class="text-sm font-bold" translate="no">canvas</span></div>
+              <div class="flex items-center gap-2"><span class="size-9 shrink-0 rounded-md border border-line bg-surface" aria-hidden="true"></span><span class="text-sm font-bold" translate="no">surface</span></div>
+              <div class="flex items-center gap-2"><span class="size-9 shrink-0 rounded-md border border-line bg-ink" aria-hidden="true"></span><span class="text-sm font-bold" translate="no">ink</span></div>
+              <div class="flex items-center gap-2"><span class="size-9 shrink-0 rounded-md border border-line bg-muted" aria-hidden="true"></span><span class="text-sm font-bold" translate="no">muted</span></div>
+              <div class="flex items-center gap-2"><span class="size-9 shrink-0 rounded-md border border-line bg-line" aria-hidden="true"></span><span class="text-sm font-bold" translate="no">line</span></div>
+              <div class="flex items-center gap-2"><span class="size-9 shrink-0 rounded-md border border-line bg-field-border" aria-hidden="true"></span><span class="text-sm font-bold" translate="no">field-border</span></div>
+              <div class="flex items-center gap-2"><span class="size-9 shrink-0 rounded-md border border-line bg-highlight" aria-hidden="true"></span><span class="text-sm font-bold" translate="no">highlight</span></div>
+              <div class="flex items-center gap-2"><span class="size-9 shrink-0 rounded-md border border-line bg-success" aria-hidden="true"></span><span class="text-sm font-bold" translate="no">success</span></div>
+              <div class="flex items-center gap-2"><span class="size-9 shrink-0 rounded-md border border-line bg-warning" aria-hidden="true"></span><span class="text-sm font-bold" translate="no">warning</span></div>
+              <div class="flex items-center gap-2"><span class="size-9 shrink-0 rounded-md border border-line bg-danger" aria-hidden="true"></span><span class="text-sm font-bold" translate="no">danger</span></div>
+              <div class="flex items-center gap-2"><span class="size-9 shrink-0 rounded-md border border-line bg-info" aria-hidden="true"></span><span class="text-sm font-bold" translate="no">info</span></div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+
+      <section aria-labelledby="sg-notices" class="space-y-4">
+        <h2 id="sg-notices" class="text-2xl font-bold" data-i18n="styleguide.noticesTitle">Pinned notices</h2>
+        <p class="text-muted" data-i18n="styleguide.noticesNote">Only donation request cards are pinned. They tilt gently (never more than 1.2°) and straighten on hover or keyboard focus; with reduced motion they hang straight. Tear-off tabs: solid = received, striped = promised, empty = still needed.</p>
+        <div class="grid gap-4 ">
+          <div data-theme="light" class="min-w-0 space-y-4 rounded-lg border border-line bg-canvas p-4">
+            <p class="text-sm font-bold text-muted" data-i18n="styleguide.lightTheme">Light theme</p>
+            <div class="noticeboard grid sm:grid-cols-2">
+            <article class="notice flex flex-col gap-3">
+              <div class="flex flex-wrap gap-2"><span class="badge badge-danger">88 · <span data-i18n="enum.urgency.critical">Critical</span></span><span class="badge badge-ai" data-i18n="common.aiSuggested">AI-suggested</span></div>
               <h3 translate="no" class="text-lg font-semibold">Rice and cooking oil for 40 families</h3>
-              <p translate="no" class="mt-1 text-sm text-muted">Sunrise Community Pantry · Tampines · Needed by 30 Oct 2026</p>
-            </div>
-            <div class="space-y-1">
-              <div class="flex justify-between text-sm">
-                <span translate="no" class="font-medium">Rice (5 kg bags)</span>
-                <span translate="no" class="text-muted">6 of 10 bags</span>
-              </div>
-              <div class="progress" role="img" translate="no" aria-label="4 bags received, 2 promised, 4 still needed">
-                <div class="progress-received" style="width: 40%"></div>
-                <div class="progress-committed" style="width: 20%"></div>
-              </div>
-              <p translate="no" class="helper-text">4 received · 2 promised</p>
-            </div>
-            <div>
-              <button type="button" class="btn btn-ghost -ml-3 px-3" :aria-expanded="why.toString()" aria-controls="why-1" @click="why = !why" data-i18n="requests.whyScore">
-                Why this score?
-              </button>
-              <div id="why-1" class="mt-2 space-y-2 rounded-md bg-canvas p-3 text-sm" x-show="why" x-cloak>
-                <span class="badge badge-ai" data-i18n="common.aiSuggested">AI-suggested</span>
-                <ul class="list-disc space-y-1 pl-5">
-                  <li translate="no">Deadline is in 7 days</li>
-                  <li translate="no">Only 60% of the items are covered so far</li>
-                  <li translate="no">Organization marked this request as high urgency</li>
-                </ul>
-                <p class="text-muted" data-i18n="styleguide.formulaNote">The score comes from a fixed formula. People always make the final decision.</p>
-              </div>
-            </div>
-            <button translate="no" type="button" class="btn btn-primary w-full">Offer rice</button>
-          </article>
-
-          <article class="card space-y-4">
-            <div class="flex flex-wrap items-center gap-2">
-              <span class="badge badge-warning">64 · <span data-i18n="enum.urgency.high">High</span></span>
-              <span class="badge badge-info" data-i18n="enum.requestStatus.open">Open</span>
-            </div>
-            <div>
+              <p translate="no" class="text-sm text-muted">Sunrise Community Pantry · Tampines</p>
+              <ul class="space-y-3">
+                <li class="space-y-1.5">
+                  <p translate="no" class="font-bold">Rice 5kg</p>
+                  <div class="tear-tabs" role="img" translate="no" aria-label="4 bags received, 2 promised, 4 still needed"><span class="tear-tab tear-tab-received"></span><span class="tear-tab tear-tab-received"></span><span class="tear-tab tear-tab-received"></span><span class="tear-tab tear-tab-received"></span><span class="tear-tab tear-tab-promised"></span><span class="tear-tab tear-tab-promised"></span><span class="tear-tab tear-tab-needed"></span><span class="tear-tab tear-tab-needed"></span><span class="tear-tab tear-tab-needed"></span><span class="tear-tab tear-tab-needed"></span></div>
+                  <p translate="no" class="text-sm text-muted">6 of 10 bags</p>
+                </li>
+                <li class="space-y-1.5">
+                  <p translate="no" class="font-bold">Cooking oil 2L</p>
+                  <div class="tear-tabs" role="img" translate="no" aria-label="18 bottles received, 0 promised, 2 still needed"><span class="tear-tab tear-tab-received"></span><span class="tear-tab tear-tab-received"></span><span class="tear-tab tear-tab-received"></span><span class="tear-tab tear-tab-received"></span><span class="tear-tab tear-tab-received"></span><span class="tear-tab tear-tab-received"></span><span class="tear-tab tear-tab-received"></span><span class="tear-tab tear-tab-received"></span><span class="tear-tab tear-tab-received"></span><span class="tear-tab tear-tab-needed"></span></div>
+                  <p translate="no" class="text-sm text-muted">18 of 20 bottles</p>
+                </li>
+              </ul>
+              <button translate="no" type="button" class="btn btn-primary mt-auto">Offer</button>
+            </article>
+            <article class="notice flex flex-col gap-3">
+              <div class="flex flex-wrap gap-2"><span class="badge badge-warning">64 · <span data-i18n="enum.urgency.high">High</span></span></div>
               <h3 translate="no" class="text-lg font-semibold">School supplies for after-school club</h3>
-              <p translate="no" class="mt-1 text-sm text-muted">Harbour Kids Club · Jurong West · Needed by 15 Nov 2026</p>
+              <p translate="no" class="text-sm text-muted">Harbour Kids Club · Jurong West</p>
+              <ul class="space-y-3">
+                <li class="space-y-1.5">
+                  <p translate="no" class="font-bold">Exercise books</p>
+                  <div class="tear-tabs" role="img" translate="no" aria-label="10 books received, 2 promised, 38 still needed"><span class="tear-tab tear-tab-received"></span><span class="tear-tab tear-tab-received"></span><span class="tear-tab tear-tab-promised"></span><span class="tear-tab tear-tab-needed"></span><span class="tear-tab tear-tab-needed"></span><span class="tear-tab tear-tab-needed"></span><span class="tear-tab tear-tab-needed"></span><span class="tear-tab tear-tab-needed"></span><span class="tear-tab tear-tab-needed"></span><span class="tear-tab tear-tab-needed"></span></div>
+                  <p translate="no" class="text-sm text-muted">12 of 50 books</p>
+                </li>
+              </ul>
+              <button translate="no" type="button" class="btn btn-primary mt-auto">Offer</button>
+            </article>
+            <article class="notice flex flex-col gap-3">
+              <div class="flex flex-wrap gap-2"><span class="badge badge-neutral">22 · <span data-i18n="enum.urgency.low">Low</span></span></div>
+              <h3 translate="no" class="text-lg font-semibold">Winter blankets for the shelter</h3>
+              <p translate="no" class="text-sm text-muted">Bedok Care Home · Bedok</p>
+              <ul class="space-y-3">
+                <li class="space-y-1.5">
+                  <p translate="no" class="font-bold">Blankets</p>
+                  <div class="tear-tabs" role="img" translate="no" aria-label="All 20 blankets received"><span class="tear-tab tear-tab-received"></span><span class="tear-tab tear-tab-received"></span><span class="tear-tab tear-tab-received"></span><span class="tear-tab tear-tab-received"></span><span class="tear-tab tear-tab-received"></span><span class="tear-tab tear-tab-received"></span><span class="tear-tab tear-tab-received"></span><span class="tear-tab tear-tab-received"></span><span class="tear-tab tear-tab-received"></span><span class="tear-tab tear-tab-received"></span></div>
+                  <p translate="no" class="text-sm text-muted">20 of 20 blankets</p>
+                </li>
+              </ul>
+              <button translate="no" type="button" class="btn btn-primary mt-auto">Offer</button>
+            </article>
             </div>
-            <div class="space-y-1">
-              <div class="flex justify-between text-sm">
-                <span translate="no" class="font-medium">Exercise books</span>
-                <span translate="no" class="text-muted">12 of 50 books</span>
-              </div>
-              <div class="progress" role="img" translate="no" aria-label="12 books received, 0 promised, 38 still needed">
-                <div class="progress-received" style="width: 24%"></div>
-              </div>
+          </div>
+          <div data-theme="dark" class="min-w-0 space-y-4 rounded-lg border border-line bg-canvas p-4">
+            <p class="text-sm font-bold text-muted" data-i18n="styleguide.darkTheme">Dark theme</p>
+            <div class="noticeboard grid sm:grid-cols-2">
+            <article class="notice flex flex-col gap-3">
+              <div class="flex flex-wrap gap-2"><span class="badge badge-danger">88 · <span data-i18n="enum.urgency.critical">Critical</span></span><span class="badge badge-ai" data-i18n="common.aiSuggested">AI-suggested</span></div>
+              <h3 translate="no" class="text-lg font-semibold">Rice and cooking oil for 40 families</h3>
+              <p translate="no" class="text-sm text-muted">Sunrise Community Pantry · Tampines</p>
+              <ul class="space-y-3">
+                <li class="space-y-1.5">
+                  <p translate="no" class="font-bold">Rice 5kg</p>
+                  <div class="tear-tabs" role="img" translate="no" aria-label="4 bags received, 2 promised, 4 still needed"><span class="tear-tab tear-tab-received"></span><span class="tear-tab tear-tab-received"></span><span class="tear-tab tear-tab-received"></span><span class="tear-tab tear-tab-received"></span><span class="tear-tab tear-tab-promised"></span><span class="tear-tab tear-tab-promised"></span><span class="tear-tab tear-tab-needed"></span><span class="tear-tab tear-tab-needed"></span><span class="tear-tab tear-tab-needed"></span><span class="tear-tab tear-tab-needed"></span></div>
+                  <p translate="no" class="text-sm text-muted">6 of 10 bags</p>
+                </li>
+                <li class="space-y-1.5">
+                  <p translate="no" class="font-bold">Cooking oil 2L</p>
+                  <div class="tear-tabs" role="img" translate="no" aria-label="18 bottles received, 0 promised, 2 still needed"><span class="tear-tab tear-tab-received"></span><span class="tear-tab tear-tab-received"></span><span class="tear-tab tear-tab-received"></span><span class="tear-tab tear-tab-received"></span><span class="tear-tab tear-tab-received"></span><span class="tear-tab tear-tab-received"></span><span class="tear-tab tear-tab-received"></span><span class="tear-tab tear-tab-received"></span><span class="tear-tab tear-tab-received"></span><span class="tear-tab tear-tab-needed"></span></div>
+                  <p translate="no" class="text-sm text-muted">18 of 20 bottles</p>
+                </li>
+              </ul>
+              <button translate="no" type="button" class="btn btn-primary mt-auto">Offer</button>
+            </article>
+            <article class="notice flex flex-col gap-3">
+              <div class="flex flex-wrap gap-2"><span class="badge badge-warning">64 · <span data-i18n="enum.urgency.high">High</span></span></div>
+              <h3 translate="no" class="text-lg font-semibold">School supplies for after-school club</h3>
+              <p translate="no" class="text-sm text-muted">Harbour Kids Club · Jurong West</p>
+              <ul class="space-y-3">
+                <li class="space-y-1.5">
+                  <p translate="no" class="font-bold">Exercise books</p>
+                  <div class="tear-tabs" role="img" translate="no" aria-label="10 books received, 2 promised, 38 still needed"><span class="tear-tab tear-tab-received"></span><span class="tear-tab tear-tab-received"></span><span class="tear-tab tear-tab-promised"></span><span class="tear-tab tear-tab-needed"></span><span class="tear-tab tear-tab-needed"></span><span class="tear-tab tear-tab-needed"></span><span class="tear-tab tear-tab-needed"></span><span class="tear-tab tear-tab-needed"></span><span class="tear-tab tear-tab-needed"></span><span class="tear-tab tear-tab-needed"></span></div>
+                  <p translate="no" class="text-sm text-muted">12 of 50 books</p>
+                </li>
+              </ul>
+              <button translate="no" type="button" class="btn btn-primary mt-auto">Offer</button>
+            </article>
+            <article class="notice flex flex-col gap-3">
+              <div class="flex flex-wrap gap-2"><span class="badge badge-neutral">22 · <span data-i18n="enum.urgency.low">Low</span></span></div>
+              <h3 translate="no" class="text-lg font-semibold">Winter blankets for the shelter</h3>
+              <p translate="no" class="text-sm text-muted">Bedok Care Home · Bedok</p>
+              <ul class="space-y-3">
+                <li class="space-y-1.5">
+                  <p translate="no" class="font-bold">Blankets</p>
+                  <div class="tear-tabs" role="img" translate="no" aria-label="All 20 blankets received"><span class="tear-tab tear-tab-received"></span><span class="tear-tab tear-tab-received"></span><span class="tear-tab tear-tab-received"></span><span class="tear-tab tear-tab-received"></span><span class="tear-tab tear-tab-received"></span><span class="tear-tab tear-tab-received"></span><span class="tear-tab tear-tab-received"></span><span class="tear-tab tear-tab-received"></span><span class="tear-tab tear-tab-received"></span><span class="tear-tab tear-tab-received"></span></div>
+                  <p translate="no" class="text-sm text-muted">20 of 20 blankets</p>
+                </li>
+              </ul>
+              <button translate="no" type="button" class="btn btn-primary mt-auto">Offer</button>
+            </article>
             </div>
-            <button translate="no" type="button" class="btn btn-primary w-full">Offer exercise books</button>
-          </article>
-
-          <article class="card space-y-4">
-            <div class="flex flex-wrap items-center gap-2">
-              <span class="badge badge-neutral">22 · <span data-i18n="enum.urgency.low">Low</span></span>
-              <span class="badge badge-success" data-i18n="enum.requestStatus.fulfilled">Fulfilled</span>
-            </div>
-            <div>
-              <h3 translate="no" class="text-lg font-semibold">Winter blankets for shelter</h3>
-              <p translate="no" class="mt-1 text-sm text-muted">Bedok Care Home · Bedok · Closed 1 Oct 2026</p>
-            </div>
-            <div class="space-y-1">
-              <div class="flex justify-between text-sm">
-                <span translate="no" class="font-medium">Blankets</span>
-                <span translate="no" class="text-muted">20 of 20 blankets</span>
-              </div>
-              <div class="progress" role="img" translate="no" aria-label="All 20 blankets received">
-                <div class="progress-received" style="width: 100%"></div>
-              </div>
-            </div>
-          </article>
+          </div>
         </div>
       </section>
 
-      <!-- Stat cards -->
-      <section aria-labelledby="sg-stats" class="space-y-4">
-        <h2 id="sg-stats" class="text-xl font-semibold" data-i18n="styleguide.statCards">Summary stat cards</h2>
-        <div class="grid grid-cols-2 gap-4 lg:grid-cols-4">
-          <div class="card">
-            <p class="text-sm text-muted" data-i18n="orgDash.openRequests">Open requests</p>
-            <p class="mt-1 text-3xl font-bold">12</p>
+
+      <section aria-labelledby="sg-calm" class="space-y-4">
+        <h2 id="sg-calm" class="text-2xl font-bold" data-i18n="styleguide.calmTitle">Calm cards</h2>
+        <p class="text-muted" data-i18n="styleguide.calmNote">Every other card: straight, paper-white, a thin line. The border turns green on hover.</p>
+        <div class="grid gap-4 md:grid-cols-2">
+          <div data-theme="light" class="min-w-0 space-y-4 rounded-lg border border-line bg-canvas p-4">
+            <p class="text-sm font-bold text-muted" data-i18n="styleguide.lightTheme">Light theme</p>
+            <div class="grid grid-cols-2 gap-3">
+              <div class="card"><p class="text-sm text-muted" data-i18n="orgDash.openRequests">Open requests</p><p class="mt-1 text-3xl font-bold">12</p></div>
+              <div class="card"><p class="text-sm text-muted" data-i18n="orgDash.offersWaiting">Offers waiting</p><p class="mt-1 text-3xl font-bold">5</p></div>
+            </div>
+            <div class="card space-y-2">
+              <div class="flex flex-wrap gap-2"><span class="badge badge-warning" data-i18n="enum.requestStatus.pending_approval">Waiting for approval</span><span class="badge badge-ai" data-i18n="common.aiSuggested">AI-suggested</span></div>
+              <p translate="no" class="font-bold">Saturday food packing</p>
+              <p translate="no" class="text-sm text-muted">Tampines Kampong Pantry · Sat 7 Nov, 9:00 am</p>
+            </div>
           </div>
-          <div class="card">
-            <p class="text-sm text-muted" data-i18n="orgDash.itemsNeeded">Items still needed</p>
-            <p class="mt-1 text-3xl font-bold">248</p>
-          </div>
-          <div class="card">
-            <p class="text-sm text-muted" data-i18n="orgDash.offersWaiting">Offers waiting</p>
-            <p class="mt-1 text-3xl font-bold">5</p>
-          </div>
-          <div class="card">
-            <p class="text-sm text-muted" data-i18n="orgDash.upcomingEvents">Upcoming events</p>
-            <p class="mt-1 text-3xl font-bold">3</p>
+          <div data-theme="dark" class="min-w-0 space-y-4 rounded-lg border border-line bg-canvas p-4">
+            <p class="text-sm font-bold text-muted" data-i18n="styleguide.darkTheme">Dark theme</p>
+            <div class="grid grid-cols-2 gap-3">
+              <div class="card"><p class="text-sm text-muted" data-i18n="orgDash.openRequests">Open requests</p><p class="mt-1 text-3xl font-bold">12</p></div>
+              <div class="card"><p class="text-sm text-muted" data-i18n="orgDash.offersWaiting">Offers waiting</p><p class="mt-1 text-3xl font-bold">5</p></div>
+            </div>
+            <div class="card space-y-2">
+              <div class="flex flex-wrap gap-2"><span class="badge badge-warning" data-i18n="enum.requestStatus.pending_approval">Waiting for approval</span><span class="badge badge-ai" data-i18n="common.aiSuggested">AI-suggested</span></div>
+              <p translate="no" class="font-bold">Saturday food packing</p>
+              <p translate="no" class="text-sm text-muted">Tampines Kampong Pantry · Sat 7 Nov, 9:00 am</p>
+            </div>
           </div>
         </div>
       </section>
 
-      <!-- Forms -->
-      <section aria-labelledby="sg-forms" class="space-y-4">
-        <h2 id="sg-forms" class="text-xl font-semibold" data-i18n="styleguide.formFields">Form fields</h2>
-        <form class="card max-w-xl space-y-5" novalidate @submit.prevent>
-          <div>
-            <label for="sg-name" class="label"><span data-i18n="profile.fullName">Full name</span> <span class="text-danger" aria-hidden="true">*</span></label>
-            <input id="sg-name" class="input" type="text" required autocomplete="name" value="Tan Mei Ling" translate="no" />
-          </div>
-          <div>
-            <label for="sg-password" class="label"><span data-i18n="login.password">Password</span> <span class="text-danger" aria-hidden="true">*</span></label>
-            <div class="password-field" x-data="passwordToggle">
-              <input id="sg-password" class="input" type="password" :type="shown ? 'text' : 'password'" x-ref="input" autocomplete="new-password" required aria-describedby="sg-password-help" />
-              <button type="button" class="password-toggle" @mousedown.prevent @click="toggle($event)" aria-controls="sg-password"
-                aria-label="Show password" :aria-label="shown ? $t('ui.hidePassword') : $t('ui.showPassword')" :aria-pressed="shown ? 'true' : 'false'">
-                <span x-show="!shown"><i data-lucide="eye" class="size-5" aria-hidden="true"></i></span>
-                <span x-show="shown" x-cloak><i data-lucide="eye-off" class="size-5" aria-hidden="true"></i></span>
+
+      <section aria-labelledby="sg-buttons" class="space-y-4">
+        <h2 id="sg-buttons" class="text-2xl font-bold" data-i18n="styleguide.buttons">Buttons</h2>
+        <p class="text-muted" data-i18n="styleguide.pressNote">Press and hold a button: it moves down onto its edge.</p>
+        <div class="grid gap-4 md:grid-cols-2">
+          <div data-theme="light" class="min-w-0 space-y-4 rounded-lg border border-line bg-canvas p-4">
+            <p class="text-sm font-bold text-muted" data-i18n="styleguide.lightTheme">Light theme</p>
+            <div class="flex flex-wrap gap-3">
+              <button type="button" class="btn btn-primary" data-i18n="styleguide.makeOffer">Make an offer</button>
+              <button type="button" class="btn btn-secondary" data-i18n="admin.viewDetails">View details</button>
+              <button type="button" class="btn btn-danger" data-i18n="common.reject">Reject</button>
+              <button type="button" class="btn btn-ghost" data-i18n="common.cancel">Cancel</button>
+              <button type="button" class="btn btn-primary" disabled data-i18n="styleguide.disabled">Disabled</button>
+            </div>
+            <div x-data="{ busy: false }">
+              <button type="button" class="btn btn-primary" :disabled="busy" @click="busy = true; setTimeout(() => busy = false, 1500)">
+                <span class="spinner" x-show="busy" x-cloak aria-hidden="true"></span>
+                <span x-text="busy ? $t('common.sending') : $t('styleguide.loadingDemo')">Click to see loading state</span>
               </button>
             </div>
-            <p id="sg-password-help" class="helper-text" data-i18n="styleguide.passwordHelp">Tap the eye to show or hide what you typed.</p>
           </div>
-          <div>
-            <label for="sg-postal" class="label" data-i18n="field.postalCode">Postal code</label>
-            <input id="sg-postal" class="input" type="text" inputmode="numeric" maxlength="6" aria-describedby="sg-postal-help" />
-            <p id="sg-postal-help" class="helper-text" data-i18n="styleguide.postalHelp">6 digits. We only use it to show needs near you, never your full address.</p>
+          <div data-theme="dark" class="min-w-0 space-y-4 rounded-lg border border-line bg-canvas p-4">
+            <p class="text-sm font-bold text-muted" data-i18n="styleguide.darkTheme">Dark theme</p>
+            <div class="flex flex-wrap gap-3">
+              <button type="button" class="btn btn-primary" data-i18n="styleguide.makeOffer">Make an offer</button>
+              <button type="button" class="btn btn-secondary" data-i18n="admin.viewDetails">View details</button>
+              <button type="button" class="btn btn-danger" data-i18n="common.reject">Reject</button>
+              <button type="button" class="btn btn-ghost" data-i18n="common.cancel">Cancel</button>
+              <button type="button" class="btn btn-primary" disabled data-i18n="styleguide.disabled">Disabled</button>
+            </div>
+            <div x-data="{ busy: false }">
+              <button type="button" class="btn btn-primary" :disabled="busy" @click="busy = true; setTimeout(() => busy = false, 1500)">
+                <span class="spinner" x-show="busy" x-cloak aria-hidden="true"></span>
+                <span x-text="busy ? $t('common.sending') : $t('styleguide.loadingDemo')">Click to see loading state</span>
+              </button>
+            </div>
           </div>
-          <div>
-            <label for="sg-qty" class="label"><span data-i18n="field.quantity">Quantity</span> <span class="text-danger" aria-hidden="true">*</span></label>
-            <input id="sg-qty" class="input" type="number" required value="12" aria-invalid="true" aria-describedby="sg-qty-error" />
-            <p id="sg-qty-error" class="field-error" data-i18n="styleguide.quantityError">You can offer up to 4 bags — that's all that's still needed.</p>
-          </div>
-          <div>
-            <label for="sg-category" class="label" data-i18n="field.category">Category</label>
-            <select id="sg-category" class="input">
-              <option data-i18n="enum.category.food">Food</option>
-              <option data-i18n="enum.category.clothing">Clothing</option>
-              <option data-i18n="enum.category.hygiene">Hygiene</option>
-              <option data-i18n="enum.category.household">Household</option>
-              <option data-i18n="enum.category.baby">Baby</option>
-              <option data-i18n="enum.category.education">Education</option>
-            </select>
-          </div>
-          <div>
-            <label for="sg-message" class="label" data-i18n="needs.message">Message to the organization</label>
-            <textarea id="sg-message" class="input py-2" rows="3" maxlength="500"></textarea>
-            <p class="helper-text" data-i18n="styleguide.messageHelp">Up to 500 characters.</p>
-          </div>
-          <label class="flex items-start gap-3 text-sm">
-            <input type="checkbox" class="mt-0.5 size-5 accent-primary" />
-            <span data-i18n="needs.foodConfirm">Items are sealed, unopened and not past their expiry date.</span>
-          </label>
-          <p class="text-sm text-muted"><span class="text-danger" aria-hidden="true">*</span> <span data-i18n="styleguide.required">Required</span></p>
-          <button type="submit" class="btn btn-primary" data-i18n="needs.sendOffer">Send offer</button>
-        </form>
+        </div>
       </section>
 
-      <!-- Toasts and dialog -->
+
+      <section aria-labelledby="sg-links" class="space-y-4">
+        <h2 id="sg-links" class="text-2xl font-bold" data-i18n="styleguide.linksTitle">Links and navigation</h2>
+        <p class="text-muted" data-i18n="styleguide.tapeNote">Hover a link to see the marigold highlighter. The current page has a strip of marigold tape under it; icon buttons get a cork circle on hover and focus.</p>
+        <div class="grid gap-4 md:grid-cols-2">
+          <div data-theme="light" class="min-w-0 space-y-4 rounded-lg border border-line bg-canvas p-4">
+            <p class="text-sm font-bold text-muted" data-i18n="styleguide.lightTheme">Light theme</p>
+            <p><span data-i18n="styleguide.linkBefore">Drop-off details are on the</span> <a href="#sg-links" class="link" data-i18n="styleguide.linkText">organization's page</a>.</p>
+            <nav class="flex flex-wrap items-center gap-1 rounded-md border border-line bg-surface p-2" aria-label="Sample top bar" data-i18n-attr="aria-label:styleguide.sampleTopBar">
+              <a href="#sg-links" class="top-link" aria-current="page" data-i18n="nav.home">Home</a>
+              <a href="#sg-links" class="top-link" data-i18n="nav.browseNeeds">Browse needs</a>
+              <span class="flex-1"></span>
+              <button type="button" class="btn btn-ghost icon-btn size-11 px-0" aria-label="Theme" data-i18n-attr="aria-label:theme.menu"><i data-lucide="sun" class="size-5" aria-hidden="true"></i></button>
+              <button type="button" class="btn btn-ghost icon-btn size-11 px-0" aria-label="Messages" data-i18n-attr="aria-label:nav.messages"><i data-lucide="message-circle" class="size-5" aria-hidden="true"></i></button>
+            </nav>
+          </div>
+          <div data-theme="dark" class="min-w-0 space-y-4 rounded-lg border border-line bg-canvas p-4">
+            <p class="text-sm font-bold text-muted" data-i18n="styleguide.darkTheme">Dark theme</p>
+            <p><span data-i18n="styleguide.linkBefore">Drop-off details are on the</span> <a href="#sg-links" class="link" data-i18n="styleguide.linkText">organization's page</a>.</p>
+            <nav class="flex flex-wrap items-center gap-1 rounded-md border border-line bg-surface p-2" aria-label="Sample top bar" data-i18n-attr="aria-label:styleguide.sampleTopBar">
+              <a href="#sg-links" class="top-link" aria-current="page" data-i18n="nav.home">Home</a>
+              <a href="#sg-links" class="top-link" data-i18n="nav.browseNeeds">Browse needs</a>
+              <span class="flex-1"></span>
+              <button type="button" class="btn btn-ghost icon-btn size-11 px-0" aria-label="Theme" data-i18n-attr="aria-label:theme.menu"><i data-lucide="sun" class="size-5" aria-hidden="true"></i></button>
+              <button type="button" class="btn btn-ghost icon-btn size-11 px-0" aria-label="Messages" data-i18n-attr="aria-label:nav.messages"><i data-lucide="message-circle" class="size-5" aria-hidden="true"></i></button>
+            </nav>
+          </div>
+        </div>
+      </section>
+
+
+      <section aria-labelledby="sg-badges" class="space-y-4">
+        <h2 id="sg-badges" class="text-2xl font-bold" data-i18n="styleguide.badges">Badges</h2>
+        <p class="text-muted" data-i18n="styleguide.urgencyNote">Urgency (score and word, never colour alone)</p>
+        <div class="grid gap-4 md:grid-cols-2">
+          <div data-theme="light" class="min-w-0 space-y-4 rounded-lg border border-line bg-canvas p-4">
+            <p class="text-sm font-bold text-muted" data-i18n="styleguide.lightTheme">Light theme</p>
+            <div class="flex flex-wrap gap-2">
+              <span class="badge badge-warning" data-i18n="enum.requestStatus.pending_approval">Waiting for approval</span>
+              <span class="badge badge-info" data-i18n="enum.requestStatus.open">Open</span>
+              <span class="badge badge-success" data-i18n="enum.requestStatus.fulfilled">Fulfilled</span>
+              <span class="badge badge-neutral" data-i18n="enum.requestStatus.closed">Closed</span>
+              <span class="badge badge-danger" data-i18n="enum.requestStatus.rejected">Rejected</span>
+              <span class="badge badge-ai" data-i18n="common.aiSuggested">AI-suggested</span>
+            </div>
+            <div class="flex flex-wrap gap-2">
+              <span class="badge badge-danger">92 · <span data-i18n="enum.urgency.critical">Critical</span></span>
+              <span class="badge badge-warning">68 · <span data-i18n="enum.urgency.high">High</span></span>
+              <span class="badge badge-info">45 · <span data-i18n="enum.urgency.medium">Medium</span></span>
+              <span class="badge badge-neutral">20 · <span data-i18n="enum.urgency.low">Low</span></span>
+            </div>
+          </div>
+          <div data-theme="dark" class="min-w-0 space-y-4 rounded-lg border border-line bg-canvas p-4">
+            <p class="text-sm font-bold text-muted" data-i18n="styleguide.darkTheme">Dark theme</p>
+            <div class="flex flex-wrap gap-2">
+              <span class="badge badge-warning" data-i18n="enum.requestStatus.pending_approval">Waiting for approval</span>
+              <span class="badge badge-info" data-i18n="enum.requestStatus.open">Open</span>
+              <span class="badge badge-success" data-i18n="enum.requestStatus.fulfilled">Fulfilled</span>
+              <span class="badge badge-neutral" data-i18n="enum.requestStatus.closed">Closed</span>
+              <span class="badge badge-danger" data-i18n="enum.requestStatus.rejected">Rejected</span>
+              <span class="badge badge-ai" data-i18n="common.aiSuggested">AI-suggested</span>
+            </div>
+            <div class="flex flex-wrap gap-2">
+              <span class="badge badge-danger">92 · <span data-i18n="enum.urgency.critical">Critical</span></span>
+              <span class="badge badge-warning">68 · <span data-i18n="enum.urgency.high">High</span></span>
+              <span class="badge badge-info">45 · <span data-i18n="enum.urgency.medium">Medium</span></span>
+              <span class="badge badge-neutral">20 · <span data-i18n="enum.urgency.low">Low</span></span>
+            </div>
+          </div>
+        </div>
+      </section>
+
+
+      <section aria-labelledby="sg-forms" class="space-y-4">
+        <h2 id="sg-forms" class="text-2xl font-bold" data-i18n="styleguide.formFields">Form fields</h2>
+        <div class="grid gap-4 md:grid-cols-2">
+          <div data-theme="light" class="min-w-0 space-y-4 rounded-lg border border-line bg-canvas p-4">
+            <p class="text-sm font-bold text-muted" data-i18n="styleguide.lightTheme">Light theme</p>
+            <form class="card space-y-5" novalidate @submit.prevent>
+              <div>
+                <label for="sg-search-light" class="label" data-i18n="needs.search">Search</label>
+                <div class="search-field">
+                  <i data-lucide="search" aria-hidden="true"></i>
+                  <input id="sg-search-light" class="input" type="search" placeholder="e.g. rice, diapers" data-i18n-attr="placeholder:needs.searchPlaceholder" />
+                </div>
+              </div>
+              <div>
+                <label for="sg-name-light" class="label"><span data-i18n="profile.fullName">Full name</span> <span class="text-danger" aria-hidden="true">*</span></label>
+                <input id="sg-name-light" class="input" type="text" required autocomplete="name" value="Tan Mei Ling" translate="no" aria-describedby="sg-focus-help-light" />
+                <p id="sg-focus-help-light" class="helper-text" data-i18n="styleguide.focusNote">Click into a field to see its green border and marigold glow.</p>
+              </div>
+              <div>
+                <label for="sg-password-light" class="label" data-i18n="login.password">Password</label>
+                <div class="password-field" x-data="passwordToggle">
+                  <input id="sg-password-light" class="input" type="password" :type="shown ? 'text' : 'password'" x-ref="input" autocomplete="new-password" aria-describedby="sg-password-help-light" />
+                  <button type="button" class="password-toggle" @mousedown.prevent @click="toggle($event)" aria-controls="sg-password-light"
+                    aria-label="Show password" :aria-label="shown ? $t('ui.hidePassword') : $t('ui.showPassword')" :aria-pressed="shown ? 'true' : 'false'">
+                    <span x-show="!shown"><i data-lucide="eye" class="size-5" aria-hidden="true"></i></span>
+                    <span x-show="shown" x-cloak><i data-lucide="eye-off" class="size-5" aria-hidden="true"></i></span>
+                  </button>
+                </div>
+                <p id="sg-password-help-light" class="helper-text" data-i18n="styleguide.passwordHelp">Tap the eye to show or hide what you typed.</p>
+              </div>
+              <div>
+                <label for="sg-qty-light" class="label" data-i18n="needs.howMany">How many?</label>
+                <div class="stepper">
+                  <button type="button" class="stepper-btn" onclick="stepNumber(this, -1)" aria-label="Decrease" data-i18n-attr="aria-label:common.decrease"><i data-lucide="minus" class="size-5" aria-hidden="true"></i></button>
+                  <input id="sg-qty-light" class="input" type="number" inputmode="numeric" min="1" max="4" value="2" aria-describedby="sg-qty-help-light" />
+                  <button type="button" class="stepper-btn" onclick="stepNumber(this, 1)" aria-label="Increase" data-i18n-attr="aria-label:common.increase"><i data-lucide="plus" class="size-5" aria-hidden="true"></i></button>
+                </div>
+                <p id="sg-qty-help-light" class="helper-text" translate="no">Up to 4 bags</p>
+              </div>
+              <div>
+                <label for="sg-qty-bad-light" class="label" data-i18n="field.quantity">Quantity</label>
+                <input id="sg-qty-bad-light" class="input" type="number" value="12" aria-invalid="true" aria-describedby="sg-qty-error-light" />
+                <p id="sg-qty-error-light" class="field-error" data-i18n="styleguide.quantityError">You can offer up to 4 bags — that's all that's still needed.</p>
+              </div>
+              <div>
+                <label for="sg-category-light" class="label" data-i18n="field.category">Category</label>
+                <select id="sg-category-light" class="input">
+                  <option data-i18n="enum.category.food">Food</option>
+                  <option data-i18n="enum.category.clothing">Clothing</option>
+                  <option data-i18n="enum.category.hygiene">Hygiene</option>
+                </select>
+              </div>
+              <div>
+                <label for="sg-message-light" class="label" data-i18n="needs.message">Message to the organization</label>
+                <textarea id="sg-message-light" class="input input-ruled py-2" rows="3" maxlength="500" placeholder="e.g. I can drop it off on Saturday morning." data-i18n-attr="placeholder:needs.messagePlaceholder"></textarea>
+              </div>
+              <fieldset class="space-y-2">
+                <legend class="label" data-i18n="signup.accountType">Account type</legend>
+                <label class="flex items-center gap-3"><input type="radio" name="sg-type-light" checked /> <span data-i18n="signup.individual">An individual</span></label>
+                <label class="flex items-center gap-3"><input type="radio" name="sg-type-light" /> <span data-i18n="signup.organization">An organization</span></label>
+              </fieldset>
+              <label class="flex items-start gap-3 text-sm"><input type="checkbox" checked /> <span data-i18n="needs.foodConfirm">Items are sealed, unopened and not past their expiry date.</span></label>
+              <label class="inline-flex min-h-11 cursor-pointer items-center gap-3"><input type="checkbox" role="switch" class="switch" checked /> <span class="text-sm font-bold" data-i18n="messages.translateSwitch">Translate messages automatically</span></label>
+            </form>
+          </div>
+          <div data-theme="dark" class="min-w-0 space-y-4 rounded-lg border border-line bg-canvas p-4">
+            <p class="text-sm font-bold text-muted" data-i18n="styleguide.darkTheme">Dark theme</p>
+            <form class="card space-y-5" novalidate @submit.prevent>
+              <div>
+                <label for="sg-search-dark" class="label" data-i18n="needs.search">Search</label>
+                <div class="search-field">
+                  <i data-lucide="search" aria-hidden="true"></i>
+                  <input id="sg-search-dark" class="input" type="search" placeholder="e.g. rice, diapers" data-i18n-attr="placeholder:needs.searchPlaceholder" />
+                </div>
+              </div>
+              <div>
+                <label for="sg-name-dark" class="label"><span data-i18n="profile.fullName">Full name</span> <span class="text-danger" aria-hidden="true">*</span></label>
+                <input id="sg-name-dark" class="input" type="text" required autocomplete="name" value="Tan Mei Ling" translate="no" aria-describedby="sg-focus-help-dark" />
+                <p id="sg-focus-help-dark" class="helper-text" data-i18n="styleguide.focusNote">Click into a field to see its green border and marigold glow.</p>
+              </div>
+              <div>
+                <label for="sg-password-dark" class="label" data-i18n="login.password">Password</label>
+                <div class="password-field" x-data="passwordToggle">
+                  <input id="sg-password-dark" class="input" type="password" :type="shown ? 'text' : 'password'" x-ref="input" autocomplete="new-password" aria-describedby="sg-password-help-dark" />
+                  <button type="button" class="password-toggle" @mousedown.prevent @click="toggle($event)" aria-controls="sg-password-dark"
+                    aria-label="Show password" :aria-label="shown ? $t('ui.hidePassword') : $t('ui.showPassword')" :aria-pressed="shown ? 'true' : 'false'">
+                    <span x-show="!shown"><i data-lucide="eye" class="size-5" aria-hidden="true"></i></span>
+                    <span x-show="shown" x-cloak><i data-lucide="eye-off" class="size-5" aria-hidden="true"></i></span>
+                  </button>
+                </div>
+                <p id="sg-password-help-dark" class="helper-text" data-i18n="styleguide.passwordHelp">Tap the eye to show or hide what you typed.</p>
+              </div>
+              <div>
+                <label for="sg-qty-dark" class="label" data-i18n="needs.howMany">How many?</label>
+                <div class="stepper">
+                  <button type="button" class="stepper-btn" onclick="stepNumber(this, -1)" aria-label="Decrease" data-i18n-attr="aria-label:common.decrease"><i data-lucide="minus" class="size-5" aria-hidden="true"></i></button>
+                  <input id="sg-qty-dark" class="input" type="number" inputmode="numeric" min="1" max="4" value="2" aria-describedby="sg-qty-help-dark" />
+                  <button type="button" class="stepper-btn" onclick="stepNumber(this, 1)" aria-label="Increase" data-i18n-attr="aria-label:common.increase"><i data-lucide="plus" class="size-5" aria-hidden="true"></i></button>
+                </div>
+                <p id="sg-qty-help-dark" class="helper-text" translate="no">Up to 4 bags</p>
+              </div>
+              <div>
+                <label for="sg-qty-bad-dark" class="label" data-i18n="field.quantity">Quantity</label>
+                <input id="sg-qty-bad-dark" class="input" type="number" value="12" aria-invalid="true" aria-describedby="sg-qty-error-dark" />
+                <p id="sg-qty-error-dark" class="field-error" data-i18n="styleguide.quantityError">You can offer up to 4 bags — that's all that's still needed.</p>
+              </div>
+              <div>
+                <label for="sg-category-dark" class="label" data-i18n="field.category">Category</label>
+                <select id="sg-category-dark" class="input">
+                  <option data-i18n="enum.category.food">Food</option>
+                  <option data-i18n="enum.category.clothing">Clothing</option>
+                  <option data-i18n="enum.category.hygiene">Hygiene</option>
+                </select>
+              </div>
+              <div>
+                <label for="sg-message-dark" class="label" data-i18n="needs.message">Message to the organization</label>
+                <textarea id="sg-message-dark" class="input input-ruled py-2" rows="3" maxlength="500" placeholder="e.g. I can drop it off on Saturday morning." data-i18n-attr="placeholder:needs.messagePlaceholder"></textarea>
+              </div>
+              <fieldset class="space-y-2">
+                <legend class="label" data-i18n="signup.accountType">Account type</legend>
+                <label class="flex items-center gap-3"><input type="radio" name="sg-type-dark" checked /> <span data-i18n="signup.individual">An individual</span></label>
+                <label class="flex items-center gap-3"><input type="radio" name="sg-type-dark" /> <span data-i18n="signup.organization">An organization</span></label>
+              </fieldset>
+              <label class="flex items-start gap-3 text-sm"><input type="checkbox" checked /> <span data-i18n="needs.foodConfirm">Items are sealed, unopened and not past their expiry date.</span></label>
+              <label class="inline-flex min-h-11 cursor-pointer items-center gap-3"><input type="checkbox" role="switch" class="switch" checked /> <span class="text-sm font-bold" data-i18n="messages.translateSwitch">Translate messages automatically</span></label>
+            </form>
+          </div>
+        </div>
+      </section>
+
       <section aria-labelledby="sg-feedback" class="space-y-4">
-        <h2 id="sg-feedback" class="text-xl font-semibold" data-i18n="styleguide.feedbackTitle">Toasts and confirm dialog</h2>
+        <h2 id="sg-feedback" class="text-2xl font-bold" data-i18n="styleguide.feedbackTitle">Toasts and confirm dialog</h2>
         <div class="flex flex-wrap gap-3">
           <button type="button" class="btn btn-secondary" onclick="toast(t('donor.offerSent'))" data-i18n="styleguide.showSuccess">Show success toast</button>
           <button type="button" class="btn btn-secondary" onclick="toast(t('styleguide.errorToast'), 'error')" data-i18n="styleguide.showError">Show error toast</button>
@@ -437,30 +574,51 @@
             Open confirm dialog
           </button>
         </div>
+        <div class="grid gap-4 md:grid-cols-2">
+          <div data-theme="light" class="min-w-0 space-y-4 rounded-lg border border-line bg-canvas p-4">
+            <p class="text-sm font-bold text-muted" data-i18n="styleguide.lightTheme">Light theme</p>
+            <div class="toast toast-success" data-i18n="styleguide.sampleSent">Your offer was sent.</div>
+            <div class="toast toast-error" data-i18n="styleguide.sampleError">We couldn't reach the server.</div>
+          </div>
+          <div data-theme="dark" class="min-w-0 space-y-4 rounded-lg border border-line bg-canvas p-4">
+            <p class="text-sm font-bold text-muted" data-i18n="styleguide.darkTheme">Dark theme</p>
+            <div class="toast toast-success" data-i18n="styleguide.sampleSent">Your offer was sent.</div>
+            <div class="toast toast-error" data-i18n="styleguide.sampleError">We couldn't reach the server.</div>
+          </div>
+        </div>
       </section>
 
-      <!-- Empty and loading states -->
       <section aria-labelledby="sg-states" class="space-y-4">
-        <h2 id="sg-states" class="text-xl font-semibold" data-i18n="styleguide.statesTitle">Empty and loading states</h2>
-        <div class="grid gap-4 sm:grid-cols-2">
-          <div class="card flex flex-col items-center gap-3 py-10 text-center">
-            <div class="grid size-12 place-items-center rounded-full bg-primary-soft text-2xl text-primary" aria-hidden="true">+</div>
-            <p class="text-muted" data-i18n="orgDash.noRequests">No requests yet.</p>
-            <button type="button" class="btn btn-primary" data-i18n="orgDash.firstRequest">Create your first request</button>
+        <h2 id="sg-states" class="text-2xl font-bold" data-i18n="styleguide.statesTitle">Empty and loading states</h2>
+        <div class="grid gap-4 md:grid-cols-2">
+          <div data-theme="light" class="min-w-0 space-y-4 rounded-lg border border-line bg-canvas p-4">
+            <p class="text-sm font-bold text-muted" data-i18n="styleguide.lightTheme">Light theme</p>
+            <div class="card flex flex-col items-center gap-3 py-8 text-center">
+              <i data-lucide="pin" class="size-10 text-primary" aria-hidden="true"></i>
+              <p class="text-muted" data-i18n="org.noRequests">Nothing pinned here yet.</p>
+              <button type="button" class="btn btn-primary" data-i18n="orgDash.firstRequest">Create your first request</button>
+            </div>
+            <div class="card space-y-3" role="status"><span class="sr-only" data-i18n="donor.loadingRequests">Loading requests…</span>
+              <div class="skeleton h-5 w-24"></div><div class="skeleton h-6 w-3/4"></div><div class="skeleton h-4 w-1/2"></div><div class="skeleton h-11 w-full"></div>
+            </div>
           </div>
-          <div class="card space-y-3" role="status"><span class="sr-only" data-i18n="donor.loadingRequests">Loading requests…</span>
-            <div class="skeleton h-5 w-24"></div>
-            <div class="skeleton h-6 w-3/4"></div>
-            <div class="skeleton h-4 w-1/2"></div>
-            <div class="skeleton h-2.5 w-full"></div>
-            <div class="skeleton h-11 w-full"></div>
+          <div data-theme="dark" class="min-w-0 space-y-4 rounded-lg border border-line bg-canvas p-4">
+            <p class="text-sm font-bold text-muted" data-i18n="styleguide.darkTheme">Dark theme</p>
+            <div class="card flex flex-col items-center gap-3 py-8 text-center">
+              <i data-lucide="pin" class="size-10 text-primary" aria-hidden="true"></i>
+              <p class="text-muted" data-i18n="org.noRequests">Nothing pinned here yet.</p>
+              <button type="button" class="btn btn-primary" data-i18n="orgDash.firstRequest">Create your first request</button>
+            </div>
+            <div class="card space-y-3" role="status"><span class="sr-only" data-i18n="donor.loadingRequests">Loading requests…</span>
+              <div class="skeleton h-5 w-24"></div><div class="skeleton h-6 w-3/4"></div><div class="skeleton h-4 w-1/2"></div><div class="skeleton h-11 w-full"></div>
+            </div>
           </div>
         </div>
       </section>
 
       <!-- Bottom nav -->
       <section aria-labelledby="sg-nav" class="space-y-4">
-        <h2 id="sg-nav" class="text-xl font-semibold" data-i18n="styleguide.bottomNavTitle">Mobile bottom navigation</h2>
+        <h2 id="sg-nav" class="text-2xl font-bold" data-i18n="styleguide.bottomNavTitle">Mobile bottom navigation</h2>
         <p class="text-muted" data-i18n="styleguide.bottomNavNote">Shown only on phones (below 640px), fixed to the bottom of this page.</p>
       </section>
     </main>

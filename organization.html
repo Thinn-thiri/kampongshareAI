@@ -14,7 +14,7 @@
     <link rel="icon" href="/img/favicon.svg" type="image/svg+xml" />
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" />
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Atkinson+Hyperlegible:wght@400;700&family=Bricolage+Grotesque:opsz,wght@12..96,600..800&display=swap" />
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="" />
     <link rel="stylesheet" href="/css/style.css" />
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
@@ -71,7 +71,7 @@
         </nav>
         <!-- Language: English / 中文 / Bahasa Melayu (js/i18n.js) -->
         <div class="relative" x-data="langMenu" @keydown.escape="close(true)" @click.outside="close(false)">
-          <button type="button" x-ref="langButton" class="btn btn-ghost min-w-11 gap-1.5 px-2" :aria-label="buttonLabel" aria-label="Language / 语言 / Bahasa"
+          <button type="button" x-ref="langButton" class="btn btn-ghost icon-btn min-w-11 gap-1.5 px-2" :aria-label="buttonLabel" aria-label="Language / 语言 / Bahasa"
             aria-haspopup="menu" :aria-expanded="open.toString()" aria-controls="lang-menu" @click="toggle()">
             <i data-lucide="globe" class="size-5" aria-hidden="true"></i>
             <span class="text-sm sm:hidden" :lang="current.htmlLang" x-text="current.short"></span>
@@ -88,7 +88,7 @@
         </div>
         <!-- Theme: System / Light / Dark (js/theme.js) -->
         <div class="relative" x-data="themeMenu" @keydown.escape="close(true)" @click.outside="close(false)">
-          <button type="button" x-ref="themeButton" class="btn btn-ghost size-11 px-0" :aria-label="$t('theme.button', { name: label })" aria-label="Theme"
+          <button type="button" x-ref="themeButton" class="btn btn-ghost icon-btn size-11 px-0" :aria-label="$t('theme.button', { name: label })" aria-label="Theme"
             aria-haspopup="menu" :aria-expanded="open.toString()" aria-controls="theme-menu" @click="toggle()">
             <span x-show="choice === 'system'"><i data-lucide="monitor" class="size-5" aria-hidden="true"></i></span>
             <span x-show="choice === 'light'" x-cloak><i data-lucide="sun" class="size-5" aria-hidden="true"></i></span>
@@ -111,7 +111,7 @@
           <a href="/signup.html" class="btn btn-primary px-4" data-i18n="nav.signUp">Sign up</a>
         </nav>
         <!-- Messages with the unread count (js/messaging.js): individuals and organizations -->
-        <a href="/messages.html" class="btn btn-ghost relative size-11 px-0" x-show="showMessages" x-cloak
+        <a href="/messages.html" class="btn btn-ghost icon-btn relative size-11 px-0" x-show="showMessages" x-cloak
           :aria-current="here('/messages.html') ? 'page' : null" aria-label="Messages"
           :aria-label="unread ? $t('nav.messagesUnread', { count: unread }) : $t('nav.messages')">
           <i data-lucide="message-circle" class="size-5" aria-hidden="true"></i>
@@ -219,7 +219,7 @@
               <div class="skeleton h-5 w-2/3"></div><div class="skeleton h-5 w-1/2"></div>
             </div>
             <p class="flex items-center gap-2 text-muted" x-show="stats && actions().length === 0" x-cloak>
-              <i data-lucide="circle-check" class="size-5 text-success" aria-hidden="true"></i> <span data-i18n="orgDash.allCaughtUp">All caught up ✓</span>
+              <i data-lucide="circle-check" class="size-5 text-success" aria-hidden="true"></i> <span data-i18n="orgDash.allCaughtUp">All caught up</span>
             </p>
             <ul class="divide-y divide-line" x-show="stats && actions().length">
               <template x-for="action in actions()" :key="action.text">
@@ -274,7 +274,7 @@
 
           <div>
             <label for="org-description" class="label" data-i18n="field.description">Description</label>
-            <textarea id="org-description" class="input py-2" rows="4" maxlength="1000"
+            <textarea id="org-description" class="input input-ruled py-2" rows="4" maxlength="1000"
               x-model="form.description" :aria-invalid="errors.description ? 'true' : null"
               aria-describedby="help-org-description err-org-description"></textarea>
             <p id="help-org-description" class="helper-text">
@@ -387,7 +387,7 @@
 
             <div>
               <label for="req-title" class="label"><span data-i18n="field.title">Title</span> <span class="text-danger" aria-hidden="true">*</span></label>
-              <input id="req-title" class="input read-only:bg-canvas read-only:text-muted" type="text" maxlength="100" required
+              <input id="req-title" placeholder="e.g. Rice and cooking oil for 40 families" data-i18n-attr="placeholder:orgDash.titlePlaceholder" class="input read-only:bg-canvas read-only:text-muted" type="text" maxlength="100" required
                 x-model="form.title" :readonly="locked" :aria-invalid="errors.title ? 'true' : null"
                 :aria-describedby="locked ? 'req-locked-note err-req-title' : 'err-req-title'" />
               <p id="err-req-title" class="field-error" x-show="errors.title" x-text="errors.title"></p>
@@ -395,7 +395,7 @@
 
             <div>
               <label for="req-description" class="label" data-i18n="field.description">Description</label>
-              <textarea id="req-description" class="input py-2 read-only:bg-canvas read-only:text-muted" rows="3" maxlength="1000"
+              <textarea id="req-description" placeholder="e.g. We cook weekly meals for elderly neighbours in Tampines and are running low on staples." data-i18n-attr="placeholder:orgDash.descriptionPlaceholder" class="input input-ruled py-2 read-only:bg-canvas read-only:text-muted" rows="3" maxlength="1000"
                 x-model="form.description" :readonly="locked" :aria-invalid="errors.description ? 'true' : null"
                 aria-describedby="help-req-description err-req-description"></textarea>
               <p id="help-req-description" class="helper-text">
@@ -423,7 +423,7 @@
 
             <div>
               <label for="req-dropoff" class="label" data-i18n="orgDash.dropoffInstructions">Drop-off instructions</label>
-              <textarea id="req-dropoff" class="input py-2" rows="2" maxlength="500" x-model="form.dropoff"
+              <textarea id="req-dropoff" placeholder="e.g. Blk 123 Tampines St 11, weekdays 10am–5pm" data-i18n-attr="placeholder:orgDash.dropoffPlaceholder" class="input input-ruled py-2" rows="2" maxlength="500" x-model="form.dropoff"
                 :aria-invalid="errors.dropoff ? 'true' : null" aria-describedby="help-req-dropoff err-req-dropoff"></textarea>
               <p id="help-req-dropoff" class="helper-text">
                 <span data-i18n="orgDash.dropoffHelp">Where and when donors bring items, e.g. "Blk 123 Tampines St 11, weekdays 10am–5pm".</span>
@@ -462,9 +462,17 @@
                   </div>
                   <div>
                     <label :for="`item-quantity-${row.key}`" class="label" data-i18n="orgDash.quantityNeeded">Quantity needed</label>
-                    <input :id="`item-quantity-${row.key}`" class="input" type="number" inputmode="numeric" step="1" :min="Math.max(row.committed, 1)"
-                      x-model.number="row.quantity" :aria-invalid="errors[`items.${row.key}.quantity`] ? 'true' : null"
-                      :aria-describedby="`help-item-quantity-${row.key} err-item-quantity-${row.key}`" />
+                    <div class="stepper">
+                      <button type="button" class="stepper-btn" @click="stepNumber($el, -1)" aria-label="Decrease" data-i18n-attr="aria-label:common.decrease">
+                        <i data-lucide="minus" class="size-5" aria-hidden="true"></i>
+                      </button>
+                      <input :id="`item-quantity-${row.key}`" class="input" type="number" inputmode="numeric" step="1" :min="Math.max(row.committed, 1)"
+                        x-model.number="row.quantity" :aria-invalid="errors[`items.${row.key}.quantity`] ? 'true' : null"
+                        :aria-describedby="`help-item-quantity-${row.key} err-item-quantity-${row.key}`" />
+                      <button type="button" class="stepper-btn" @click="stepNumber($el, 1)" aria-label="Increase" data-i18n-attr="aria-label:common.increase">
+                        <i data-lucide="plus" class="size-5" aria-hidden="true"></i>
+                      </button>
+                    </div>
                     <p :id="`help-item-quantity-${row.key}`" class="helper-text" x-show="row.committed > 0" x-text="$t('orgDash.atLeastPromised', { count: row.committed })"></p>
                     <p :id="`err-item-quantity-${row.key}`" class="field-error" x-show="errors[`items.${row.key}.quantity`]" x-text="errors[`items.${row.key}.quantity`]"></p>
                   </div>
@@ -685,8 +693,9 @@
                 <p class="text-xs text-muted" x-show="filter === 'active'" data-i18n="orgDash.donorDetailsNote">The donor's details are only shown to you, to arrange drop-off.</p>
 
                 <p class="rounded-md bg-canvas p-3 text-sm whitespace-pre-line break-words" x-show="offer.message" x-text="offer.message"></p>
-                <p class="text-sm text-success" x-show="offer.item.category === 'food' && offer.food_safety_confirmed" data-i18n="orgDash.foodConfirmed">
-                  ✓ Donor confirmed the food is sealed, unopened and not expired.
+                <p class="flex items-start gap-1.5 text-sm text-success" x-show="offer.item.category === 'food' && offer.food_safety_confirmed">
+                  <i data-lucide="circle-check" class="mt-0.5 size-4 shrink-0" aria-hidden="true"></i>
+                  <span data-i18n="orgDash.foodConfirmed">Donor confirmed the food is sealed, unopened and not expired.</span>
                 </p>
 
                 <div class="mt-auto flex flex-wrap gap-3 pt-1">
@@ -749,14 +758,14 @@
 
             <div>
               <label for="ev-title" class="label"><span data-i18n="field.title">Title</span> <span class="text-danger" aria-hidden="true">*</span></label>
-              <input id="ev-title" class="input" type="text" maxlength="100" required x-model="form.title"
+              <input id="ev-title" placeholder="e.g. Saturday food packing" data-i18n-attr="placeholder:orgDash.eventTitlePlaceholder" class="input" type="text" maxlength="100" required x-model="form.title"
                 :aria-invalid="errors.title ? 'true' : null" aria-describedby="err-ev-title" />
               <p id="err-ev-title" class="field-error" x-show="errors.title" x-text="errors.title"></p>
             </div>
 
             <div>
               <label for="ev-description" class="label" data-i18n="field.description">Description</label>
-              <textarea id="ev-description" class="input py-2" rows="3" maxlength="1000" x-model="form.description"
+              <textarea id="ev-description" placeholder="e.g. Help us pack 200 food bags for families in the estate. No experience needed." data-i18n-attr="placeholder:orgDash.eventDescriptionPlaceholder" class="input input-ruled py-2" rows="3" maxlength="1000" x-model="form.description"
                 :aria-invalid="errors.description ? 'true' : null" aria-describedby="help-ev-description err-ev-description"></textarea>
               <p id="help-ev-description" class="helper-text"><span data-i18n="orgDash.eventDescHelp">What volunteers will do and what to bring.</span> <span x-text="$t('orgDash.count', { count: form.description.length, max: 1000 })"></span></p>
               <p id="err-ev-description" class="field-error" x-show="errors.description" x-text="errors.description"></p>
@@ -780,9 +789,17 @@
             <div class="grid gap-5 sm:grid-cols-2">
               <div>
                 <label for="ev-volunteers" class="label"><span data-i18n="field.volunteersNeeded">Volunteers needed</span> <span class="text-danger" aria-hidden="true">*</span></label>
-                <input id="ev-volunteers" class="input" type="number" inputmode="numeric" min="1" max="1000" step="1" required
-                  x-model.number="form.volunteersNeeded" :aria-invalid="errors.volunteersNeeded ? 'true' : null"
-                  aria-describedby="help-ev-volunteers err-ev-volunteers" />
+                <div class="stepper">
+                  <button type="button" class="stepper-btn" @click="stepNumber($el, -1)" aria-label="Decrease" data-i18n-attr="aria-label:common.decrease">
+                    <i data-lucide="minus" class="size-5" aria-hidden="true"></i>
+                  </button>
+                  <input id="ev-volunteers" class="input" type="number" inputmode="numeric" min="1" max="1000" step="1" required
+                    x-model.number="form.volunteersNeeded" :aria-invalid="errors.volunteersNeeded ? 'true' : null"
+                    aria-describedby="help-ev-volunteers err-ev-volunteers" />
+                  <button type="button" class="stepper-btn" @click="stepNumber($el, 1)" aria-label="Increase" data-i18n-attr="aria-label:common.increase">
+                    <i data-lucide="plus" class="size-5" aria-hidden="true"></i>
+                  </button>
+                </div>
                 <p id="help-ev-volunteers" class="helper-text" data-i18n="orgDash.volunteersHelp">When this many are approved, the event shows "Event full".</p>
                 <p id="err-ev-volunteers" class="field-error" x-show="errors.volunteersNeeded" x-text="errors.volunteersNeeded"></p>
               </div>
@@ -911,7 +928,7 @@
                 <div class="space-y-3 rounded-md border border-line bg-canvas p-4" x-show="editingOutcomeId === event.id" x-cloak>
                   <div>
                     <label :for="`edit-outcome-${event.id}`" class="label"><span data-i18n="orgDash.outcomeSummary">Outcome summary</span> <span class="text-danger" aria-hidden="true">*</span></label>
-                    <textarea :id="`edit-outcome-${event.id}`" class="input py-2" rows="3" maxlength="1000" x-model="outcome"
+                    <textarea :id="`edit-outcome-${event.id}`" class="input input-ruled py-2" rows="3" maxlength="1000" x-model="outcome"
                       :aria-invalid="outcomeError ? 'true' : null" :aria-describedby="`edit-outcome-err-${event.id}`"></textarea>
                     <p :id="`edit-outcome-err-${event.id}`" class="field-error" x-show="outcomeError" x-text="outcomeError"></p>
                   </div>
@@ -928,7 +945,7 @@
                 <div class="space-y-3 rounded-md border border-line bg-canvas p-4" x-show="completingId === event.id" x-cloak>
                   <div>
                     <label :for="`outcome-${event.id}`" class="label"><span data-i18n="orgDash.outcomeSummary">Outcome summary</span> <span class="text-danger" aria-hidden="true">*</span></label>
-                    <textarea :id="`outcome-${event.id}`" class="input py-2" rows="3" maxlength="1000" x-model="outcome"
+                    <textarea :id="`outcome-${event.id}`" class="input input-ruled py-2" rows="3" maxlength="1000" x-model="outcome"
                       placeholder="e.g. 35 volunteers packed 400 food bags for 120 families." data-i18n-attr="placeholder:orgDash.outcomePlaceholder"
                       :aria-invalid="outcomeError ? 'true' : null" :aria-describedby="`outcome-err-${event.id}`"></textarea>
                     <p :id="`outcome-err-${event.id}`" class="field-error" x-show="outcomeError" x-text="outcomeError"></p>
@@ -970,7 +987,7 @@
                         <div :id="`share-${event.id}`" class="mt-3 space-y-4" x-data="sharePanel(event, org?.name || 'KampongShare', true)">
                           <div>
                             <label :for="`share-msg-${event.id}`" class="label" data-i18n="orgDash.whatsappMessage">Message for WhatsApp</label>
-                            <textarea :id="`share-msg-${event.id}`" class="input py-2" rows="4" maxlength="500" x-model="message"></textarea>
+                            <textarea :id="`share-msg-${event.id}`" class="input input-ruled py-2" rows="4" maxlength="500" x-model="message"></textarea>
                             <p class="helper-text" data-i18n="share.messageHelp">You can edit it before sharing.</p>
                           </div>
                           <div class="grid grid-cols-2 gap-2 sm:grid-cols-3">
@@ -988,7 +1005,7 @@
                               <label :for="`share-caption-${event.id}`" class="label mb-0" data-i18n="orgDash.instagramCaption">Instagram caption</label>
                               <span class="badge badge-ai" x-show="captionIsAi" data-i18n="common.aiSuggested">AI-suggested</span>
                             </div>
-                            <textarea :id="`share-caption-${event.id}`" class="input py-2" rows="4" maxlength="600" x-model="caption"></textarea>
+                            <textarea :id="`share-caption-${event.id}`" class="input input-ruled py-2" rows="4" maxlength="600" x-model="caption"></textarea>
                             <div class="flex flex-wrap gap-2">
                               <button type="button" class="btn btn-secondary" x-show="canUseAi" :disabled="loadingCaption" @click="writeCaption()">
                                 <span class="spinner" x-show="loadingCaption" x-cloak aria-hidden="true"></span>
@@ -1091,7 +1108,7 @@
                             </div>
                             <div>
                               <label :for="`task-desc-${event.id}-${application.volunteer_id}`" class="label"><span data-i18n="orgDash.taskDetails">Details</span> <span class="font-normal text-muted" data-i18n="common.optional">(optional)</span></label>
-                              <textarea :id="`task-desc-${event.id}-${application.volunteer_id}`" class="input py-2" rows="2" maxlength="500" x-model="taskForm.description"></textarea>
+                              <textarea :id="`task-desc-${event.id}-${application.volunteer_id}`" class="input input-ruled py-2" rows="2" maxlength="500" x-model="taskForm.description"></textarea>
                               <p class="field-error" x-show="taskErrors.description" x-text="taskErrors.description"></p>
                             </div>
                             <div>

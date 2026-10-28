@@ -14,7 +14,7 @@
     <link rel="icon" href="/img/favicon.svg" type="image/svg+xml" />
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" />
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Atkinson+Hyperlegible:wght@400;700&family=Bricolage+Grotesque:opsz,wght@12..96,600..800&display=swap" />
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="" />
     <link rel="stylesheet" href="/css/style.css" />
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
@@ -67,7 +67,7 @@
         </nav>
         <!-- Language: English / 中文 / Bahasa Melayu (js/i18n.js) -->
         <div class="relative" x-data="langMenu" @keydown.escape="close(true)" @click.outside="close(false)">
-          <button type="button" x-ref="langButton" class="btn btn-ghost min-w-11 gap-1.5 px-2" :aria-label="buttonLabel" aria-label="Language / 语言 / Bahasa"
+          <button type="button" x-ref="langButton" class="btn btn-ghost icon-btn min-w-11 gap-1.5 px-2" :aria-label="buttonLabel" aria-label="Language / 语言 / Bahasa"
             aria-haspopup="menu" :aria-expanded="open.toString()" aria-controls="lang-menu" @click="toggle()">
             <i data-lucide="globe" class="size-5" aria-hidden="true"></i>
             <span class="text-sm sm:hidden" :lang="current.htmlLang" x-text="current.short"></span>
@@ -84,7 +84,7 @@
         </div>
         <!-- Theme: System / Light / Dark (js/theme.js) -->
         <div class="relative" x-data="themeMenu" @keydown.escape="close(true)" @click.outside="close(false)">
-          <button type="button" x-ref="themeButton" class="btn btn-ghost size-11 px-0" :aria-label="$t('theme.button', { name: label })" aria-label="Theme"
+          <button type="button" x-ref="themeButton" class="btn btn-ghost icon-btn size-11 px-0" :aria-label="$t('theme.button', { name: label })" aria-label="Theme"
             aria-haspopup="menu" :aria-expanded="open.toString()" aria-controls="theme-menu" @click="toggle()">
             <span x-show="choice === 'system'"><i data-lucide="monitor" class="size-5" aria-hidden="true"></i></span>
             <span x-show="choice === 'light'" x-cloak><i data-lucide="sun" class="size-5" aria-hidden="true"></i></span>
@@ -107,7 +107,7 @@
           <a href="/signup.html" class="btn btn-primary px-4" data-i18n="nav.signUp">Sign up</a>
         </nav>
         <!-- Messages with the unread count (js/messaging.js): individuals and organizations -->
-        <a href="/messages.html" class="btn btn-ghost relative size-11 px-0" x-show="showMessages" x-cloak
+        <a href="/messages.html" class="btn btn-ghost icon-btn relative size-11 px-0" x-show="showMessages" x-cloak
           :aria-current="here('/messages.html') ? 'page' : null" aria-label="Messages"
           :aria-label="unread ? $t('nav.messagesUnread', { count: unread }) : $t('nav.messages')">
           <i data-lucide="message-circle" class="size-5" aria-hidden="true"></i>
@@ -138,11 +138,10 @@
 
     <main id="main" tabindex="-1" class="container-page space-y-12 py-8 sm:py-12 focus:outline-none" x-data="homePage" @offer-item.window="goOffer($event.detail.itemId)">
       <!-- Hero -->
-      <section class="max-w-2xl">
-        <h1 class="text-3xl font-bold sm:text-4xl" data-i18n="index.heroTitle">Give where it's needed most</h1>
-        <p class="mt-3 text-lg text-muted" data-i18n="index.heroText">
-          KampongShare connects people in Singapore with local organizations that need items and volunteers — and shows what's most urgent first.
-        </p>
+      <!-- the one welcome moment on the site (off with reduced motion) -->
+      <section class="welcome max-w-2xl">
+        <h1 class="text-3xl font-extrabold sm:text-4xl" data-i18n="index.heroTitle">What our neighbours need this week</h1>
+        <p class="mt-3 text-lg text-muted" data-i18n="index.heroText">Local groups pin up what they're short of — rice, diapers, school bags. Pick something you can give, and it goes to someone nearby.</p>
         <div class="mt-6 flex flex-wrap gap-3">
           <!-- until we know who is looking (no visitor buttons flashing for logged-in people) -->
           <template x-if="!viewerReady">
@@ -170,7 +169,7 @@
 
       <!-- Impact numbers (public_stats) -->
       <section aria-labelledby="impact-heading" class="space-y-4">
-        <h2 id="impact-heading" class="text-xl font-semibold sm:text-2xl" data-i18n="index.impactTitle">Our impact so far</h2>
+        <h2 id="impact-heading" class="text-xl font-semibold sm:text-2xl" data-i18n="index.impactTitle">What we've done together</h2>
         <div class="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">
           <template x-for="card in statCards" :key="card.key">
             <div class="card p-4">
@@ -192,10 +191,10 @@
       <section aria-labelledby="urgent-heading" class="space-y-4">
         <div class="flex flex-wrap items-end justify-between gap-3">
           <div>
-            <h2 id="urgent-heading" class="text-xl font-semibold sm:text-2xl" data-i18n="index.urgentTitle">Most urgent needs</h2>
-            <p class="mt-1 text-muted" data-i18n="index.urgentText">Sorted by urgency. Every item shows exactly how much is still needed.</p>
+            <h2 id="urgent-heading" class="text-xl font-semibold sm:text-2xl" data-i18n="index.urgentTitle">Pinned up this week</h2>
+            <p class="mt-1 text-muted" data-i18n="index.urgentText">Most urgent first. Each notice shows exactly what's still needed.</p>
           </div>
-          <a href="/needs.html" class="btn btn-secondary" data-i18n="index.seeAllNeeds">See all needs</a>
+          <a href="/needs.html" class="btn btn-secondary" data-i18n="index.seeAllNeeds">See the whole board</a>
         </div>
 
         <!-- what the Offer buttons do for this viewer -->
@@ -219,13 +218,13 @@
         </div>
         <div class="card flex flex-col items-center gap-3 text-center py-10" x-show="!loadingUrgent && !urgentError && urgent.length === 0" x-cloak>
           <i data-lucide="package-open" class="size-10 text-primary" aria-hidden="true"></i>
-          <p class="text-muted" data-i18n="index.noOpenRequests">No open requests right now — check back soon.</p>
+          <p class="text-muted" data-i18n="index.noOpenRequests">Nothing pinned here yet — check back soon.</p>
           <a href="/signup.html?role=organization" class="btn btn-secondary" data-i18n="index.registerOrg">Register your organization</a>
         </div>
 
-        <div class="grid gap-4 md:grid-cols-2 lg:grid-cols-3" x-show="!loadingUrgent && !urgentError">
+        <div class="noticeboard grid gap-4 md:grid-cols-2 lg:grid-cols-3" x-show="!loadingUrgent && !urgentError">
           <template x-for="request in urgent" :key="request.id">
-            <article class="card flex flex-col gap-3">
+            <article class="notice flex flex-col gap-3">
               <div class="flex flex-wrap items-center gap-2">
                 <span :class="requestUrgency(request).className" x-text="requestUrgency(request).label"></span>
                 <span class="badge badge-ai" x-show="requestUrgency(request).scored" data-i18n="common.aiSuggested">AI-suggested</span>
@@ -272,14 +271,14 @@
               <ul class="space-y-3">
                 <template x-for="item in request.request_items" :key="item.id">
                   <li class="space-y-1">
-                    <div class="flex justify-between gap-3 text-sm">
-                      <span class="min-w-0 font-medium break-words" x-text="item.name"></span>
-                      <span class="shrink-0 text-muted" x-text="$t('requests.progress', { committed: item.quantity_committed, needed: item.quantity_needed, unit: item.unit })"></span>
+                    <p class="font-bold break-words" x-text="item.name"></p>
+                    <!-- still needed, as tear-off tabs: solid = received, striped = promised, empty = still needed -->
+                    <div class="tear-tabs" role="img" :aria-label="itemBarLabel(item)">
+                      <template x-for="(tab, index) in itemTabs(item)" :key="index">
+                        <span class="tear-tab" :class="{ received: 'tear-tab-received', promised: 'tear-tab-promised', needed: 'tear-tab-needed' }[tab]"></span>
+                      </template>
                     </div>
-                    <div class="progress" role="img" :aria-label="itemBarLabel(item)">
-                      <div class="progress-received" :style="itemBarStyles(item).received"></div>
-                      <div class="progress-committed" :style="itemBarStyles(item).promised"></div>
-                    </div>
+                    <p class="text-sm text-muted" x-text="$t('requests.progress', { committed: item.quantity_committed, needed: item.quantity_needed, unit: item.unit })"></p>
                     <div class="flex items-center justify-between gap-2">
                       <p class="text-xs text-muted" x-text="item.quantity_remaining > 0 ? $t('requests.stillNeededShort', { count: item.quantity_remaining, unit: item.unit }) : $t('requests.fullyPromised')"></p>
                       <button type="button" class="btn btn-ghost min-h-11 px-3"
@@ -297,8 +296,8 @@
       <!-- Upcoming events (6.2) -->
       <section class="space-y-4" x-data="publicEvents" aria-labelledby="events-heading">
         <div>
-          <h2 id="events-heading" class="text-xl font-semibold sm:text-2xl" data-i18n="index.eventsTitle">Upcoming events</h2>
-          <p class="mt-1 text-muted" data-i18n="index.eventsText">Volunteer near you. Tap a pin to see the event.</p>
+          <h2 id="events-heading" class="text-xl font-semibold sm:text-2xl" data-i18n="index.eventsTitle">Coming up near you</h2>
+          <p class="mt-1 text-muted" data-i18n="index.eventsText">Lend a hand nearby. Tap a pin to see the event.</p>
         </div>
 
         <div class="grid gap-4 lg:grid-cols-[3fr_2fr]">
@@ -313,7 +312,7 @@
             <p class="card text-danger" x-show="!loading && error" x-cloak role="alert" x-text="error"></p>
             <div class="card flex flex-col items-center gap-3 text-center" x-show="!loading && !error && events.length === 0" x-cloak>
               <i data-lucide="calendar" class="size-10 text-primary" aria-hidden="true"></i>
-              <p class="text-muted" data-i18n="index.noEvents">No upcoming events yet. Check back soon!</p>
+              <p class="text-muted" data-i18n="index.noEvents">Nothing coming up yet — check back soon.</p>
             </div>
             <!-- what volunteering looks like for this viewer -->
             <p class="rounded-md bg-canvas p-3 text-sm text-muted" x-show="viewerReady && volunteerMode() === 'staff'" x-cloak data-i18n="common.volunteersSee">This is what volunteers see.</p>
@@ -421,18 +420,18 @@
         <ol class="grid gap-4 md:grid-cols-3">
           <li class="card space-y-2">
             <span class="grid size-10 place-items-center rounded-full bg-primary-soft font-bold text-primary" aria-hidden="true">1</span>
-            <h3 class="font-semibold" data-i18n="index.how1Title">Organizations post what they need</h3>
-            <p class="text-sm text-muted" data-i18n="index.how1Text">Local groups list exact items and quantities. An admin checks every organization and request first.</p>
+            <h3 class="font-semibold" data-i18n="index.how1Title">A local group pins up what it needs</h3>
+            <p class="text-sm text-muted" data-i18n="index.how1Text">They list the exact items and how many. Our team checks every group and notice before it goes up.</p>
           </li>
           <li class="card space-y-2">
             <span class="grid size-10 place-items-center rounded-full bg-primary-soft font-bold text-primary" aria-hidden="true">2</span>
-            <h3 class="font-semibold" data-i18n="index.how2Title">You offer exactly what's needed</h3>
-            <p class="text-sm text-muted" data-i18n="index.how2Text">Pick an item, say how many, and see where to drop it off. Or sign up to volunteer at an event.</p>
+            <h3 class="font-semibold" data-i18n="index.how2Title">You give what's still needed</h3>
+            <p class="text-sm text-muted" data-i18n="index.how2Text">Pick an item, say how many, and see where to drop it off. Or lend a hand at an event.</p>
           </li>
           <li class="card space-y-2">
             <span class="grid size-10 place-items-center rounded-full bg-primary-soft font-bold text-primary" aria-hidden="true">3</span>
-            <h3 class="font-semibold" data-i18n="index.how3Title">They confirm and receive</h3>
-            <p class="text-sm text-muted" data-i18n="index.how3Text">The organization accepts your offer and marks it delivered — progress updates for everyone to see.</p>
+            <h3 class="font-semibold" data-i18n="index.how3Title">They receive it</h3>
+            <p class="text-sm text-muted" data-i18n="index.how3Text">The group confirms your offer and marks it received, and the notice updates for everyone.</p>
           </li>
         </ol>
       </section>

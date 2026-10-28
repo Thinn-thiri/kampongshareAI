@@ -14,7 +14,7 @@
     <link rel="icon" href="/img/favicon.svg" type="image/svg+xml" />
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" />
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Atkinson+Hyperlegible:wght@400;700&family=Bricolage+Grotesque:opsz,wght@12..96,600..800&display=swap" />
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="" />
     <link rel="stylesheet" href="/css/style.css" />
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
@@ -66,7 +66,7 @@
         </nav>
         <!-- Language: English / 中文 / Bahasa Melayu (js/i18n.js) -->
         <div class="relative" x-data="langMenu" @keydown.escape="close(true)" @click.outside="close(false)">
-          <button type="button" x-ref="langButton" class="btn btn-ghost min-w-11 gap-1.5 px-2" :aria-label="buttonLabel" aria-label="Language / 语言 / Bahasa"
+          <button type="button" x-ref="langButton" class="btn btn-ghost icon-btn min-w-11 gap-1.5 px-2" :aria-label="buttonLabel" aria-label="Language / 语言 / Bahasa"
             aria-haspopup="menu" :aria-expanded="open.toString()" aria-controls="lang-menu" @click="toggle()">
             <i data-lucide="globe" class="size-5" aria-hidden="true"></i>
             <span class="text-sm sm:hidden" :lang="current.htmlLang" x-text="current.short"></span>
@@ -83,7 +83,7 @@
         </div>
         <!-- Theme: System / Light / Dark (js/theme.js) -->
         <div class="relative" x-data="themeMenu" @keydown.escape="close(true)" @click.outside="close(false)">
-          <button type="button" x-ref="themeButton" class="btn btn-ghost size-11 px-0" :aria-label="$t('theme.button', { name: label })" aria-label="Theme"
+          <button type="button" x-ref="themeButton" class="btn btn-ghost icon-btn size-11 px-0" :aria-label="$t('theme.button', { name: label })" aria-label="Theme"
             aria-haspopup="menu" :aria-expanded="open.toString()" aria-controls="theme-menu" @click="toggle()">
             <span x-show="choice === 'system'"><i data-lucide="monitor" class="size-5" aria-hidden="true"></i></span>
             <span x-show="choice === 'light'" x-cloak><i data-lucide="sun" class="size-5" aria-hidden="true"></i></span>
@@ -106,7 +106,7 @@
           <a href="/signup.html" class="btn btn-primary px-4" data-i18n="nav.signUp">Sign up</a>
         </nav>
         <!-- Messages with the unread count (js/messaging.js): individuals and organizations -->
-        <a href="/messages.html" class="btn btn-ghost relative size-11 px-0" x-show="showMessages" x-cloak
+        <a href="/messages.html" class="btn btn-ghost icon-btn relative size-11 px-0" x-show="showMessages" x-cloak
           :aria-current="here('/messages.html') ? 'page' : null" aria-label="Messages"
           :aria-label="unread ? $t('nav.messagesUnread', { count: unread }) : $t('nav.messages')">
           <i data-lucide="message-circle" class="size-5" aria-hidden="true"></i>
@@ -186,7 +186,7 @@
               <div class="skeleton h-5 w-2/3"></div><div class="skeleton h-5 w-1/2"></div>
             </div>
             <p class="flex items-center gap-2 text-muted" x-show="!reviewLoading && !reviewError && waitingLongest.length === 0" x-cloak>
-              <i data-lucide="circle-check" class="size-5 text-success" aria-hidden="true"></i> <span data-i18n="admin.allCaughtUp">All caught up ✓</span>
+              <i data-lucide="circle-check" class="size-5 text-success" aria-hidden="true"></i> <span data-i18n="admin.allCaughtUp">All caught up</span>
             </p>
             <ul class="divide-y divide-line" x-show="!reviewLoading && waitingLongest.length">
               <template x-for="item in waitingLongest" :key="item.key">
@@ -273,7 +273,7 @@
           </div>
           <div class="card flex flex-col items-center gap-3 py-10 text-center" x-show="!reviewLoading && !reviewError && review[reviewKind].length === 0" x-cloak>
             <i data-lucide="circle-check" class="size-10 text-success" aria-hidden="true"></i>
-            <p class="font-semibold" data-i18n="admin.allCaughtUp">All caught up ✓</p>
+            <p class="font-semibold" data-i18n="admin.allCaughtUp">All caught up</p>
             <p class="text-sm text-muted" data-i18n="admin.nothingWaiting">Nothing is waiting here right now.</p>
           </div>
 
@@ -336,7 +336,10 @@
             </div>
             <div class="w-full lg:w-72">
               <label for="browse-search" class="label" data-i18n="admin.search">Search by name or title</label>
-              <input id="browse-search" class="input" type="search" maxlength="100" autocomplete="off" x-model="browseSearch" @input="onSearchInput()" />
+              <div class="search-field">
+                <i data-lucide="search" aria-hidden="true"></i>
+                <input id="browse-search" class="input" type="search" maxlength="100" autocomplete="off" x-model="browseSearch" @input="onSearchInput()" />
+              </div>
             </div>
           </div>
 
@@ -609,7 +612,7 @@
               </div>
               <div>
                 <label for="admin-req-desc" class="label" data-i18n="field.description">Description</label>
-                <textarea id="admin-req-desc" class="input py-2" rows="4" maxlength="1000" x-model="reqForm.description"
+                <textarea id="admin-req-desc" class="input input-ruled py-2" rows="4" maxlength="1000" x-model="reqForm.description"
                   :aria-invalid="reqFormErrors.description ? 'true' : null" aria-describedby="admin-req-desc-err"></textarea>
                 <p id="admin-req-desc-err" class="field-error" x-show="reqFormErrors.description" x-text="reqFormErrors.description"></p>
               </div>

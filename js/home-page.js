@@ -22,7 +22,7 @@ document.addEventListener("alpine:init", () => {
     adminWaiting: null,
 
     requestUrgency,
-    itemBarStyles,
+    itemTabs,
     itemBarLabel,
 
     async init() {

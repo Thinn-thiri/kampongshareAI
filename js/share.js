@@ -78,11 +78,11 @@ async function copyText(text) {
  * Same values as the light theme in src/input.css.
  */
 const POSTER_COLORS = {
-  primary: "#0f766e",
-  soft: "#ccfbf1",
-  ink: "#0f172a",
-  muted: "#64748b",
-  accent: "#f59e0b",
+  primary: "#1e6b47",
+  soft: "#e7d3b8", // cork board behind the notice
+  ink: "#2b211b",
+  muted: "#6b5d52",
+  accent: "#f2b705", // marigold: the pin only, never text
   paper: "#ffffff",
 };
 
@@ -132,9 +132,11 @@ async function downloadPoster(event, orgName) {
   canvas.height = H;
   const ctx = /** @type {CanvasRenderingContext2D} */ (canvas.getContext("2d"));
   // i18n-ignore-start — the poster is a downloaded image and always uses English
-  const font = '"Plus Jakarta Sans", system-ui, sans-serif';
+  // the site's fonts: Bricolage Grotesque for headings, Atkinson Hyperlegible for the rest
+  const display = '"Bricolage Grotesque", system-ui, sans-serif';
+  const font = '"Atkinson Hyperlegible", system-ui, sans-serif';
   try {
-    await document.fonts.load(`700 64px ${font}`);
+    await Promise.all([document.fonts.load(`800 64px ${display}`), document.fonts.load(`700 40px ${font}`), document.fonts.load(`400 40px ${font}`)]);
   } catch {
     // system font fallback is fine
   }
@@ -152,36 +154,45 @@ async function downloadPoster(event, orgName) {
   ctx.roundRect(80, 80, 100, 100, 24);
   ctx.fill();
   ctx.fillStyle = primary;
-  ctx.font = `700 64px ${font}`;
+  ctx.font = `800 64px ${display}`;
   ctx.textAlign = "center";
   ctx.textBaseline = "middle";
   ctx.fillText("K", 130, 134);
   ctx.textAlign = "left";
   ctx.textBaseline = "alphabetic";
   ctx.fillStyle = paper;
-  ctx.font = `700 52px ${font}`;
+  ctx.font = `800 52px ${display}`;
   ctx.fillText("KampongShare", 210, 148);
 
-  // Card
+  // The notice: paper pinned to the cork board, with a marigold pin
+  ctx.save();
+  ctx.shadowColor = "rgba(43, 33, 27, 0.25)";
+  ctx.shadowBlur = 18;
+  ctx.shadowOffsetY = 6;
   ctx.fillStyle = paper;
   ctx.beginPath();
-  ctx.roundRect(60, 320, W - 120, 860, 40);
+  ctx.roundRect(60, 320, W - 120, 860, 12);
+  ctx.fill();
+  ctx.restore();
+  ctx.fillStyle = accent;
+  ctx.beginPath();
+  ctx.arc(W / 2, 330, 26, 0, Math.PI * 2);
   ctx.fill();
 
   let y = 430;
-  ctx.fillStyle = accent;
-  ctx.font = `700 34px ${font}`;
-  ctx.fillText("VOLUNTEER & DONATE", 120, y);
+  ctx.fillStyle = primary;
+  ctx.font = `700 36px ${font}`;
+  ctx.fillText("Volunteer and donate", 120, y);
 
   ctx.fillStyle = ink;
-  ctx.font = `700 76px ${font}`;
+  ctx.font = `800 76px ${display}`;
   y += 100;
   for (const line of wrapLines(ctx, event.title, W - 240, 4)) {
     ctx.fillText(line, 120, y);
     y += 92;
   }
 
-  ctx.font = `600 40px ${font}`;
+  ctx.font = `700 40px ${font}`;
   ctx.fillStyle = primary;
   y += 30;
   for (const line of wrapLines(ctx, `by ${orgName}`, W - 240, 2)) {
@@ -189,7 +200,7 @@ async function downloadPoster(event, orgName) {
     y += 54;
   }
 
-  ctx.font = `500 40px ${font}`;
+  ctx.font = `400 40px ${font}`;
   ctx.fillStyle = ink;
   y += 30;
   for (const line of wrapLines(ctx, formatEventTime(event.starts_at, event.ends_at, "en"), W - 240, 2)) {
@@ -214,7 +225,7 @@ async function downloadPoster(event, orgName) {
   const linkLines = ctx.measureText(linkText).width > linkWidth ? [linkText.slice(0, Math.ceil(linkText.length / 2)), linkText.slice(Math.ceil(linkText.length / 2))] : [linkText];
   let linkY = 1150 - (linkLines.length - 1) * (size + 10);
   ctx.fillStyle = muted;
-  ctx.font = `600 32px ${font}`;
+  ctx.font = `700 32px ${font}`;
   ctx.fillText("Donate or volunteer at", 120, linkY - size - 22);
   ctx.fillStyle = primary;
   ctx.font = `700 ${size}px ${font}`;
@@ -224,7 +235,7 @@ async function downloadPoster(event, orgName) {
   }
 
   ctx.fillStyle = ink;
-  ctx.font = `500 30px ${font}`;
+  ctx.font = `400 30px ${font}`;
   ctx.textAlign = "center";
   ctx.fillText("Open the link to donate or sign up to volunteer", W / 2, 1270);
 

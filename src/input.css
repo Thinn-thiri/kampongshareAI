@@ -4,45 +4,68 @@
 @custom-variant dark (&:where([data-theme=dark], [data-theme=dark] *));
 
 @theme {
-  /* brand */
-  --color-primary: #0f766e; /* teal — buttons, links */
-  --color-primary-hover: #115e59;
-  --color-primary-soft: #ccfbf1; /* tinted backgrounds */
-  --color-accent: #f59e0b; /* warm amber — highlights only */
-  --color-on-primary: #ffffff; /* text on primary buttons */
-  --color-on-danger: #ffffff; /* text on danger buttons */
-  --color-overlay: rgb(15 23 42 / 0.4); /* behind dialogs */
-
-  /* neutrals:  bg-canvas, bg-surface, border-line, text-ink, text-muted */
-  --color-canvas: #f8faf9;
+  /* "The void deck noticeboard" (REQUIREMENTS.md section 3): paper, cork, kopi-brown ink,
+     noticeboard green, marigold pins and tape. These are the light values; dark is below.
+     board = cork (behind pinned notices; only ink text on it), field-border = input borders (3:1),
+     highlight = the marigold stroke behind hovered links, *-edge = the solid edge under buttons. */
+  --color-canvas: #fffdf7;
   --color-surface: #ffffff;
-  --color-line: #e2e8f0;
-  --color-ink: #0f172a;
-  --color-muted: #64748b;
+  --color-board: #e7d3b8;
+  --color-ink: #2b211b;
+  --color-muted: #6b5d52;
+  --color-line: #e9dfd2;
+  --color-field-border: #8a7967;
+  --color-primary: #1e6b47;
+  --color-primary-hover: #17573a;
+  --color-primary-soft: #e3f1e8;
+  --color-primary-edge: #17573a;
+  --color-on-primary: #ffffff;
+  --color-accent: #f2b705;
+  --color-highlight: #fae196;
+  --color-danger: #b42318;
+  --color-danger-soft: #fdecea;
+  --color-danger-edge: #7e1911;
+  --color-on-danger: #ffffff;
+  --color-success: #1e6b47;
+  --color-success-soft: #e3f1e8;
+  --color-warning: #8a5a00;
+  --color-warning-soft: #fdf3d3;
+  --color-info: #1f4e8c;
+  --color-info-soft: #e4edf8;
+  --color-overlay: rgb(43 33 27 / 0.45); /* behind dialogs */
 
-  /* status */
-  --color-success: #15803d;
-  --color-success-soft: #dcfce7;
-  --color-warning: #b45309;
-  --color-warning-soft: #fef3c7;
-  --color-danger: #b91c1c;
-  --color-danger-soft: #fee2e2;
-  --color-info: #1d4ed8;
-  --color-info-soft: #dbeafe;
+  /* shape: notices 6px, buttons and inputs 10px (rounded-md), cards 14px (rounded-lg), pills full */
+  --radius-sm: 6px;
+  --radius-md: 10px;
+  --radius-lg: 14px;
+  --shadow-sm: 0 1px 2px rgb(43 33 27 / 0.08);
+  --shadow-md: 0 4px 14px rgb(43 33 27 / 0.12);
 
-  /* shape */
-  --radius-sm: 8px;
-  --radius-md: 12px;
-  --radius-lg: 20px;
-  --shadow-sm: 0 1px 2px rgb(15 23 42 / 0.06);
-  --shadow-md: 0 4px 16px rgb(15 23 42 / 0.08);
+  /* type: Atkinson Hyperlegible for reading (made for low vision), Bricolage Grotesque for headings.
+     Chinese falls back to the device's own Chinese font (no big web font). */
+  --font-sans: "Atkinson Hyperlegible", "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", "Noto Sans SC", system-ui, sans-serif;
+  --font-display: "Bricolage Grotesque", "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", "Noto Sans SC", system-ui, sans-serif;
 
-  /* type */
-  /* Latin text uses Plus Jakarta Sans; Chinese falls back to the device's own Chinese font (no big web font) */
-  --font-sans: "Plus Jakarta Sans", "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", "Noto Sans SC", system-ui, sans-serif;
+  /* type scale 13 / 15 / 17 / 20 / 26 / 34 / 44 px */
+  --text-xs: 0.8125rem;
+  --text-xs--line-height: 1.45;
+  --text-sm: 0.9375rem;
+  --text-sm--line-height: 1.5;
+  --text-base: 1.0625rem;
+  --text-base--line-height: 1.55;
+  --text-lg: 1.25rem;
+  --text-lg--line-height: 1.4;
+  --text-xl: 1.25rem;
+  --text-xl--line-height: 1.4;
+  --text-2xl: 1.625rem;
+  --text-2xl--line-height: 1.25;
+  --text-3xl: 2.125rem;
+  --text-3xl--line-height: 1.15;
+  --text-4xl: 2.75rem;
+  --text-4xl--line-height: 1.1;
 }
 
-/* Light theme is the @theme above. Dark theme: the same tokens with dark values.
+/* Light theme is the @theme above. Dark theme ("noticeboard at night"): the same tokens with dark values.
    Not in a layer, so it wins over the defaults. [data-theme] on any element works too
    (styleguide.html shows both themes side by side). */
 :root,
@@ -50,55 +73,65 @@
   color-scheme: light;
 }
 [data-theme="light"] {
-  --color-canvas: #f8faf9;
+  --color-canvas: #fffdf7;
   --color-surface: #ffffff;
-  --color-line: #e2e8f0;
-  --color-ink: #0f172a;
-  --color-muted: #64748b;
-  --color-primary: #0f766e;
-  --color-primary-hover: #115e59;
-  --color-primary-soft: #ccfbf1;
+  --color-board: #e7d3b8;
+  --color-ink: #2b211b;
+  --color-muted: #6b5d52;
+  --color-line: #e9dfd2;
+  --color-field-border: #8a7967;
+  --color-primary: #1e6b47;
+  --color-primary-hover: #17573a;
+  --color-primary-soft: #e3f1e8;
+  --color-primary-edge: #17573a;
   --color-on-primary: #ffffff;
-  --color-accent: #f59e0b;
-  --color-success: #15803d;
-  --color-success-soft: #dcfce7;
-  --color-warning: #b45309;
-  --color-warning-soft: #fef3c7;
-  --color-danger: #b91c1c;
-  --color-danger-soft: #fee2e2;
+  --color-accent: #f2b705;
+  --color-highlight: #fae196;
+  --color-danger: #b42318;
+  --color-danger-soft: #fdecea;
+  --color-danger-edge: #7e1911;
   --color-on-danger: #ffffff;
-  --color-info: #1d4ed8;
-  --color-info-soft: #dbeafe;
-  --color-overlay: rgb(15 23 42 / 0.4);
-  --shadow-sm: 0 1px 2px rgb(15 23 42 / 0.06);
-  --shadow-md: 0 4px 16px rgb(15 23 42 / 0.08);
+  --color-success: #1e6b47;
+  --color-success-soft: #e3f1e8;
+  --color-warning: #8a5a00;
+  --color-warning-soft: #fdf3d3;
+  --color-info: #1f4e8c;
+  --color-info-soft: #e4edf8;
+  --color-overlay: rgb(43 33 27 / 0.45);
+  --shadow-sm: 0 1px 2px rgb(43 33 27 / 0.08);
+  --shadow-md: 0 4px 14px rgb(43 33 27 / 0.12);
 }
 :root[data-theme="dark"],
 [data-theme="dark"] {
   color-scheme: dark;
-  --color-canvas: #0b1120;
-  --color-surface: #111827;
-  --color-line: #1f2a3d;
-  --color-ink: #f1f5f9;
-  --color-muted: #94a3b8;
-  --color-primary: #2dd4bf;
-  --color-primary-hover: #5eead4;
-  --color-primary-soft: #042f2e;
-  --color-on-primary: #042f2e;
-  --color-accent: #fbbf24;
-  --color-success: #4ade80;
-  --color-success-soft: #052e16;
-  --color-warning: #fbbf24;
-  --color-warning-soft: #3a2405;
-  --color-danger: #f87171;
-  --color-danger-soft: #3b0d0d;
-  --color-on-danger: #3b0d0d;
-  --color-info: #93c5fd;
-  --color-info-soft: #0c1e3e;
+  --color-canvas: #1c1612;
+  --color-surface: #26201b;
+  --color-board: #3a2e24;
+  --color-ink: #f5eee6;
+  --color-muted: #c2b2a3;
+  --color-line: #3a2f27;
+  --color-field-border: #8f7f70;
+  --color-primary: #7bd3a0;
+  --color-primary-hover: #9be0b7;
+  --color-primary-soft: #16301f;
+  --color-primary-edge: #447458;
+  --color-on-primary: #0e2a1b;
+  --color-accent: #f2b705;
+  --color-highlight: #523e0f;
+  --color-danger: #f97066;
+  --color-danger-soft: #3a1714;
+  --color-danger-edge: #893e38;
+  --color-on-danger: #2a0b08;
+  --color-success: #7bd3a0;
+  --color-success-soft: #16301f;
+  --color-warning: #f2b705;
+  --color-warning-soft: #3a2c0a;
+  --color-info: #9cc3f5;
+  --color-info-soft: #172a44;
   --color-overlay: rgb(0 0 0 / 0.6);
   /* a little stronger, so cards still lift off the dark background */
   --shadow-sm: 0 1px 2px rgb(0 0 0 / 0.4);
-  --shadow-md: 0 4px 16px rgb(0 0 0 / 0.5);
+  --shadow-md: 0 4px 14px rgb(0 0 0 / 0.5);
 }
 /* themed panels set their own text and background (the page body does this for <html>) */
 [data-theme] {
@@ -170,6 +203,21 @@ html.theme-changing * {
 @layer base {
   body {
     @apply bg-canvas font-sans text-ink antialiased;
+    line-height: 1.55;
+  }
+  h1,
+  h2,
+  h3 {
+    font-family: var(--font-display);
+    letter-spacing: -0.015em;
+  }
+  /* readable line length */
+  p {
+    max-width: 75ch;
+  }
+  .text-center p,
+  p.text-center {
+    margin-inline: auto;
   }
   /* hide Alpine-controlled parts until Alpine has started */
   [x-cloak] {
@@ -190,24 +238,45 @@ html.theme-changing * {
 @layer components {
   /* buttons — min height 44px */
   .btn {
-    @apply inline-flex min-h-11 items-center justify-center gap-2 rounded-md px-5 text-sm font-semibold transition-colors duration-200 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary disabled:cursor-not-allowed disabled:opacity-60;
+    @apply inline-flex min-h-11 items-center justify-center gap-2 rounded-md px-5 text-sm font-bold disabled:cursor-not-allowed disabled:opacity-60;
+    transition:
+      background-color 150ms,
+      box-shadow 150ms,
+      translate 150ms;
   }
+  /* primary, secondary and danger sit on a solid edge and press down 2px */
   .btn-primary {
     @apply bg-primary text-on-primary hover:bg-primary-hover;
+    box-shadow: 0 3px 0 var(--color-primary-edge);
   }
   .btn-secondary {
-    @apply border border-line bg-surface text-ink hover:bg-canvas;
+    @apply border border-ink bg-canvas text-ink hover:bg-board;
+    box-shadow: 0 3px 0 var(--color-ink);
   }
   .btn-danger {
-    @apply bg-danger text-on-danger hover:opacity-90;
+    @apply bg-danger text-on-danger hover:bg-danger-edge;
+    box-shadow: 0 3px 0 var(--color-danger-edge);
+  }
+  .btn-primary:active:not(:disabled),
+  .btn-secondary:active:not(:disabled),
+  .btn-danger:active:not(:disabled) {
+    translate: 0 2px;
+    box-shadow: 0 1px 0 var(--btn-edge, var(--color-primary-edge));
+  }
+  .btn-secondary:active:not(:disabled) {
+    --btn-edge: var(--color-ink);
+  }
+  .btn-danger:active:not(:disabled) {
+    --btn-edge: var(--color-danger-edge);
   }
   .btn-ghost {
     @apply text-primary hover:bg-primary-soft;
   }
 
   /* cards */
+  /* calm cards: straight, paper-white, a thin line; the border turns green on hover */
   .card {
-    @apply rounded-lg border border-line bg-surface p-5 shadow-sm transition-shadow duration-200 hover:shadow-md;
+    @apply rounded-lg border border-line bg-surface p-5 transition-colors duration-150 hover:border-primary;
   }
 
   /* badges */
@@ -232,16 +301,77 @@ html.theme-changing * {
 
   /* forms */
   .label {
-    @apply mb-1 block text-sm font-medium text-ink;
+    @apply mb-1 block text-sm font-bold text-ink;
   }
+  /* "paper form": white field, 1.5px brown border; focus = 2px green border + a soft marigold glow */
   .input {
-    @apply min-h-11 w-full rounded-md border border-line bg-surface px-3 text-base text-ink placeholder:text-muted focus:border-primary focus:outline-2 focus:outline-primary-soft;
+    @apply min-h-11 w-full rounded-md border-[1.5px] border-field-border bg-surface px-3 text-base text-ink placeholder:text-muted;
+    transition:
+      border-color 150ms,
+      box-shadow 150ms;
+  }
+  .input:focus {
+    @apply border-primary outline-none;
+    box-shadow:
+      inset 0 0 0 0.5px var(--color-primary),
+      0 0 0 4px color-mix(in srgb, var(--color-accent) 35%, transparent);
   }
   .helper-text {
     @apply mt-1 text-sm text-muted;
   }
   .field-error {
-    @apply mt-1 text-sm text-danger;
+    @apply mt-1 flex items-start gap-1.5 text-sm text-danger;
+  }
+  /* Lucide alert-circle in front of every error message (no extra markup) */
+  .field-error::before {
+    content: "";
+    @apply mt-[0.2em] size-4 shrink-0 bg-current;
+    mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2.25' stroke-linecap='round' stroke-linejoin='round'%3E%3Ccircle cx='12' cy='12' r='10'/%3E%3Cline x1='12' x2='12' y1='8' y2='12'/%3E%3Cline x1='12' x2='12.01' y1='16' y2='16'/%3E%3C/svg%3E")
+      center / contain no-repeat;
+  }
+
+  /* long text (request descriptions, messages): faint ruled notepaper lines, one per line of text */
+  .input-ruled {
+    line-height: 1.55;
+    background-image: repeating-linear-gradient(
+      to bottom,
+      transparent 0,
+      transparent calc(1.55em - 1px),
+      var(--color-line) calc(1.55em - 1px),
+      var(--color-line) 1.55em
+    );
+    background-position: 0 0.5rem;
+    background-attachment: local;
+  }
+
+  /* search: a pill with a magnifier, tinted like the cork board */
+  .search-field {
+    @apply relative;
+  }
+  .search-field > svg,
+  .search-field > i {
+    @apply pointer-events-none absolute top-1/2 left-4 size-5 -translate-y-1/2 text-muted;
+  }
+  .search-field > .input {
+    @apply rounded-full pl-11;
+    background-color: color-mix(in srgb, var(--color-board) 30%, var(--color-surface));
+  }
+
+  /* quantity: big − and + buttons either side of the number (js/ui.js stepNumber) */
+  .stepper {
+    @apply flex items-stretch gap-2;
+  }
+  .stepper > .input {
+    @apply w-24 min-w-0 text-center text-lg font-bold;
+    -moz-appearance: textfield;
+  }
+  .stepper > .input::-webkit-inner-spin-button,
+  .stepper > .input::-webkit-outer-spin-button {
+    -webkit-appearance: none;
+    margin: 0;
+  }
+  .stepper-btn {
+    @apply inline-flex size-11 shrink-0 items-center justify-center rounded-md border-[1.5px] border-field-border bg-canvas text-ink hover:border-primary hover:bg-primary-soft disabled:cursor-not-allowed disabled:opacity-50;
   }
 
   /* password field with a show / hide button inside its right edge */
@@ -270,7 +400,7 @@ html.theme-changing * {
     @apply fixed inset-x-0 bottom-0 z-30 flex border-t border-line bg-surface sm:hidden;
   }
   .bottom-nav-link {
-    @apply flex min-h-14 flex-1 flex-col items-center justify-center gap-0.5 text-xs font-medium text-muted hover:text-primary focus-visible:outline-2 focus-visible:outline-primary aria-[current=page]:text-primary aria-[current=page]:font-semibold;
+    @apply relative flex min-h-14 flex-1 flex-col items-center justify-center gap-0.5 text-xs font-medium text-muted hover:text-primary aria-[current=page]:font-bold aria-[current=page]:text-ink;
   }
   /* Donating / Volunteering switch */
   /* tabs (role="tablist" / "tab"): scroll sideways on phones instead of wrapping */
@@ -345,13 +475,18 @@ html.theme-changing * {
 
   /* desktop top bar links (Home · Browse needs · My dashboard) */
   .top-link {
-    @apply inline-flex min-h-11 items-center rounded-md px-3 text-sm font-semibold text-muted hover:bg-primary-soft hover:text-primary focus-visible:outline-2 focus-visible:outline-primary aria-[current=page]:text-primary aria-[current=page]:underline aria-[current=page]:underline-offset-4;
+    @apply relative inline-flex min-h-11 items-center rounded-md px-3 text-sm font-bold text-muted hover:bg-board hover:text-ink aria-[current=page]:text-ink;
+  }
+  /* round icon buttons in the top bar and chat (theme, language, messages, account, close):
+     a cork circle behind the icon on hover and focus */
+  .icon-btn {
+    @apply rounded-full hover:bg-board focus-visible:bg-board;
   }
   .segmented {
     @apply flex rounded-md border border-line bg-canvas p-1;
   }
   .segmented-link {
-    @apply flex min-h-11 flex-1 items-center justify-center rounded-sm px-3 text-sm font-semibold text-muted hover:text-ink focus-visible:outline-2 focus-visible:outline-primary aria-[current=page]:bg-surface aria-[current=page]:text-primary aria-[current=page]:shadow-sm aria-pressed:bg-surface aria-pressed:text-primary aria-pressed:shadow-sm;
+    @apply relative flex min-h-11 flex-1 items-center justify-center rounded-sm px-3 text-sm font-bold text-muted hover:text-ink aria-[current=page]:bg-surface aria-[current=page]:text-ink aria-[current=page]:shadow-sm aria-pressed:bg-surface aria-pressed:text-ink aria-pressed:shadow-sm;
   }
 
   /* selectable cards (account type, donate / volunteer) and pills (days, interests…) */
@@ -444,5 +579,263 @@ html.theme-changing * {
   body[data-conversation-open] .bottom-nav,
   body[data-conversation-open] .chat-fab {
     display: none;
+  }
+}
+
+/* ===================================================================================
+   "The void deck noticeboard" — rules outside the layers, so they win over utilities
+   =================================================================================== */
+
+/* keyboard focus: always a 3px green ring, 2px away (inputs show their green border + glow instead) */
+:focus-visible {
+  outline: 3px solid var(--color-primary);
+  outline-offset: 2px;
+}
+.input:focus-visible {
+  outline: none;
+}
+/* inside sideways-scrolling tab lists and the conversation list the ring is drawn inside */
+.tab:focus-visible,
+.conversation-link:focus-visible,
+.bottom-nav-link:focus-visible {
+  outline-offset: -3px;
+}
+
+/* links in text: green with a thin underline; on hover a thick marigold highlighter stroke
+   behind the words (a background, so it follows the text across lines) */
+/* (in page content only: the logo in the top bar is a link too, but not a text link) */
+:where(main, footer, dialog, .chat-panel) a.text-primary:not(.btn),
+.link {
+  color: var(--color-primary);
+  text-decoration-line: underline;
+  text-decoration-thickness: 1px;
+  text-underline-offset: 3px;
+  background-image: linear-gradient(var(--color-highlight), var(--color-highlight));
+  background-repeat: no-repeat;
+  background-position: 0 92%;
+  background-size: 100% 0;
+  -webkit-box-decoration-break: clone;
+  box-decoration-break: clone;
+  transition: background-size 150ms;
+}
+:where(main, footer, dialog, .chat-panel) a.text-primary:not(.btn):hover,
+.link:hover {
+  background-size: 100% 55%;
+}
+
+/* the current page in the top bar, bottom bar and Donating / Volunteering switch:
+   a short strip of marigold "tape" under it */
+.top-link[aria-current="page"]::after,
+.segmented-link[aria-current="page"]::after,
+.segmented-link[aria-pressed="true"]::after,
+.bottom-nav-link[aria-current="page"]::after {
+  content: "";
+  position: absolute;
+  left: 50%;
+  bottom: 3px;
+  width: min(2.5rem, 70%);
+  height: 5px;
+  translate: -50% 0;
+  rotate: -1.5deg;
+  border-radius: 1px;
+  background: var(--color-accent);
+}
+.bottom-nav-link[aria-current="page"]::after {
+  bottom: auto;
+  top: 3px;
+}
+
+/* ---------- the signature: notices pinned to a cork board (donation request cards only) ---------- */
+.noticeboard {
+  border-radius: var(--radius-lg);
+  background: var(--color-board);
+  padding: 1.75rem 0.875rem 1.25rem;
+  gap: 2rem 1.25rem;
+}
+@media (min-width: 640px) {
+  .noticeboard {
+    padding: 2rem 1.5rem 1.5rem;
+  }
+}
+.notice {
+  position: relative;
+  border-radius: 6px;
+  border: 1px solid var(--color-line);
+  background: var(--color-surface);
+  padding: 1.75rem 1.25rem 1.25rem;
+  box-shadow: 0 2px 6px rgb(43 33 27 / 0.18);
+  rotate: var(--tilt, 0deg);
+  transition:
+    rotate 150ms,
+    translate 150ms;
+}
+/* the marigold pin at the top centre, with a short soft shadow */
+.notice::before {
+  content: "";
+  position: absolute;
+  top: -0.6rem;
+  left: 50%;
+  width: 1.5rem;
+  height: 1.5rem;
+  translate: -50% 0;
+  background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Ccircle cx='12' cy='12' r='9' fill='%23F2B705' stroke='%23A67C00' stroke-width='1.5'/%3E%3Ccircle cx='9.3' cy='9.3' r='2.6' fill='%23FBE38F'/%3E%3C/svg%3E")
+    center / contain no-repeat;
+  filter: drop-shadow(1px 4px 2px rgb(43 33 27 / 0.4));
+  transition: filter 150ms;
+}
+/* a gentle tilt that alternates (never more than 1.2°); nth-of-type skips Alpine's <template> */
+.notice:nth-of-type(4n + 1) {
+  --tilt: -1deg;
+}
+.notice:nth-of-type(4n + 2) {
+  --tilt: 0.6deg;
+}
+.notice:nth-of-type(4n + 3) {
+  --tilt: -0.4deg;
+}
+.notice:nth-of-type(4n + 4) {
+  --tilt: 0.9deg;
+}
+/* hover (mouse / trackpad only) or keyboard focus inside: straighten, lift 2px, pin shadow shrinks */
+.notice:has(:focus-visible) {
+  rotate: 0deg;
+  translate: 0 -2px;
+}
+.notice:has(:focus-visible)::before {
+  filter: drop-shadow(0 1px 1px rgb(43 33 27 / 0.35));
+}
+@media (hover: hover) {
+  .notice:hover {
+    rotate: 0deg;
+    translate: 0 -2px;
+  }
+  .notice:hover::before {
+    filter: drop-shadow(0 1px 1px rgb(43 33 27 / 0.35));
+  }
+}
+[data-theme="dark"] .notice {
+  box-shadow: 0 2px 8px rgb(0 0 0 / 0.45);
+}
+
+/* "still needed" as tear-off tabs: solid = received, striped = promised, dashed = still needed */
+.tear-tabs {
+  display: flex;
+  gap: 3px;
+}
+.tear-tab {
+  flex: 1 1 0;
+  max-width: 1.75rem;
+  height: 1.375rem;
+  border-radius: 0 0 4px 4px;
+  border: 1.5px solid var(--color-primary);
+}
+.tear-tab-received {
+  background: var(--color-primary);
+}
+.tear-tab-promised {
+  background: var(--color-primary-soft)
+    repeating-linear-gradient(45deg, var(--color-primary) 0 2px, transparent 2px 6px);
+}
+.tear-tab-needed {
+  background: var(--color-surface);
+  border: 1.5px dashed var(--color-field-border);
+}
+
+/* ---------- paper form details ---------- */
+/* an invalid field: red border on a pale red field (the message below has the icon) */
+.input[aria-invalid="true"] {
+  border-color: var(--color-danger);
+  background-color: var(--color-danger-soft);
+}
+
+/* select: our own chevron-down (Lucide) instead of the browser's arrow */
+select.input {
+  appearance: none;
+  padding-right: 2.5rem;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%236B5D52' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 0.75rem center;
+  background-size: 1.25rem;
+}
+[data-theme="dark"] select.input {
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23C2B2A3' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
+}
+
+/* checkboxes and radios: 24px, green tick / dot, marigold glow on keyboard focus */
+input[type="checkbox"]:not(.switch, .sr-only),
+input[type="radio"]:not(.sr-only) {
+  appearance: none;
+  display: inline-grid;
+  place-content: center;
+  flex-shrink: 0;
+  width: 1.5rem;
+  height: 1.5rem;
+  border: 1.5px solid var(--color-field-border);
+  border-radius: 6px;
+  background: var(--color-surface);
+  cursor: pointer;
+  transition:
+    background-color 150ms,
+    border-color 150ms;
+}
+input[type="radio"]:not(.sr-only) {
+  border-radius: 9999px;
+}
+input[type="checkbox"]:not(.switch, .sr-only)::before,
+input[type="radio"]:not(.sr-only)::before {
+  content: "";
+  width: 1rem;
+  height: 1rem;
+  scale: 0;
+  transition: scale 120ms;
+}
+input[type="checkbox"]:not(.switch, .sr-only):checked {
+  border-color: var(--color-primary);
+  background: var(--color-primary);
+}
+input[type="checkbox"]:not(.switch, .sr-only)::before {
+  background: var(--color-on-primary);
+  mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='3.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M20 6 9 17l-5-5'/%3E%3C/svg%3E")
+    center / contain no-repeat;
+}
+input[type="radio"]:not(.sr-only):checked {
+  border-color: var(--color-primary);
+}
+input[type="radio"]:not(.sr-only)::before {
+  width: 0.75rem;
+  height: 0.75rem;
+  border-radius: 9999px;
+  background: var(--color-primary);
+}
+input[type="checkbox"]:not(.switch, .sr-only):checked::before,
+input[type="radio"]:not(.sr-only):checked::before {
+  scale: 1;
+}
+input[type="checkbox"]:focus-visible,
+input[type="radio"]:focus-visible {
+  box-shadow: 0 0 0 5px color-mix(in srgb, var(--color-accent) 40%, transparent);
+}
+
+/* the one welcome moment: the home page's first section settles in once (off with reduced motion) */
+@keyframes welcome {
+  from {
+    opacity: 0;
+    translate: 0 8px;
+  }
+}
+.welcome {
+  animation: welcome 300ms ease-out both;
+}
+
+/* reduced motion: notices hang straight and never move */
+@media (prefers-reduced-motion: reduce) {
+  .notice,
+  .notice:hover,
+  .notice:has(:focus-visible) {
+    rotate: 0deg !important;
+    translate: none !important;
+  }
+  .welcome {
+    animation: none;
   }
 }

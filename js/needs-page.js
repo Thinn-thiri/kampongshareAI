@@ -15,7 +15,7 @@ document.addEventListener("alpine:init", () => {
     urgencies: URGENCY_OPTIONS,
     areas: SG_AREAS,
     requestUrgency,
-    itemBarStyles,
+    itemTabs,
     itemBarLabel,
 
     /** @type {DonationRequest[]} */

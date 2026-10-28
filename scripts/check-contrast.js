@@ -1,5 +1,6 @@
 // @ts-check
-// Checks that text colours have enough contrast (WCAG 2.1 AA: at least 4.5:1) in both themes.
+// Checks colour contrast in both themes (WCAG 2.1 AA): text at least 4.5:1, and the parts people
+// need to see to use a control (input borders, focus ring, error border) at least 3:1 (1.4.11).
 // Reads the colours straight from src/input.css: light from the @theme block, dark from the
 // [data-theme="dark"] block. Run with: node scripts/check-contrast.js
 
@@ -21,9 +22,32 @@ const PAIRS = [
   ["danger", "danger-soft"],
   ["info", "info-soft"],
   ["primary", "primary-soft"],
+  // the noticeboard: text straight on the cork is always ink (notices themselves are paper)
+  ["ink", "board"],
+  // links on hover: the marigold highlighter stroke behind the text
+  ["primary", "highlight"],
+  ["ink", "highlight"],
+  ["on-primary", "primary-hover"],
+  ["danger", "canvas"],
+  ["danger", "surface"],
+  ["warning", "canvas"],
+  ["info", "canvas"],
+  ["success", "canvas"],
+  ["ink", "danger-soft"],
+];
+
+/** [colour, background] pairs that only need 3:1: borders and the focus ring (WCAG 1.4.11). */
+const NON_TEXT = [
+  ["field-border", "surface"],
+  ["field-border", "canvas"],
+  ["primary", "surface"],
+  ["primary", "canvas"],
+  ["primary", "board"],
+  ["danger", "danger-soft"],
 ];
 
 const MIN_RATIO = 4.5;
+const MIN_NON_TEXT = 3;
 
 /**
  * The --color-* hex values inside the first block that starts with `opening`.
@@ -73,7 +97,7 @@ function contrast(a, b) {
 function checkTheme(name, colors) {
   console.log(`\n${name} theme`);
   let failures = 0;
-  for (const [text, background] of PAIRS) {
+  for (const [text, background, min = MIN_RATIO] of [...PAIRS, ...NON_TEXT.map(([a, b]) => [a, b, MIN_NON_TEXT])]) {
     const a = colors[text];
     const b = colors[background];
     if (!a || !b) {
@@ -82,9 +106,9 @@ function checkTheme(name, colors) {
       continue;
     }
     const ratio = contrast(a, b);
-    const ok = ratio >= MIN_RATIO;
+    const ok = ratio >= Number(min);
     if (!ok) failures += 1;
-    console.log(`  ${ok ? "OK  " : "FAIL"}  ${`${text} on ${background}`.padEnd(28)} ${ratio.toFixed(2)}:1  (${a} on ${b})`);
+    console.log(`  ${ok ? "OK  " : "FAIL"}  ${`${text} on ${background}`.padEnd(28)} ${ratio.toFixed(2)}:1  (${a} on ${b})${min === MIN_NON_TEXT ? "  [3:1, border / focus]" : ""}`);
   }
   return failures;
 }
@@ -95,7 +119,7 @@ function main() {
   const light = readColors(css, "@theme {");
   // the dark block only lists what changes; anything it leaves out keeps the light value
   const dark = { ...light, ...readColors(css, ':root[data-theme="dark"]') };
-  const lightCopy = readColors(css, '[data-theme="light"] {');
+  const lightCopy = readColors(css, '[data-theme="light"] {\n  --color');
 
   let failures = checkTheme("Light", light) + checkTheme("Dark", dark);
 
@@ -106,7 +130,7 @@ function main() {
     failures += different.length;
   }
 
-  console.log(failures ? `\n${failures} problem(s) found — adjust the colours in src/input.css.` : `\nAll pairs reach ${MIN_RATIO}:1 in both themes.`);
+  console.log(failures ? `\n${failures} problem(s) found — adjust the colours in src/input.css.` : `\nAll pairs reach ${MIN_RATIO}:1 (text) and ${MIN_NON_TEXT}:1 (borders, focus) in both themes.`);
   process.exitCode = failures ? 1 : 0;
 }
 

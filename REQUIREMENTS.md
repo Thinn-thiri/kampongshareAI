@@ -69,7 +69,7 @@ Community donation and volunteer platform for Singapore. Hackathon prototype.
 | Map              | Leaflet + OpenStreetMap tiles (show the required attribution)                                                                                                                                                                                                                                                                             |
 | Geocoding        | **OneMap Search API** (Singapore Land Authority): 6-digit postal code → address + latitude/longitude, to place map pins automatically. Called **only** from the Netlify Function `geocode-postal` (logged-in users), never from the browser. Only the postal code is sent. OneMap's Search API now requires a token: set `ONEMAP_EMAIL` / `ONEMAP_PASSWORD` in `.env` and Netlify env (free account at onemap.gov.sg/apidocs/register); the function fetches and caches the 3-day token. OneMap's terms don't require attribution for API data, but show "Address lookup by OneMap (Singapore Land Authority)" next to the field. In the browser, always use `lookupPostalCode()` from `js/geocode.js` — **reuse it for event locations in step 9**. |
 | Icons            | Lucide icons (`https://unpkg.com/lucide@latest`)                                                                                                                                                                                                                                                                                          |
-| Font             | Plus Jakarta Sans from Google Fonts, fallback `system-ui, sans-serif`                                                                                                                                                                                                                                                                     |
+| Fonts            | Google Fonts (`display=swap`): **Bricolage Grotesque** 600–800 for headings, **Atkinson Hyperlegible** 400 / 700 for everything else (made for readers with low vision); Chinese falls back to the device's Chinese font (section 3) |
 
 ### File layout
 
@@ -115,7 +115,7 @@ scripts/               → check-supabase.js, check-contrast.js, check-i18n.js, 
 - While coding, run `npm run dev:css` in one terminal and `npx netlify dev` in another.
 - `netlify.toml`: build command `npm run build`, publish directory `.`
 - Every HTML page links the generated file: `<link rel="stylesheet" href="/css/style.css">`
-- Load the font in each page's `<head>` with a Google Fonts `<link>` (Plus Jakarta Sans 400, 500, 600, 700).
+- Load the fonts in each page's `<head>` with one Google Fonts `<link>`: `family=Atkinson+Hyperlegible:wght@400;700&family=Bricolage+Grotesque:opsz,wght@12..96,600..800&display=swap`.
 - **Do not** use the Tailwind Play CDN (`@tailwindcss/browser`) — it is for development only, not production.
 
 ### 2.2 Tailwind rules
@@ -153,172 +153,42 @@ scripts/               → check-supabase.js, check-contrast.js, check-i18n.js, 
 
 ## 3. UI and design system
 
-### Look and feel
+### Look and feel — "the void deck noticeboard"
 
-Warm, trustworthy, community-focused, calm. Modern but not flashy: think a well-designed public-service app, not a crypto dashboard. Plenty of white space, rounded cards, clear hierarchy, one primary action per screen.
+KampongShare is the community noticeboard where neighbours pin up what they need. Paper and cork, kopi-brown ink, noticeboard green, marigold pins and tape. Warm, plain and calm; one primary action per screen. Only the donation request cards are "pinned"; everything else stays straight and quiet.
+
+**Avoid the generic "AI website" look:** no all-caps labels or eyebrows above headings, no single highlighted word in headlines, no gradient backgrounds, glow shadows or frosted glass, no fade-in on every section (the only welcome moment is the home page's first section, `.welcome`, off with reduced motion), few emojis (use Lucide icons), no arrow characters in button labels. Write in a neighbourly voice ("What our neighbours need this week", "Nothing pinned here yet").
 
 ### Theme and shared components — `src/input.css`
 
-Define everything once here. Tailwind turns each `--color-*` into classes, e.g. `--color-primary` → `bg-primary`, `text-primary`, `border-primary`.
+Everything is defined once in `src/input.css`: theme tokens in `@theme` (Tailwind turns `--color-primary` into `bg-primary`, `text-primary`, `border-primary`…), the same light values again under `[data-theme="light"]`, dark values under `[data-theme="dark"]`, and the component classes. **Never use fixed colours** in HTML or JS (no `bg-white`, `text-black`, Tailwind's palette or hex codes); only the tokens, or `dark:` for a one-off. The only exceptions are things downloaded or shared as images (the poster in `js/share.js`, `img/og-default.png`, `img/favicon.svg`), which use the fixed light palette.
 
-```css
-@import "tailwindcss";
+**Colour tokens**
 
-/* dark: utilities follow data-theme on <html> (set by js/theme.js) */
-@custom-variant dark (&:where([data-theme=dark], [data-theme=dark] *));
+| Token | Light | Dark ("noticeboard at night") | Use |
+| --- | --- | --- | --- |
+| `canvas` | `#FFFDF7` paper | `#1C1612` | page background |
+| `surface` | `#FFFFFF` | `#26201B` | cards, notices, inputs |
+| `board` | `#E7D3B8` cork | `#3A2E24` | behind pinned notices, search tint, icon-button hover; **only `ink` text directly on it** |
+| `ink` | `#2B211B` kopi brown | `#F5EEE6` | text |
+| `muted` | `#6B5D52` | `#C2B2A3` | secondary text (not on `board`) |
+| `line` | `#E9DFD2` | `#3A2F27` | card borders, ruled lines |
+| `field-border` | `#8A7967` | `#8F7F70` | input, checkbox and stepper borders (3:1) |
+| `primary` / `primary-hover` / `primary-soft` | `#1E6B47` / `#17573A` / `#E3F1E8` | `#7BD3A0` / `#9BE0B7` / `#16301F` | noticeboard green: buttons, links, focus ring |
+| `primary-edge` | `#17573A` | `#447458` | the solid edge under primary buttons |
+| `on-primary` | `#FFFFFF` | `#0E2A1B` | text on primary |
+| `accent` | `#F2B705` marigold | `#F2B705` | pins, tape, focus glow — **never text on paper** |
+| `highlight` | `#FAE196` | `#523E0F` | the highlighter stroke behind hovered links |
+| `danger` / `danger-soft` / `danger-edge` / `on-danger` | `#B42318` / `#FDECEA` / `#7E1911` / `#FFFFFF` | `#F97066` / `#3A1714` / `#893E38` / `#2A0B08` | destructive actions, errors |
+| `success` / `success-soft` | `#1E6B47` / `#E3F1E8` | `#7BD3A0` / `#16301F` | |
+| `warning` / `warning-soft` | `#8A5A00` / `#FDF3D3` | `#F2B705` / `#3A2C0A` | |
+| `info` / `info-soft` | `#1F4E8C` / `#E4EDF8` | `#9CC3F5` / `#172A44` | |
 
-@theme {
-  /* brand */
-  --color-primary: #0f766e; /* teal — buttons, links */
-  --color-primary-hover: #115e59;
-  --color-primary-soft: #ccfbf1; /* tinted backgrounds */
-  --color-accent: #f59e0b; /* warm amber — highlights only */
-  --color-on-primary: #ffffff; /* text on primary buttons */
-  --color-on-danger: #ffffff; /* text on danger buttons */
-  --color-overlay: rgb(15 23 42 / 0.4); /* behind dialogs */
+**Type:** `--font-sans: "Atkinson Hyperlegible", "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", "Noto Sans SC", system-ui, sans-serif` (keep the Chinese fallbacks); headings (h1–h3) use `--font-display` ("Bricolage Grotesque" + the same fallbacks), 600–800, letter-spacing −0.015em. Scale: `text-xs` 13, `text-sm` 15, `text-base` 17, `text-lg` / `text-xl` 20, `text-2xl` 26, `text-3xl` 34, `text-4xl` 44 px. Body line-height 1.55; paragraphs are at most 75 characters wide. Use Tailwind's spacing and these text sizes; don't invent new ones.
 
-  /* neutrals:  bg-canvas, bg-surface, border-line, text-ink, text-muted */
-  --color-canvas: #f8faf9;
-  --color-surface: #ffffff;
-  --color-line: #e2e8f0;
-  --color-ink: #0f172a;
-  --color-muted: #64748b;
+**Corners by role:** notices 6px, buttons and inputs 10px (`rounded-md`), cards 14px (`rounded-lg`), pills and badges `rounded-full`.
 
-  /* status */
-  --color-success: #15803d;
-  --color-success-soft: #dcfce7;
-  --color-warning: #b45309;
-  --color-warning-soft: #fef3c7;
-  --color-danger: #b91c1c;
-  --color-danger-soft: #fee2e2;
-  --color-info: #1d4ed8;
-  --color-info-soft: #dbeafe;
-
-  /* shape */
-  --radius-sm: 8px;
-  --radius-md: 12px;
-  --radius-lg: 20px;
-  --shadow-sm: 0 1px 2px rgb(15 23 42 / 0.06);
-  --shadow-md: 0 4px 16px rgb(15 23 42 / 0.08);
-
-  /* type */
-  /* Chinese falls back to the device's own Chinese font (no big web font) */
-  --font-sans: "Plus Jakarta Sans", "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", "Noto Sans SC", system-ui, sans-serif;
-}
-
-/* the @theme values above are the light theme */
-:root {
-  color-scheme: light;
-}
-
-/* dark theme: same tokens, dark values (not in a layer, so it wins) */
-:root[data-theme="dark"],
-[data-theme="dark"] {
-  color-scheme: dark; /* form controls and scrollbars match */
-  --color-canvas: #0b1120;
-  --color-surface: #111827;
-  --color-line: #1f2a3d;
-  --color-ink: #f1f5f9;
-  --color-muted: #94a3b8;
-  --color-primary: #2dd4bf;
-  --color-primary-hover: #5eead4;
-  --color-primary-soft: #042f2e;
-  --color-on-primary: #042f2e;
-  --color-accent: #fbbf24;
-  --color-success: #4ade80;
-  --color-success-soft: #052e16;
-  --color-warning: #fbbf24;
-  --color-warning-soft: #3a2405;
-  --color-danger: #f87171;
-  --color-danger-soft: #3b0d0d;
-  --color-on-danger: #3b0d0d;
-  --color-info: #93c5fd;
-  --color-info-soft: #0c1e3e;
-  --color-overlay: rgb(0 0 0 / 0.6);
-  --shadow-sm: 0 1px 2px rgb(0 0 0 / 0.4); /* a little stronger on dark */
-  --shadow-md: 0 4px 16px rgb(0 0 0 / 0.5);
-}
-/* (src/input.css also has a [data-theme="light"] copy of the light values, so a light
-   panel inside a dark page stays light, plus the Leaflet control styles.) */
-
-@layer base {
-  body {
-    @apply bg-canvas font-sans text-ink antialiased;
-  }
-}
-
-@layer components {
-  /* buttons — min height 44px */
-  .btn {
-    @apply inline-flex min-h-11 items-center justify-center gap-2 rounded-md px-5 text-sm font-semibold transition-colors duration-200 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary disabled:cursor-not-allowed disabled:opacity-60;
-  }
-  .btn-primary {
-    @apply bg-primary text-on-primary hover:bg-primary-hover;
-  }
-  .btn-secondary {
-    @apply border border-line bg-surface text-ink hover:bg-canvas;
-  }
-  .btn-danger {
-    @apply bg-danger text-on-danger hover:opacity-90;
-  }
-  .btn-ghost {
-    @apply text-primary hover:bg-primary-soft;
-  }
-
-  /* cards */
-  .card {
-    @apply rounded-lg border border-line bg-surface p-5 shadow-sm transition-shadow duration-200 hover:shadow-md;
-  }
-
-  /* badges */
-  .badge {
-    @apply inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-xs font-semibold;
-  }
-  .badge-success {
-    @apply bg-success-soft text-success;
-  }
-  .badge-warning {
-    @apply bg-warning-soft text-warning;
-  }
-  .badge-danger {
-    @apply bg-danger-soft text-danger;
-  }
-  .badge-info {
-    @apply bg-info-soft text-info;
-  }
-  .badge-neutral {
-    @apply border border-line bg-canvas text-muted;
-  }
-
-  /* forms */
-  .label {
-    @apply mb-1 block text-sm font-medium text-ink;
-  }
-  .input {
-    @apply min-h-11 w-full rounded-md border border-line bg-surface px-3 text-base text-ink placeholder:text-muted focus:border-primary focus:outline-2 focus:outline-primary-soft;
-  }
-  .helper-text {
-    @apply mt-1 text-sm text-muted;
-  }
-  .field-error {
-    @apply mt-1 text-sm text-danger;
-  }
-}
-
-/* respect users who turn off animations */
-@media (prefers-reduced-motion: reduce) {
-  *,
-  *::before,
-  *::after {
-    animation-duration: 0.01ms !important;
-    transition-duration: 0.01ms !important;
-  }
-}
-```
-
-Use Tailwind's built-in spacing (`p-4`, `gap-6`…) and text sizes (`text-sm`, `text-2xl`…); don't invent new ones.
-
-**Never use fixed colours; always theme tokens.** No `bg-white`, `text-white`, `text-black`, `bg-black`, `gray-*` / `slate-*` / `blue-*`… classes, hex codes or inline colour styles in HTML or JS: they stay the same in dark mode. Use the tokens (`bg-surface`, `text-ink`, `text-on-primary`…), or `dark:` for a one-off. The only exception is anything downloaded or printed (the Instagram poster in `js/share.js`), which always uses the fixed light palette.
+**Contrast check:** `node scripts/check-contrast.js` reads both themes from `src/input.css` and checks text pairs reach 4.5:1 (ink and muted on canvas and surface, ink on board, primary on canvas, surface, primary-soft and highlight, on-primary on primary and primary-hover, on-danger on danger, each status colour on its soft background and on canvas) and the parts of controls reach 3:1 (field-border on surface and canvas; primary on surface, canvas and board for the focus ring; danger on danger-soft for the error border). Run it after changing any colour.
 
 ### Light and dark mode
 
@@ -327,17 +197,22 @@ Use Tailwind's built-in spacing (`p-4`, `gap-6`…) and text sizes (`text-sm`, `
 - **No white flash:** `js/theme.js` is the first script in every page's `<head>`, before the stylesheets. It sets `data-theme="light" | "dark"` on `<html>` before anything is drawn. Every page loads the same file.
 - No colour transition on first load; a 150 ms transition only when the user switches (off with `prefers-reduced-motion`).
 - Leaflet: tiles stay as they are; popups, zoom buttons and the attribution use the theme colours (attribution stays readable).
-- **Contrast check:** `node scripts/check-contrast.js` reads both themes from `src/input.css` and checks the text pairs reach 4.5:1 (ink and muted on canvas and surface, primary on both, on-primary on primary, on-danger on danger, each status colour on its soft background). Run it after changing any colour.
 
 ### Components (classes above, reused everywhere)
 
-- **Buttons:** `btn btn-primary` (main action), `btn btn-secondary` (outline), `btn btn-danger` (only for destructive actions), `btn btn-ghost` (text only). Show a spinner and disable while an action is running so nothing is submitted twice.
-- **Cards:** `card` — white surface, large radius, soft shadow, border, lifts slightly on hover.
+- **Pinned notices (the signature — donation request cards only:** home "Pinned up this week", Browse needs, organization pages, donor Find needs; not the organization's own editable cards**):** the grid gets `noticeboard` (cork background) and each card is `article.notice`: paper, 6px corners, a marigold pin (CSS, no markup) at the top centre with a short shadow, and a gentle alternating tilt (−1°, 0.6°, −0.4°, 0.9°; never more than 1.2°). Hover (pointer devices only) or keyboard focus inside: straightens to 0°, lifts 2px, the pin's shadow shrinks (150 ms). With `prefers-reduced-motion`: no tilt, no movement.
+- **Tear-off tabs:** on notices, "still needed" is a strip of tabs (`itemTabs()` in js/requests.js, `.tear-tabs` with `role="img"` and the same label as the bar): one tab per unit up to 10, otherwise 10 tabs of 10%; solid = received, striped = promised, dashed and empty = still needed; at least one empty tab while anything is needed. "6 of 10 bags" is written under it.
+- **Cards:** `card` — everything else (events, stats, forms, review cards): straight, surface, 1px `line` border that turns `primary` on hover, 14px corners, no lift.
+- **Buttons:** `btn btn-primary` (main action: green on a solid darker edge, `box-shadow: 0 3px 0 primary-edge`; pressed: moves down 2px, edge 1px), `btn btn-secondary` (paper with an ink border and ink edge, same press), `btn btn-danger` (only for destructive actions, same shape in danger colours), `btn btn-ghost` (text only). No gradients or glow. Show a spinner and disable while an action is running so nothing is submitted twice.
+- **Focus:** every keyboard focus shows a 3px `primary` outline 2px away (inside tab lists it's drawn inside). Inputs show their focus border instead.
+- **Links in text:** `primary` with a thin underline; on hover a thick marigold `highlight` stroke behind the words (a background, so it wraps across lines). Applies to `a.text-primary` inside the page and to `.link`.
+- **Top bar and bottom bar:** the current page gets a short strip of marigold "tape" under it (`.top-link`, `.segmented-link`, `.bottom-nav-link`). Icon buttons (theme, language, messages, chat close) use `icon-btn`: a cork circle behind the icon on hover and focus.
+- **Paper forms:** `.input` for inputs, selects and textareas — surface, 1.5px `field-border`, 10px corners, at least 44px tall; label above in Atkinson 700, helper text in `muted` below; placeholders are realistic examples ("e.g. 5 bags of rice"), never the only label. Focus: 2px `primary` border plus a soft marigold glow (decorative; the green border meets contrast). Error: `aria-invalid="true"` gives a danger border on `danger-soft`, and `.field-error` (linked with `aria-describedby`) shows a Lucide alert-circle before the message. Longer textareas (descriptions, messages) add `input-ruled` (faint notepaper lines matched to the line-height). Search fields sit in `.search-field` (pill, magnifier, cork-tinted). Number fields for quantities are `.stepper`s: 44 × 44 − and + buttons ("Decrease" / "Increase", `stepNumber()` in js/ui.js) that respect `min` and `max` (e.g. what's still needed). Checkboxes and radios are 24px with a green tick or dot and a marigold glow on focus; selects use a Lucide chevron-down. The password eye button stays inside the field.
 - **Status badges** (pill shape, soft background + strong text):
   - requests: pending_approval = warning, open = info, fulfilled = success, closed / rejected = neutral / danger
   - offers: pending = warning, accepted = info, delivered = success, rejected / cancelled = neutral
 - **Urgency badge:** shows the AI score number **and** a word (Critical 80–100, High 60–79, Medium 40–59, Low 0–39). Never rely on color alone.
-- **Item progress bar:** for each request item show "6 of 10 bags", with a bar split into received (solid) and committed-not-yet-received (striped).
+- **Item progress bar** (the organization's own request cards): "6 of 10 bags", with a bar split into received (solid) and committed-not-yet-received (striped). Public request cards use tear-off tabs instead (above).
 - **"Why this score?" panel:** a collapsible section under the urgency badge showing the AI reasons, labelled with a small "AI-suggested" tag.
 - **Forms:** visible labels above every input (no placeholder-only labels), helper text under tricky fields, inline error messages in red below the field, required fields marked.
 - **Toasts:** bottom-centre on mobile, top-right on desktop; success / error variants; auto-hide after 4 s; announced to screen readers (`aria-live="polite"`).

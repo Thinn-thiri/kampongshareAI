@@ -130,7 +130,7 @@ const CHAT_MARKUP = `
         <h2 id="chat-title" class="text-base font-semibold" data-i18n="chat.title">Ask KampongShare</h2>
         <div class="flex items-center gap-1">
           <button type="button" class="btn btn-ghost px-3 text-sm" x-show="messages.length" @click="startOver()" data-i18n="chat.startOver">Start over</button>
-          <button type="button" class="btn btn-ghost size-11 px-0" aria-label="Close chat" data-i18n-attr="aria-label:chat.close" @click="closeChat()">
+          <button type="button" class="btn btn-ghost icon-btn size-11 px-0" aria-label="Close chat" data-i18n-attr="aria-label:chat.close" @click="closeChat()">
             <i data-lucide="x" class="size-5" aria-hidden="true"></i>
           </button>
         </div>
@@ -182,7 +182,7 @@ const CHAT_MARKUP = `
         <div class="space-y-3 pt-1" x-show="!busy">
           <template x-for="group in chipGroups" :key="group.key">
             <div>
-              <p class="mb-2 text-xs font-semibold tracking-wide text-muted uppercase" x-show="group.titleKey" x-text="group.titleKey ? $t(group.titleKey) : ''"></p>
+              <p class="mb-2 text-sm font-bold text-muted" x-show="group.titleKey" x-text="group.titleKey ? $t(group.titleKey) : ''"></p>
               <div class="flex flex-wrap gap-2">
                 <template x-for="chip in group.chips" :key="chip.key">
                   <button type="button" class="chip text-left" @click="tap(chip)" x-text="chipLabel(chip)"></button>

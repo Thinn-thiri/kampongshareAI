@@ -595,6 +595,24 @@ function friendlyError(error) {
 }
 
 /**
+ * The − / + buttons of a quantity stepper (.stepper): changes the number next to them by `delta`,
+ * staying within the input's min and max (e.g. what's still needed), then tells x-model.
+ * @param {HTMLElement} button
+ * @param {number} delta
+ */
+function stepNumber(button, delta) {
+  const input = button.closest(".stepper")?.querySelector("input");
+  if (!(input instanceof HTMLInputElement)) return;
+  const min = input.min === "" ? -Infinity : Number(input.min);
+  const max = input.max === "" ? Infinity : Number(input.max);
+  const current = Number(input.value);
+  const next = Math.min(max, Math.max(min, (Number.isFinite(current) && input.value !== "" ? current : delta > 0 ? min - 1 : min + 1) + delta));
+  if (!Number.isFinite(next) || String(next) === input.value) return;
+  input.value = String(next);
+  input.dispatchEvent(new Event("input", { bubbles: true }));
+}
+
+/**
  * Turns <i data-lucide="name"> placeholders into Lucide icons, now and whenever Alpine adds more.
  * Icons are decorative (aria-hidden), so if Lucide fails to load the page still works.
  * @returns {void}

@@ -9,7 +9,7 @@
 
 const TIMEOUT_MS = 8000;
 const SITE_TITLE = "KampongShare";
-const SITE_DESCRIPTION = "Give where it's needed most — donate items and volunteer with local organizations in Singapore.";
+const SITE_DESCRIPTION = "What our neighbours need this week — donate items and volunteer with local groups in Singapore.";
 
 /**
  * @param {unknown} value

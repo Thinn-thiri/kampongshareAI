@@ -248,18 +248,6 @@ document.addEventListener("alpine:init", () => {
     isActiveOffer,
 
     /**
-     * Widths for the progress bar: received (solid) and promised-but-not-received (striped).
-     * @param {RequestItem} item
-     * @returns {{ received: string, promised: string }}
-     */
-    barWidths(item) {
-      const needed = Math.max(item.quantity_needed, 1);
-      const received = Math.min(item.quantity_received / needed, 1) * 100;
-      const promised = Math.max(Math.min((item.quantity_committed - item.quantity_received) / needed * 100, 100 - received), 0);
-      return { received: `width: ${received}%`, promised: `width: ${promised}%` };
-    },
-
-    /**
      * @param {string} value
      * @returns {string}
      */
