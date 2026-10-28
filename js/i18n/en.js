@@ -646,7 +646,7 @@ const I18N_EN = {
     ai6: "People always make the decisions. AI only sorts and suggests.",
     ai7: "In the **Ask KampongShare** chat you can tap a suggested question or type your own. It only answers questions about KampongShare, uses public information only, and never shares anyone's personal information. Phone numbers, emails and similar details you type are removed before anything else happens, and chats aren't stored.",
     ai8: "You can use KampongShare in English, Chinese or Malay. AI answers are written in the language you choose (typed chat questions in the language you type), and only the language choice is sent with them.",
-    ai9: "AI **never reads your messages**.",
+    ai9: "If a message is in a different language from yours, it is automatically translated by an AI service (NVIDIA). Phone numbers, emails and links are removed before the text is sent. Translations are saved so each message is translated only once. You can turn automatic translation off on the Messages page.",
     keepTitle: "How long we keep it",
     keep1: "We keep your details while your account is open. When you delete your account, we remove your profile and personal details. Records of past donations may be kept for the organization, but without your name or contact details.",
     keep2: "We keep your donation and volunteering history for 12 months so you and the organizations can see what happened. You can ask us to delete it sooner.",
@@ -1000,6 +1000,8 @@ const I18N_EN = {
     resolveTitle: "Mark this report as resolved?",
     resolveText: "Do this once you've dealt with it. The report moves to History.",
     reportResolved: "The report was marked resolved.",
+    originalMessage: "Original message",
+    aiTranslation: "AI translation ({language})",
   },
 
   orgDash: {
@@ -1547,6 +1549,12 @@ const I18N_EN = {
     topicAbout: "About: {title}",
     topicOffer: "Your offer: {what}",
     topicApplication: "Your application: {title}",
+    translateSwitch: "Translate messages automatically",
+    translateHelp: "Messages in another language are translated by AI. You can always see the original.",
+    seeOriginal: "See original",
+    seeTranslation: "See translation",
+    translating: "Translating…",
+    translationUnavailable: "Translation unavailable",
   },
 
   styleguide: {

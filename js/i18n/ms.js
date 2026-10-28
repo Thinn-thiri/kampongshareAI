@@ -646,7 +646,7 @@ const I18N_MS = {
     ai6: "Manusia sentiasa membuat keputusan. AI hanya menyusun dan mencadangkan.",
     ai7: "Dalam sembang **Ask KampongShare**, anda boleh mengetik soalan cadangan atau menaip soalan sendiri. Ia hanya menjawab soalan tentang KampongShare, hanya menggunakan maklumat awam, dan tidak pernah berkongsi maklumat peribadi sesiapa. Nombor telefon, e-mel dan butiran seumpamanya yang anda taip dibuang sebelum apa-apa lagi berlaku, dan sembang tidak disimpan.",
     ai8: "Anda boleh menggunakan KampongShare dalam bahasa Inggeris, Cina atau Melayu. Jawapan AI ditulis dalam bahasa yang anda pilih (soalan sembang yang ditaip dalam bahasa yang anda taip), dan hanya pilihan bahasa dihantar bersamanya.",
-    ai9: "AI **tidak sekali-kali membaca mesej anda**.",
+    ai9: "Jika sesuatu mesej dalam bahasa yang berbeza daripada bahasa anda, ia diterjemah secara automatik oleh perkhidmatan AI (NVIDIA). Nombor telefon, e-mel dan pautan dibuang sebelum teks dihantar. Terjemahan disimpan supaya setiap mesej diterjemah sekali sahaja. Anda boleh mematikan terjemahan automatik di halaman Mesej.",
     keepTitle: "Berapa lama kami menyimpannya",
     keep1: "Kami menyimpan butiran anda selagi akaun anda dibuka. Apabila anda memadam akaun anda, kami membuang profil dan butiran peribadi anda. Rekod derma lepas mungkin disimpan untuk pertubuhan, tetapi tanpa nama atau butiran hubungan anda.",
     keep2: "Kami menyimpan sejarah derma dan kerja sukarela anda selama 12 bulan supaya anda dan pertubuhan dapat melihat apa yang berlaku. Anda boleh meminta kami memadamnya lebih awal.",
@@ -1000,6 +1000,8 @@ const I18N_MS = {
     resolveTitle: "Tandakan laporan ini sebagai selesai?",
     resolveText: "Lakukan ini selepas anda menguruskannya. Laporan akan berpindah ke Sejarah.",
     reportResolved: "Laporan ditanda selesai.",
+    originalMessage: "Mesej asal",
+    aiTranslation: "Terjemahan AI ({language})",
   },
 
   orgDash: {
@@ -1547,6 +1549,12 @@ const I18N_MS = {
     topicAbout: "Tentang: {title}",
     topicOffer: "Tawaran anda: {what}",
     topicApplication: "Permohonan anda: {title}",
+    translateSwitch: "Terjemah mesej secara automatik",
+    translateHelp: "Mesej dalam bahasa lain diterjemah oleh AI. Anda sentiasa boleh melihat teks asal.",
+    seeOriginal: "Lihat asal",
+    seeTranslation: "Lihat terjemahan",
+    translating: "Menterjemah…",
+    translationUnavailable: "Terjemahan tidak tersedia",
   },
 
   styleguide: {

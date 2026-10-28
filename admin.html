@@ -357,7 +357,22 @@
             <template x-for="row in browse.items" :key="row.id">
               <li class="card space-y-2">
                 <div class="flex flex-wrap items-start justify-between gap-2">
-                  <p class="min-w-0 font-semibold break-words" x-text="row.title"></p>
+                  <div class="min-w-0">
+                    <span class="block text-xs font-medium text-muted" x-show="row.statusKind === 'report'" data-i18n="admin.originalMessage">Original message</span>
+                    <p class="font-semibold break-words" x-text="row.title" :lang="row.statusKind === 'report' ? reportLang(row) : null"></p>
+                    <template x-if="row.statusKind === 'report'">
+                      <div class="mt-1 space-y-1 text-sm font-normal">
+                        <template x-if="reportTranslation(row)?.status === 'translated'">
+                          <div>
+                            <span class="flex flex-wrap items-center gap-2 text-xs font-medium text-muted"><span x-text="translationLabel()"></span> <span class="badge badge-ai" data-i18n="common.aiSuggested">AI-suggested</span></span>
+                            <span class="block break-words text-ink" x-text="reportTranslation(row).text" :lang="htmlLangOf(getLang())"></span>
+                          </div>
+                        </template>
+                        <p class="text-xs text-muted" x-show="reportTranslation(row)?.status === 'pending'" data-i18n="messages.translating">Translating…</p>
+                        <p class="text-xs text-muted" x-show="reportTranslation(row)?.status === 'unavailable'" data-i18n="messages.translationUnavailable">Translation unavailable</p>
+                      </div>
+                    </template>
+                  </div>
                   <span :class="statusInfo(row.status, row.statusKind).className" x-text="statusInfo(row.status, row.statusKind).label"></span>
                 </div>
                 <p class="text-sm text-muted break-words" x-show="row.detail" x-text="row.detail"></p>
@@ -389,7 +404,22 @@
               <tbody x-ref="browseRows">
                 <template x-for="row in browse.items" :key="row.id">
                   <tr class="border-b border-line align-top last:border-0">
-                    <td class="px-4 py-3 font-semibold break-words" x-text="row.title"></td>
+                    <td class="px-4 py-3 break-words">
+                      <span class="block text-xs font-medium text-muted" x-show="row.statusKind === 'report'" data-i18n="admin.originalMessage">Original message</span>
+                      <span class="font-semibold" x-text="row.title" :lang="row.statusKind === 'report' ? reportLang(row) : null"></span>
+                      <template x-if="row.statusKind === 'report'">
+                        <div class="mt-1 space-y-1 text-sm font-normal">
+                          <template x-if="reportTranslation(row)?.status === 'translated'">
+                            <div>
+                              <span class="flex flex-wrap items-center gap-2 text-xs font-medium text-muted"><span x-text="translationLabel()"></span> <span class="badge badge-ai" data-i18n="common.aiSuggested">AI-suggested</span></span>
+                              <span class="block break-words text-ink" x-text="reportTranslation(row).text" :lang="htmlLangOf(getLang())"></span>
+                            </div>
+                          </template>
+                          <p class="text-xs text-muted" x-show="reportTranslation(row)?.status === 'pending'" data-i18n="messages.translating">Translating…</p>
+                          <p class="text-xs text-muted" x-show="reportTranslation(row)?.status === 'unavailable'" data-i18n="messages.translationUnavailable">Translation unavailable</p>
+                        </div>
+                      </template>
+                    </td>
                     <td class="px-4 py-3 text-muted">
                       <span class="break-words" x-text="row.detail"></span>
                       <span class="mt-1 block break-words text-ink" x-show="row.reason" x-text="row.reason"></span>

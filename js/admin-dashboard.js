@@ -75,6 +75,11 @@ document.addEventListener("alpine:init", () => {
 
       /** @type {number | null} reported messages waiting (null while loading) */
       openReports: null,
+      /**
+       * AI translations of reported messages into the admin's language ("messageId:zh").
+       * @type {Record<string, { status: 'pending' | 'translated' | 'same' | 'unavailable', text: string | null, detected: string | null }>}
+       */
+      reportTranslations: {},
 
       /** @type {Record<string, number> | null} */
       stats: null,
@@ -98,6 +103,9 @@ document.addEventListener("alpine:init", () => {
 
       async init() {
         window.addEventListener("hashchange", () => this.applyRoute());
+        // Reported messages: translate them into the admin's language (and again after a switch)
+        /** @type {any} */ (this).$watch("browse.items", () => this.translateReports());
+        window.addEventListener("language-changed", () => this.translateReports());
         // the top bar shows the waiting count next to "To review"
         /** @type {any} */ (this).$watch("totalWaiting", (/** @type {number} */ total) => window.dispatchEvent(new CustomEvent("dashboard-counts", { detail: { review: total } })));
         this.applyRoute();
@@ -197,6 +205,42 @@ document.addEventListener("alpine:init", () => {
         } finally {
           this.reviewLoading = false;
         }
+      },
+
+      /** Asks for translations of the reported messages on screen (each is translated by the AI only once). */
+      async translateReports() {
+        if (this.browseKind !== "reports") return;
+        const lang = getLang();
+        const ids = this.browse.items.map((row) => row.raw?.message?.id).filter((id) => id && !this.reportTranslations[`${id}:${lang}`]);
+        if (!ids.length) return;
+        for (const id of ids) this.reportTranslations[`${id}:${lang}`] = { status: "pending", text: null, detected: null };
+        try {
+          const results = await translateMessages(ids, lang);
+          for (const id of ids) {
+            const r = results.get(id);
+            this.reportTranslations[`${id}:${lang}`] = r
+              ? { status: r.status, text: r.translated_text, detected: r.detected_lang }
+              : { status: "unavailable", text: null, detected: null };
+          }
+        } catch {
+          for (const id of ids) this.reportTranslations[`${id}:${lang}`] = { status: "unavailable", text: null, detected: null };
+        }
+      },
+
+      /** The translation of a reported message for the admin's language, or null. @param {BrowseRow} row */
+      reportTranslation(row) {
+        const id = row.raw?.message?.id;
+        return id ? (this.reportTranslations[`${id}:${getLang()}`] ?? null) : null;
+      },
+
+      /** @param {BrowseRow} row */
+      reportLang(row) {
+        return htmlLangOf(this.reportTranslation(row)?.detected);
+      },
+
+      /** "AI translation (中文)": the admin's language, named in that language. */
+      translationLabel() {
+        return t("admin.aiTranslation", { language: LANGUAGES.find((l) => l.code === getLang())?.name ?? "" });
       },
 
       async loadOpenReports() {

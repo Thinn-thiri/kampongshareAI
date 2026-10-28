@@ -646,7 +646,7 @@ const I18N_ZH = {
     ai6: "最终决定始终由人来做。AI 只负责排序和建议。",
     ai7: "在 **Ask KampongShare** 聊天中，您可以点选建议问题或自己输入问题。它只回答与 KampongShare 有关的问题，只使用公开资料，绝不会透露任何人的个人信息。您输入的电话号码、电邮和类似资料会在处理前先被删除，聊天内容也不会被保存。",
     ai8: "您可以用英文、中文或马来文使用 KampongShare。AI 的回答会以您选择的语言撰写（输入的聊天问题则以您输入的语言回答），随回答发送的只有语言选择。",
-    ai9: "AI **绝不会阅读您的消息**。",
+    ai9: "如果消息的语言与您的语言不同，会由 AI 服务（NVIDIA）自动翻译。发送文字之前，电话号码、电邮和链接会先被移除。翻译会被保存，所以每条消息只翻译一次。您可以在“消息”页面关闭自动翻译。",
     keepTitle: "我们保存多久",
     keep1: "在您的账户开启期间，我们会保存您的资料。当您删除账户时，我们会删除您的个人资料。过去的捐赠记录可能会为机构保留，但不会包含您的姓名或联系方式。",
     keep2: "我们会保存您的捐赠和志愿服务记录 12 个月，让您和机构可以查看过去的情况。您可以要求我们提早删除。",
@@ -1000,6 +1000,8 @@ const I18N_ZH = {
     resolveTitle: "将这条举报标为已处理？",
     resolveText: "处理完毕后再这样做。举报会移到“历史记录”。",
     reportResolved: "举报已标为已处理。",
+    originalMessage: "原文",
+    aiTranslation: "AI 翻译（{language}）",
   },
 
   orgDash: {
@@ -1547,6 +1549,12 @@ const I18N_ZH = {
     topicAbout: "关于：{title}",
     topicOffer: "您的捐赠：{what}",
     topicApplication: "您的报名：{title}",
+    translateSwitch: "自动翻译消息",
+    translateHelp: "其他语言的消息会由 AI 翻译。您随时可以查看原文。",
+    seeOriginal: "查看原文",
+    seeTranslation: "查看翻译",
+    translating: "正在翻译…",
+    translationUnavailable: "无法翻译",
   },
 
   styleguide: {

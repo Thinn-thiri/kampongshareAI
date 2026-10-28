@@ -308,6 +308,18 @@ html.theme-changing * {
     @apply max-w-[85%] rounded-lg rounded-tr-sm bg-primary px-3 py-2 text-sm text-on-primary;
   }
 
+  /* on / off switch (<input type="checkbox" role="switch">), inside a label at least 44px tall */
+  .switch {
+    @apply relative h-6 w-11 shrink-0 cursor-pointer appearance-none rounded-full border border-muted bg-canvas transition-colors duration-200 checked:border-primary checked:bg-primary focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary;
+  }
+  .switch::before {
+    content: "";
+    @apply absolute top-0.5 left-0.5 size-[1.125rem] rounded-full bg-muted transition-transform duration-200;
+  }
+  .switch:checked::before {
+    @apply translate-x-5 bg-on-primary;
+  }
+
   /* the unread number on the top bar's Messages button */
   .nav-count {
     @apply absolute top-0 right-0 inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-danger px-1 text-xs font-bold text-on-danger;

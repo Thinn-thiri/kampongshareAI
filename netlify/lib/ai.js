@@ -28,7 +28,7 @@ export function stripPersonalData(text) {
  * Sends a chat to NVIDIA Build (OpenAI-compatible). Returns the reply text, or null if the AI
  * isn't configured, fails or times out — callers always have a fallback.
  * @param {{ role: 'system' | 'user', content: string }[]} messages
- * @param {{ apiKey?: string, maxTokens?: number, fetch?: typeof fetch }} [options]
+ * @param {{ apiKey?: string, maxTokens?: number, fetch?: typeof fetch, timeoutMs?: number }} [options]
  * @returns {Promise<string | null>}
  */
 export async function chat(messages, options = {}) {
@@ -41,7 +41,7 @@ export async function chat(messages, options = {}) {
       method: "POST",
       headers: { "Content-Type": "application/json", Authorization: `Bearer ${apiKey}` },
       body: JSON.stringify({ model: MODEL, temperature: 0, max_tokens: options.maxTokens ?? 300, messages }),
-      signal: AbortSignal.timeout(TIMEOUT_MS),
+      signal: AbortSignal.timeout(options.timeoutMs ?? TIMEOUT_MS),
     });
     if (!response.ok) return null;
     const body = await response.json();

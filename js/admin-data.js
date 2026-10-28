@@ -601,7 +601,7 @@ async function listAdminBrowse(kind, view, search, from, to) {
     // Admins can read a message only once someone reported it (the database's rule)
     let query = client
       .from("message_reports")
-      .select("id, reason, status, created_at, reporter:profiles(full_name), message:messages(body, created_at, sender:profiles(full_name), conversation:conversations(topic, organization:organizations(name)))")
+      .select("id, reason, status, created_at, reporter:profiles(full_name), message:messages(id, body, created_at, sender:profiles(full_name), conversation:conversations(topic, organization:organizations(name)))")
       .in("status", BROWSE_STATUSES.reports[view]);
     if (q) query = query.ilike("reason", likePattern(q));
     const { data, error } = await query.order("created_at", { ascending: false }).range(from, to);

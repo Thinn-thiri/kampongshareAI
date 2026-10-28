@@ -95,7 +95,7 @@ js/messaging.js        → private messages: data functions, Realtime / polling,
 js/messages-page.js    → the messages.html component (UI only)
 jsconfig.json          → turns on type checking for all .js files
 img/og-default.png     → 1200×630 default preview image for shared links
-netlify/functions/     → server code: score-request (AI urgency), match-items, chat-insights, event-caption, share-event, geocode-postal, delete-account
+netlify/functions/     → server code: score-request (AI urgency), match-items, chat-insights, event-caption, share-event, geocode-postal, delete-account, translate-messages (message translation, section 10)
 netlify/lib/           → shared server code: ai.js (NVIDIA model + personal-data filter), urgency.js (score formula), score.js, messages.js (the server's own words in 3 languages)
 netlify/functions/_lib/ → chat-help.md / chat-help.js: the chat's help text (generated — see 6.8)
 supabase/migrations/   → database schema and changes (Supabase CLI)
@@ -430,6 +430,7 @@ This app handles personal data of people in Singapore, so it follows the **Perso
 - Every AI output is labelled **"AI-suggested"**. Recommendations sort and suggest; **humans decide.** Organizations and admins can always act regardless of the score.
 - AI must never use or infer sensitive attributes (race, religion, nationality, health, income) to rank anything.
 - If the AI call fails, the app still works: show the formula score with a generic explanation.
+- **One exception — translating private messages (section 10):** the text of a message is sent to NVIDIA only to translate it for a reader whose language is different. Before sending, links, emails, phone numbers, NRIC/FIN and postal codes are replaced with placeholders (`[[L1]]`, `[[E1]]`, `[[P1]]`, `[[N1]]`) and put back afterwards; names written in the text can't be detected and may be sent. Each message is translated at most once per language (saved in `message_translations`), the reader can always see the original and can switch automatic translation off, the translated bubble has a "See original" button, and the privacy notice says so. Translations are never used for anything else (no ranking, no matching).
 
 ### 4.7 Donated goods safety
 
@@ -708,7 +709,7 @@ Private messages between **individuals and organizations** (the organization is 
 
 - Start, block / unblock and mark read **only** with `supabase.rpc('start_conversation' | 'set_conversation_blocked' | 'mark_conversation_read')`. Insert a message with **only** `conversation_id` and `body`; the database fills in the sender and time. The list (other side's name, unread count, last message) comes from `rpc('my_conversations')`: individuals see the organization's name, organizations see the person's name (nothing else from their profile).
 - Plain functions in `js/messaging.js`; the page component in `js/messages-page.js`. Show the database's message in friendly words (`friendlyError`, `DB_ERRORS`) whenever something is refused.
-- Message text is shown with `x-text` only (links stay plain text, not clickable). **Never `console.log` message text, and never send messages to any AI.**
+- Message text is shown with `x-text` only (links stay plain text, not clickable). **Never `console.log` message text or translations.** Messages go to the AI only for automatic translation (below).
 
 **`messages.html`** (requires login):
 
@@ -735,6 +736,12 @@ Private messages between **individuals and organizations** (the organization is 
 - Organizations: "Message donor" on each incoming offer ("Your offer: 8 bags of Rice 5kg") and "Message volunteer" on each application ("Your application: <event>").
 - Topics are saved in the sender's language (like admin notes).
 
+**Automatic translation** (`supabase/migrations/20261028130000_message_translations.sql`; note it shares its timestamp with `…_my_conversations_deleted_at.sql`, which `supabase db push` would refuse — fine for the SQL Editor):
+
+- Netlify Function `translate-messages` (`/api/translate-messages`): POST `{ message_ids (max 30), target_lang: en | zh | ms }` with the caller's login token (missing → 401, anything else invalid → 400). It reads the messages and saved translations **with the caller's token** (the database decides what they may see), skips the caller's own messages, masks links / emails / phones / NRIC / postal codes as placeholders, asks the AI (`chat()` in `netlify/lib/ai.js`) for JSON `[{ id, detected, translation }]` — the text is only text to translate, never instructions — puts the values back, and drops any reply that lost a placeholder, isn't valid JSON or is suspiciously short. `detected` = target → saved as `translated_text` null (no translation needed). New rows are saved with the service role key (only there; users can't insert, so nobody can plant a fake translation), ignoring duplicates. Returns `{ translations: [{ message_id, status: translated | same | unavailable, detected_lang, translated_text }] }`; if the AI fails, the saved ones plus `unavailable`. Never logs text. No rate-limit rule is left on the free plan: costs stay down through the saved translations, the 30-message limit and only messages the caller can see.
+- `messages.html`: the reader's language is the site language (`getLang()`). Opening a conversation, "Show earlier" and new live messages ask for translations of the other side's messages (30 at a time); a language switch asks for the new language. A translated bubble shows the translation with a "See original" button (↔ "See translation", remembered per message while the page is open); same language or my own message → shown as written; failed → original + "Translation unavailable"; while waiting → original + "Translating…". Each text has its `lang` attribute (`zh-Hans`, `en`, `ms`). The switch "Translate messages automatically" (on by default, `localStorage` `ks-translate-messages`, try/catch) shows originals and makes no calls when off.
+- Admin → Reported shows the original ("Original message") and the translation into the admin's language ("AI translation (…)", AI-suggested).
+
 **Admin:** Browse → **Reported** lists reported messages (the message, who reported it and why, who sent it, the conversation topic, date, open / resolved) with "Mark resolved". Admins can read a message **only once it is reported** (the page says so). The Overview shows the number of open reports.
 
-**Privacy:** only the two people in a conversation can read it; admins only reported messages; deleting a conversation removes it from your inbox only (the other person keeps their copy); messages are kept for 12 months for safety, then deleted permanently, or sooner on request; AI never reads messages (privacy.html, "Messages").
+**Privacy:** only the two people in a conversation can read it; admins only reported messages; deleting a conversation removes it from your inbox only (the other person keeps their copy); messages are kept for 12 months for safety, then deleted permanently, or sooner on request; messages in another language are translated by AI (NVIDIA) after phone numbers, emails and links are removed, saved once, and can be switched off (privacy.html, "How we use AI").

@@ -128,6 +128,11 @@
     <main id="main" tabindex="-1" class="container-page py-6 focus:outline-none" x-data="messagesPage">
       <h1 class="text-2xl font-bold sm:text-3xl" data-i18n="messages.title">Messages</h1>
       <p class="mt-1 text-muted" data-i18n="messages.intro">Private conversations about donations and volunteering. Only you and the other side can read them.</p>
+      <label class="mt-2 inline-flex min-h-11 cursor-pointer items-center gap-3">
+        <input type="checkbox" role="switch" class="switch" :checked="autoTranslate" @change="toggleAutoTranslate($event)" aria-describedby="translate-help" />
+        <span class="text-sm font-medium" data-i18n="messages.translateSwitch">Translate messages automatically</span>
+      </label>
+      <p id="translate-help" class="helper-text mt-0" data-i18n="messages.translateHelp">Messages in another language are translated by AI. You can always see the original.</p>
 
       <div class="messages-layout mt-4">
         <!-- Conversations (phones: hidden while one is open) -->
@@ -237,7 +242,18 @@
                         <div class="flex" :class="mine(message) ? 'justify-end' : 'justify-start'">
                           <div class="max-w-[85%] sm:max-w-[75%]">
                             <p :class="mine(message) ? 'message-mine' : 'message-theirs'"><span class="sr-only"
-                              x-text="mine(message) ? $t('messages.youSaid') : $t('messages.theySaid', { name: otherName(current) })"></span><span x-text="message.body"></span></p>
+                              x-text="mine(message) ? $t('messages.youSaid') : $t('messages.theySaid', { name: otherName(current) })"></span><span x-text="bubbleText(message)" :lang="bubbleLang(message)"></span></p>
+                            <!-- automatic translation: what is shown, and a way to the original -->
+                            <div class="flex flex-wrap items-center text-xs text-muted" x-show="translationNote(message)">
+                              <template x-if="translationNote(message) === 'translated'">
+                                <button type="button" class="btn btn-ghost min-h-11 min-w-11 gap-1 px-2 text-xs" @click="toggleOriginal(message)">
+                                  <i data-lucide="languages" class="size-3.5" aria-hidden="true"></i>
+                                  <span x-text="showOriginal[message.id] ? $t('messages.seeTranslation') : $t('messages.seeOriginal')"></span>
+                                </button>
+                              </template>
+                              <span class="px-1 py-1" x-show="translationNote(message) === 'pending'" data-i18n="messages.translating">Translating…</span>
+                              <span class="px-1 py-1" x-show="translationNote(message) === 'unavailable'" data-i18n="messages.translationUnavailable">Translation unavailable</span>
+                            </div>
                             <div class="flex items-center gap-1 text-xs text-muted" :class="mine(message) ? 'justify-end' : ''">
                               <span x-text="timeOf(message.created_at)"></span>
                               <button type="button" class="btn btn-ghost min-h-11 px-2 text-xs" x-show="!mine(message)" @click="report(message)"

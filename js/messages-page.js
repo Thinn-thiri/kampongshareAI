@@ -58,6 +58,16 @@ document.addEventListener("alpine:init", () => {
       sendError: "",
       blocking: false,
 
+      /** "Translate messages automatically" (remembered in this browser) */
+      autoTranslate: autoTranslateOn(),
+      /**
+       * AI translations of the other side's messages, per message and reader language ("id:zh").
+       * @type {Record<string, { status: 'pending' | 'translated' | 'same' | 'unavailable', text: string | null, detected: string | null }>}
+       */
+      translations: {},
+      /** @type {Record<string, boolean>} messages switched to "See original" (while the page is open) */
+      showOriginal: {},
+
       async init() {
         const profile = await getProfile().catch(() => null);
         if (!profile) return; // js/auth.js sends visitors to the login page
@@ -70,6 +80,8 @@ document.addEventListener("alpine:init", () => {
         });
         stopWatching = watchMessages((message) => this.onChange(message));
         window.addEventListener("pagehide", () => stopWatching?.());
+        // a new site language: translate into it
+        window.addEventListener("language-changed", () => this.translate(this.messages));
         this.applyHash();
       },
 
@@ -169,6 +181,7 @@ document.addEventListener("alpine:init", () => {
           if (this.currentId !== id) return;
           this.messages = messages;
           this.hasEarlier = more;
+          this.translate(messages);
         } catch (error) {
           this.messagesError = friendlyError(error);
         } finally {
@@ -214,6 +227,7 @@ document.addEventListener("alpine:init", () => {
           const { messages, more } = await loadMessages(this.currentId, first.created_at);
           this.messages = [...messages, ...this.messages];
           this.hasEarlier = more;
+          this.translate(messages);
           await this.$nextTick();
           // keep the reader's place instead of jumping
           if (log) log.scrollTop = log.scrollHeight - fromBottom;
@@ -269,6 +283,7 @@ document.addEventListener("alpine:init", () => {
         const log = this.$refs.log;
         const atEnd = !log || log.scrollHeight - log.scrollTop - log.clientHeight < 80;
         this.messages = [...this.messages, message].sort((a, b) => a.created_at.localeCompare(b.created_at));
+        this.translate([message]);
         if (atEnd || message.sender_id === this.me) this.$nextTick(() => this.scrollToEnd());
         if (markRead && message.sender_id !== this.me) this.markRead();
       },
@@ -276,6 +291,74 @@ document.addEventListener("alpine:init", () => {
       /** @param {Message} message */
       mine(message) {
         return message.sender_id === this.me;
+      },
+
+      // ---------- automatic translation ----------
+
+      /**
+       * Asks for translations of the other side's messages into the site language (never my own,
+       * never when the switch is off, never twice for the same message and language).
+       * @param {Message[]} list
+       */
+      async translate(list) {
+        if (!this.autoTranslate) return;
+        const lang = getLang();
+        const ids = list.filter((m) => !this.mine(m) && !this.translations[`${m.id}:${lang}`]).map((m) => m.id);
+        if (!ids.length) return;
+        for (const id of ids) this.translations[`${id}:${lang}`] = { status: "pending", text: null, detected: null };
+        try {
+          const results = await translateMessages(ids, lang);
+          for (const id of ids) {
+            const r = results.get(id);
+            this.translations[`${id}:${lang}`] = r
+              ? { status: r.status, text: r.translated_text, detected: r.detected_lang }
+              : { status: "same", text: null, detected: null }; // not mine to translate
+          }
+        } catch {
+          for (const id of ids) this.translations[`${id}:${lang}`] = { status: "unavailable", text: null, detected: null };
+        }
+      },
+
+      /** @param {Event} event */
+      toggleAutoTranslate(event) {
+        this.autoTranslate = /** @type {HTMLInputElement} */ (event.target).checked;
+        setAutoTranslate(this.autoTranslate);
+        // failed ones get another try when it's turned back on
+        for (const [key, value] of Object.entries(this.translations)) if (value.status === "unavailable") delete this.translations[key];
+        this.translate(this.messages);
+      },
+
+      /** The translation state of a message for the current language, or null (mine / switch off). @param {Message} m */
+      translationOf(m) {
+        if (!this.autoTranslate || this.mine(m)) return null;
+        return this.translations[`${m.id}:${getLang()}`] ?? null;
+      },
+
+      /** @param {Message} m */
+      showsTranslation(m) {
+        const tr = this.translationOf(m);
+        return Boolean(tr?.status === "translated" && tr.text && !this.showOriginal[m.id]);
+      },
+
+      /** The text shown in the bubble: the translation, or the original as written. @param {Message} m */
+      bubbleText(m) {
+        return this.showsTranslation(m) ? /** @type {string} */ (this.translationOf(m)?.text) : m.body;
+      },
+
+      /** The lang attribute for the shown text (null when we don't know). @param {Message} m */
+      bubbleLang(m) {
+        return this.showsTranslation(m) ? htmlLangOf(getLang()) : htmlLangOf(this.translationOf(m)?.detected);
+      },
+
+      /** 'translated' | 'pending' | 'unavailable' | null (nothing to show under the bubble). @param {Message} m */
+      translationNote(m) {
+        const status = this.translationOf(m)?.status;
+        return status === "translated" || status === "pending" || status === "unavailable" ? status : null;
+      },
+
+      /** @param {Message} m */
+      toggleOriginal(m) {
+        this.showOriginal[m.id] = !this.showOriginal[m.id];
       },
 
       /** Messages grouped by day, with "Today" / "Yesterday" / the date between them. @returns {DayGroup[]} */

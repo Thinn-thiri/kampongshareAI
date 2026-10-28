@@ -170,6 +170,72 @@ function reportQuickReasons() {
   return ["money", "rude", "spam", "other"].map((key) => t(`messages.reportReason.${key}`));
 }
 
+/**
+ * A saved or new AI translation of someone else's message (netlify/functions/translate-messages.js).
+ * @typedef {Object} MessageTranslation
+ * @property {string} message_id
+ * @property {'translated' | 'same' | 'unavailable'} status   same = already in the reader's language
+ * @property {'en' | 'zh' | 'ms' | 'other' | null} detected_lang
+ * @property {string | null} translated_text
+ */
+
+/** Most messages the translation function takes at once. */
+const TRANSLATE_BATCH = 30;
+/** localStorage key for the "Translate messages automatically" switch. */
+const AUTO_TRANSLATE_KEY = "ks-translate-messages";
+
+/**
+ * Translations of other people's messages into `lang`, 30 at a time. The server reads them with my
+ * login, so only messages I can see are translated; each is translated by the AI only once.
+ * Messages missing from the result (e.g. my own) aren't translated. Throws when the function fails.
+ * @param {string[]} ids
+ * @param {Lang} lang
+ * @returns {Promise<Map<string, MessageTranslation>>}
+ */
+async function translateMessages(ids, lang) {
+  /** @type {Map<string, MessageTranslation>} */
+  const out = new Map();
+  if (!ids.length) return out;
+  const {
+    data: { session },
+  } = await db().auth.getSession();
+  if (!session) return out;
+  for (let start = 0; start < ids.length; start += TRANSLATE_BATCH) {
+    const response = await fetch("/api/translate-messages", {
+      method: "POST",
+      headers: { "Content-Type": "application/json", Authorization: `Bearer ${session.access_token}` },
+      body: JSON.stringify({ message_ids: ids.slice(start, start + TRANSLATE_BATCH), target_lang: lang }),
+    });
+    if (!response.ok) throw new Error(`HTTP ${response.status}`); // i18n-ignore (shown as "Translation unavailable")
+    const body = await response.json();
+    for (const row of body?.translations ?? []) out.set(row.message_id, row);
+  }
+  return out;
+}
+
+/** The "Translate messages automatically" switch: on unless turned off in this browser. */
+function autoTranslateOn() {
+  try {
+    return localStorage.getItem(AUTO_TRANSLATE_KEY) !== "off";
+  } catch {
+    return true;
+  }
+}
+
+/** @param {boolean} on */
+function setAutoTranslate(on) {
+  try {
+    localStorage.setItem(AUTO_TRANSLATE_KEY, on ? "on" : "off");
+  } catch {
+    // storage blocked: the choice lasts until the page is closed
+  }
+}
+
+/** The lang attribute for text in a language: Chinese is written in Simplified characters. @param {string | null | undefined} lang */
+function htmlLangOf(lang) {
+  return lang === "zh" ? "zh-Hans" : lang === "en" || lang === "ms" ? lang : null; // i18n-ignore (language tag)
+}
+
 /** @type {Set<(message: Message | null) => void>} */
 const messageWatchers = new Set();
 /** @type {any} */
