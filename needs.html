@@ -208,6 +208,22 @@
         <button type="button" class="btn btn-secondary" x-show="hasFilters" @click="clearFilters()" data-i18n="needs.clearFilters">Clear filters</button>
       </div>
 
+      <!-- A request reached through a link after its deadline: no Offer buttons (REQUIREMENTS 11) -->
+      <template x-if="!loading && expiredRequest">
+        <article id="expired-request" class="card space-y-3 border-warning" tabindex="-1" aria-labelledby="expired-request-title">
+          <span :class="DEADLINE_BADGE.className" x-text="DEADLINE_BADGE.label"></span>
+          <h2 id="expired-request-title" class="text-lg font-semibold break-words" x-text="expiredRequest.title"></h2>
+          <a class="text-sm font-medium text-primary" :href="`/org.html?id=${expiredRequest.organization_id}`" x-text="expiredRequest.organization?.name || $t('common.organization')"></a>
+          <p class="text-sm text-muted" x-text="$t('common.neededBy', { date: formatDate(expiredRequest.deadline) })"></p>
+          <p class="rounded-md bg-warning-soft p-3 text-sm text-warning" data-i18n="deadlines.noNewOffers">This request's deadline has passed, so it isn't taking new offers.</p>
+          <ul class="space-y-1 text-sm">
+            <template x-for="item in expiredRequest.request_items" :key="item.id">
+              <li class="break-words"><span class="font-bold" x-text="item.name"></span> · <span class="text-muted" x-text="$t('requests.progress', { committed: item.quantity_committed, needed: item.quantity_needed, unit: item.unit })"></span></li>
+            </template>
+          </ul>
+        </article>
+      </template>
+
       <!-- Requests -->
       <div class="noticeboard grid gap-4 md:grid-cols-2" x-show="!loading && !error">
         <template x-for="request in filtered" :key="request.id">

@@ -178,6 +178,33 @@
           </div>
         </div>
 
+        <!-- Deadlines (REQUIREMENTS 11): open requests past their deadline, events that ended but aren't completed -->
+        <div class="space-y-3">
+          <h3 class="text-xl font-semibold" data-i18n="deadlines.adminHeading">Past their date</h3>
+          <div class="grid grid-cols-2 gap-3 lg:grid-cols-5">
+            <a href="#browse/requests?view=active&filter=past_deadline" class="card block p-4 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary">
+              <span class="block text-sm text-muted" data-i18n="deadlines.deadlinePassed">Deadline passed</span>
+              <template x-if="deadlineCounts === null">
+                <span class="skeleton mt-2 block h-8 w-12" aria-hidden="true"></span>
+              </template>
+              <template x-if="deadlineCounts !== null">
+                <span class="mt-1 block text-3xl font-bold" x-text="deadlineCounts.pastDeadline"></span>
+              </template>
+              <span class="sr-only" data-i18n="deadlines.pastDeadlineList">open requests — open the list</span>
+            </a>
+            <a href="#browse/events?view=active&filter=ended" class="card block p-4 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary">
+              <span class="block text-sm text-muted" data-i18n="deadlines.endedNotCompleted">Ended, not completed</span>
+              <template x-if="deadlineCounts === null">
+                <span class="skeleton mt-2 block h-8 w-12" aria-hidden="true"></span>
+              </template>
+              <template x-if="deadlineCounts !== null">
+                <span class="mt-1 block text-3xl font-bold" x-text="deadlineCounts.endedEvents"></span>
+              </template>
+              <span class="sr-only" data-i18n="deadlines.endedList">events — open the list</span>
+            </a>
+          </div>
+        </div>
+
         <div class="grid gap-6 lg:grid-cols-2">
           <!-- Waiting longest -->
           <div class="card space-y-3">
@@ -328,6 +355,10 @@
             <i data-lucide="lock" class="mt-0.5 size-4 shrink-0" aria-hidden="true"></i>
             <span data-i18n="admin.reportsNote">You can only read messages that someone reported. The rest of each conversation stays private between the two people in it.</span>
           </p>
+          <div class="flex flex-wrap items-center justify-between gap-3 rounded-md border border-warning bg-warning-soft p-3 text-sm text-warning" x-show="browseFilter" x-cloak role="status">
+            <p x-text="browseFilter === 'past_deadline' ? $t('deadlines.showingPastDeadline') : $t('deadlines.showingEnded')"></p>
+            <button type="button" class="btn btn-secondary min-h-11 px-3" @click="clearBrowseFilter()" data-i18n="deadlines.clearFilter">Show all</button>
+          </div>
           <div class="flex flex-col gap-3 lg:flex-row lg:items-end lg:justify-between">
             <div class="flex flex-wrap gap-2" role="group" aria-label="Show" data-i18n-attr="aria-label:admin.show">
               <template x-for="view in browseViews" :key="view.value">

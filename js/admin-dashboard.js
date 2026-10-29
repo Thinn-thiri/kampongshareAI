@@ -61,6 +61,10 @@ document.addEventListener("alpine:init", () => {
       /** @type {BrowseView} */
       browseView: "active",
       browseSearch: "",
+      /** "" or an extra filter from BROWSE_FILTERS (only for its own kind) */
+      browseFilter: "",
+      /** @type {{ pastDeadline: number, endedEvents: number } | null} */
+      deadlineCounts: null,
 
       /** Everything waiting for review, per kind (counts come from these lists). */
       /** @type {Record<ReviewKind, ReviewItem[]>} */
@@ -109,7 +113,7 @@ document.addEventListener("alpine:init", () => {
         // the top bar shows the waiting count next to "To review"
         /** @type {any} */ (this).$watch("totalWaiting", (/** @type {number} */ total) => window.dispatchEvent(new CustomEvent("dashboard-counts", { detail: { review: total } })));
         this.applyRoute();
-        await Promise.all([this.loadReview(), this.loadRecent(), this.loadStats(), this.loadOpenReports()]);
+        await Promise.all([this.loadReview(), this.loadRecent(), this.loadStats(), this.loadOpenReports(), this.loadDeadlineCounts()]);
         window.dispatchEvent(new CustomEvent("dashboard-counts", { detail: { review: this.totalWaiting } }));
         this.openItemFromRoute();
       },
@@ -127,8 +131,10 @@ document.addEventListener("alpine:init", () => {
           const kind = BROWSE_KINDS.some((k) => k.value === target) ? /** @type {BrowseKind} */ (target) : this.browseKind;
           const view = BROWSE_VIEWS.some((v) => v.value === params.get("view")) ? /** @type {BrowseView} */ (params.get("view")) : "active";
           const search = params.get("q") ?? "";
-          const changed = kind !== this.browseKind || view !== this.browseView || search !== this.browseSearch || !this.browse.loaded;
-          Object.assign(this, { browseKind: kind, browseView: view, browseSearch: search });
+          const filter = params.get("filter") === BROWSE_FILTERS[kind] ? /** @type {string} */ (params.get("filter")) : "";
+          const changed =
+            kind !== this.browseKind || view !== this.browseView || search !== this.browseSearch || filter !== this.browseFilter || !this.browse.loaded;
+          Object.assign(this, { browseKind: kind, browseView: view, browseSearch: search, browseFilter: filter });
           if (changed) this.reloadBrowse();
         }
         if (tab === "review") this.openItemFromRoute();
@@ -148,7 +154,12 @@ document.addEventListener("alpine:init", () => {
       },
 
       browseParams() {
-        return { view: this.browseView, q: this.browseSearch.trim() };
+        return { view: this.browseView, q: this.browseSearch.trim(), filter: this.browseFilter };
+      },
+
+      clearBrowseFilter() {
+        this.browseFilter = "";
+        this.go("browse", this.browseKind, this.browseParams());
       },
 
       /**
@@ -241,6 +252,14 @@ document.addEventListener("alpine:init", () => {
       /** "AI translation (中文)": the admin's language, named in that language. */
       translationLabel() {
         return t("admin.aiTranslation", { language: LANGUAGES.find((l) => l.code === getLang())?.name ?? "" });
+      },
+
+      async loadDeadlineCounts() {
+        try {
+          this.deadlineCounts = await countDeadlineAttention();
+        } catch {
+          this.deadlineCounts = null;
+        }
       },
 
       async loadOpenReports() {
@@ -392,7 +411,7 @@ document.addEventListener("alpine:init", () => {
 
       reloadBrowse() {
         this.browse = historyPager(
-          (from, to) => listAdminBrowse(this.browseKind, this.browseView, this.browseSearch, from, to),
+          (from, to) => listAdminBrowse(this.browseKind, this.browseView, this.browseSearch, from, to, this.browseFilter),
           () => t(`admin.noun.${this.browseKind}`),
         );
         this.browse.load();
@@ -406,6 +425,7 @@ document.addEventListener("alpine:init", () => {
       /** @param {BrowseView} view */
       showBrowseView(view) {
         this.browseView = view;
+        this.browseFilter = "";
         this.go("browse", this.browseKind, this.browseParams());
       },
 
@@ -526,6 +546,7 @@ document.addEventListener("alpine:init", () => {
           focusHeading("browse-heading"); // the row may move to History: keep keyboard users in this section
           await this.browse.load();
           this.loadRecent();
+          this.loadDeadlineCounts();
         } catch (error) {
           toast(friendlyError(error), "error");
         } finally {

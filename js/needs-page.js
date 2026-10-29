@@ -42,6 +42,9 @@ document.addEventListener("alpine:init", () => {
     sending: false,
     /** @type {string | null} item highlighted from ?item= */
     focusItemId: null,
+    /** @type {DonationRequest | null} the linked request, when its deadline has passed */
+    expiredRequest: null,
+    DEADLINE_BADGE,
 
     async init() {
       const params = new URLSearchParams(location.search);
@@ -135,12 +138,18 @@ document.addEventListener("alpine:init", () => {
      * Back from login (or from an Offer link elsewhere): show that item and open its form.
      * @param {string} itemId
      */
-    focusItem(itemId) {
+    async focusItem(itemId) {
       const visible = this.filtered.some((r) => r.request_items.some((i) => i.id === itemId));
       if (!visible) this.clearFilters();
       const item = this.requests.flatMap((r) => r.request_items).find((i) => i.id === itemId);
       if (!item) {
-        toast(t("needs.notOpen"), "error");
+        const request = await getOpenRequest({ itemId }).catch(() => null);
+        if (request && isPastDeadline(request)) {
+          this.expiredRequest = request;
+          setTimeout(() => document.getElementById("expired-request")?.focus(), 50);
+        } else {
+          toast(t("needs.notOpen"), "error");
+        }
         return;
       }
       if (this.mode === "donor" && item.quantity_remaining > 0 && !this.activeOfferFor(item)) this.openOffer(item);

@@ -152,7 +152,7 @@
           <a class="font-medium text-primary underline-offset-2 hover:underline" :href="event ? `/org.html?id=${event.organization_id}` : '/'"
             x-text="event?.organization?.name"></a>
           <h1 class="text-2xl font-bold break-words sm:text-3xl" x-text="event?.title"></h1>
-          <span class="badge badge-neutral mt-2" x-show="isOver && event?.status !== 'cancelled'" data-i18n="event.ended">This event has ended</span>
+          <span class="badge badge-success mt-2" x-show="isHappeningNow" data-i18n="enum.eventStatus.ongoing">Happening now</span>
           <div class="mt-1 flex flex-wrap gap-2">
             <a class="btn btn-ghost -ml-3 px-3 text-sm" x-show="ownsContent(event?.organization_id)" href="/organization.html#events" data-i18n="common.manageOwn">Your organization · Manage</a>
             <a class="btn btn-ghost -ml-3 px-3 text-sm" x-show="isAdmin()" href="/admin.html#browse/events?view=active" data-i18n="common.openInAdmin">Open in admin</a>
@@ -175,6 +175,12 @@
         <div class="rounded-md border border-warning bg-warning-soft p-4 text-warning" role="status" x-show="event?.status === 'cancelled'">
           <p class="font-semibold break-words" x-text="cancelReason ? $t('event.cancelledWithReason', { reason: cancelReason }) : $t('event.cancelled')"></p>
           <p class="mt-1 text-sm text-ink" data-i18n="event.cancelledThanks">Thank you for your interest. See the organization's page for other ways to help.</p>
+        </div>
+
+        <!-- Ended (not cancelled): no more volunteers (REQUIREMENTS 11) -->
+        <div class="rounded-md border border-line bg-canvas p-4" role="status" x-show="isOver && event?.status !== 'cancelled'">
+          <p class="font-semibold" data-i18n="event.ended">This event has ended</p>
+          <p class="mt-1 text-sm text-muted" data-i18n="deadlines.endedThanks">Thank you to everyone who helped. See the organization's page for other ways to help.</p>
         </div>
 
         <!-- Completed: what happened -->
@@ -236,9 +242,6 @@
                 <a :href="loginHref" class="btn btn-secondary min-h-14 w-full text-base" data-i18n="common.volunteer">Volunteer</a>
                 <p class="helper-text text-center" data-i18n="event.visitorNote">Log in or sign up to volunteer — we'll bring you back here.</p>
               </div>
-            </template>
-            <template x-if="volunteerState === 'ended'">
-              <button type="button" class="btn btn-secondary min-h-14 w-full text-base" disabled data-i18n="event.eventEnded">Event ended</button>
             </template>
             <template x-if="volunteerState === 'full'">
               <button type="button" class="btn btn-secondary min-h-14 w-full text-base" disabled data-i18n="event.eventFull">Event full</button>

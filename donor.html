@@ -272,7 +272,22 @@
           <p class="text-danger" x-text="requestsError"></p>
           <button type="button" class="btn btn-secondary mt-3" @click="loadRequests()" data-i18n="common.tryAgain">Try again</button>
         </div>
-        <div class="card flex flex-col items-center gap-3 text-center py-10" x-show="!loadingRequests && !requestsError && shownRequests.length === 0" x-cloak>
+        <!-- the linked request's deadline has passed: no Offer buttons (REQUIREMENTS 11) -->
+        <template x-if="!loadingRequests && expiredRequest">
+          <article class="card space-y-3 border-warning" aria-labelledby="expired-request-title">
+            <span :class="DEADLINE_BADGE.className" x-text="DEADLINE_BADGE.label"></span>
+            <h3 id="expired-request-title" class="text-lg font-semibold break-words" x-text="expiredRequest.title"></h3>
+            <a class="text-sm font-medium text-primary" :href="`/org.html?id=${expiredRequest.organization_id}`" x-text="expiredRequest.organization?.name || $t('common.organization')"></a>
+            <p class="text-sm text-muted" x-text="$t('common.neededBy', { date: formatDate(expiredRequest.deadline) })"></p>
+            <p class="rounded-md bg-warning-soft p-3 text-sm text-warning" data-i18n="deadlines.noNewOffers">This request's deadline has passed, so it isn't taking new offers.</p>
+            <ul class="space-y-1 text-sm">
+              <template x-for="item in expiredRequest.request_items" :key="item.id">
+                <li class="break-words"><span class="font-bold" x-text="item.name"></span> · <span class="text-muted" x-text="$t('requests.progress', { committed: item.quantity_committed, needed: item.quantity_needed, unit: item.unit })"></span></li>
+              </template>
+            </ul>
+          </article>
+        </template>
+        <div class="card flex flex-col items-center gap-3 text-center py-10" x-show="!loadingRequests && !requestsError && shownRequests.length === 0 && !expiredRequest" x-cloak>
           <i data-lucide="package-open" class="size-10 text-primary" aria-hidden="true"></i>
           <p class="text-muted" x-text="filterText ? $t('donor.requestNotOpen') : $t('donor.noOpenRequests')"></p>
         </div>
@@ -442,6 +457,10 @@
                   <span :class="offerDisplay(offer).className" x-text="offerDisplay(offer).label"></span>
                 </div>
 
+                <!-- Pending on a request past its deadline: the organization can still accept it -->
+                <p class="rounded-md bg-warning-soft p-3 text-sm text-warning" x-show="offer.status === 'pending' && offer.item?.request?.status === 'open' && isPastDeadline(offer.item?.request)"
+                  data-i18n="deadlines.waitingForOrg">Deadline passed — waiting for the organization</p>
+
                 <!-- Accepted: where to bring it -->
                 <div class="rounded-md border border-info bg-info-soft p-4 text-info" x-show="offer.status === 'accepted'">
                   <p class="font-semibold" data-i18n="donor.acceptedDropOff">Your offer was accepted — please drop off at:</p>
@@ -492,7 +511,7 @@
                   <span :class="offerDisplay(offer).className" x-text="offerDisplay(offer).label"></span>
                 </div>
                 <p class="text-sm text-muted whitespace-pre-line break-words"
-                  x-show="offerDisplay(offer).label === 'Request closed' && offer.item?.request?.close_reason"
+                  x-show="offer.status === 'rejected' && offer.item?.request?.status !== 'open' && offer.item?.request?.close_reason"
                   x-text="$t('admin.reasonLine', { reason: offer.item?.request?.close_reason })"></p>
               </li>
             </template>

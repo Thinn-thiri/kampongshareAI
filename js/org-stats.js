@@ -1,7 +1,8 @@
 // @ts-check
 // Summary cards and "Needs your action" on organization.html's Overview (REQUIREMENTS.md section 3:
 // dashboards start with 3–4 stat cards). Reuses the same data functions as the other sections;
-// refreshes when they change, and sends the numbers for the top bar's badges.
+// refreshes when they change, and sends the numbers for the top bar's badges. The deadline rows
+// (past-deadline requests, ended events) come from deadlineActions() in js/org-deadlines.js.
 
 /**
  * @typedef {Object} OrgStats
@@ -21,6 +22,7 @@ document.addEventListener("alpine:init", () => {
     /** @type {OrgStats | null} */
     stats: null,
     error: "",
+    ...deadlineActions(),
 
     async init() {
       await this.load();
@@ -36,6 +38,8 @@ document.addEventListener("alpine:init", () => {
           countPendingApplications(orgId),
         ]);
         const open = requests.filter((r) => r.status === "open");
+        this.pastDeadline = pastDeadlineRequests(requests);
+        this.endedEvents = endedOpenEvents(events);
         this.stats = {
           openRequests: open.length,
           itemsNeeded: open.reduce((sum, r) => sum + r.request_items.reduce((s, i) => s + i.quantity_remaining, 0), 0),

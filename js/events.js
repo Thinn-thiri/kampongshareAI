@@ -27,7 +27,7 @@
  * @property {string | null} [admin_note]   not included for visitors
  * @property {string} created_at
  * @property {{ name: string } | null} [organization]
- * @property {{ title: string, id?: string, status?: RequestStatus } | null} [request]
+ * @property {{ title: string, id?: string, status?: RequestStatus, deadline?: string | null } | null} [request]
  */
 
 /**
@@ -105,7 +105,7 @@ function formatEventTime(start, end, lang) {
  * @returns {boolean}
  */
 function isNotOver(event) {
-  return new Date(event.ends_at ?? event.starts_at).getTime() >= Date.now();
+  return !hasEnded(event); // the rule lives in js/ui.js
 }
 
 /**
@@ -134,7 +134,7 @@ function eventRow(form) {
 async function listMyEvents(orgId) {
   const { data, error } = await db()
     .from("events")
-    .select("*, request:donation_requests(title)")
+    .select("*, request:donation_requests(id, title, status)")
     .eq("organization_id", orgId)
     .order("starts_at", { ascending: false });
   if (error) throw error;
@@ -201,7 +201,7 @@ function isActiveEventStatus(event) {
 async function listMyEventHistory(orgId, from, to) {
   const { data, error } = await db()
     .from("events")
-    .select("*, request:donation_requests(title)")
+    .select("*, request:donation_requests(id, title, status)")
     .eq("organization_id", orgId)
     .in("status", ["completed", "cancelled"])
     .order("starts_at", { ascending: false })
@@ -361,7 +361,7 @@ async function listOrgUpcomingEvents(orgId) {
 async function getPublicEvent(id) {
   const { data, error } = await db()
     .from("events")
-    .select(`${PUBLIC_EVENT_COLUMNS}, organization:organizations(name), request:donation_requests(id, title, status)`)
+    .select(`${PUBLIC_EVENT_COLUMNS}, organization:organizations(name), request:donation_requests(id, title, status, deadline)`)
     .eq("id", id)
     .eq("approval", "approved")
     .maybeSingle();

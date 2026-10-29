@@ -43,7 +43,7 @@ document.addEventListener("alpine:init", () => {
         events: [],
         loading: true,
         loadError: "",
-        /** @type {{ id: string, title: string, status: RequestStatus }[]} */
+        /** @type {{ id: string, title: string, status: RequestStatus, deadline: string | null }[]} */
         myRequests: [],
 
         showForm: false,
@@ -89,7 +89,7 @@ document.addEventListener("alpine:init", () => {
             const [events, requests] = await Promise.all([listMyEvents(orgId), listMyRequests(orgId)]);
             this.hasApplications = await eventsWithApplications(events.filter(isActiveEventStatus).map((e) => e.id));
             this.events = events;
-            this.myRequests = requests.map((r) => ({ id: r.id, title: r.title, status: r.status }));
+            this.myRequests = requests.map((r) => ({ id: r.id, title: r.title, status: r.status, deadline: r.deadline }));
             if (this.history.loaded) await this.history.load();
           } catch (error) {
             this.loadError = friendlyError(error);
@@ -103,6 +103,13 @@ document.addEventListener("alpine:init", () => {
           return this.myRequests.filter(
             (r) => !["closed", "rejected"].includes(r.status) || r.id === this.form.donationRequestId,
           );
+        },
+
+        /** A gentle note when the linked request's deadline is after the event's day (still allowed). */
+        get linkDeadlineWarning() {
+          const request = this.myRequests.find((r) => r.id === this.form.donationRequestId);
+          const eventDay = (this.form.endsAt || this.form.startsAt).slice(0, 10);
+          return Boolean(request?.deadline && eventDay && request.deadline > eventDay);
         },
 
         get editingApproved() {
@@ -310,12 +317,14 @@ document.addEventListener("alpine:init", () => {
             toast(t("orgDash.completed"));
             focusHeading("events-heading"); // the card may be gone: keep keyboard users in this section
             this.completingId = null;
-            await this.load();
+            window.dispatchEvent(new CustomEvent("events-changed")); // reloads this section and the Overview
           } catch (error) {
             toast(friendlyError(error), "error");
+            return;
           } finally {
             this.busyId = null;
           }
+          await offerToCloseLinkedRequest(event);
         },
 
         /**
@@ -340,12 +349,14 @@ document.addEventListener("alpine:init", () => {
             toast(t("orgDash.cancelled"));
             focusHeading("events-heading"); // the card may be gone: keep keyboard users in this section
             if (this.editing?.id === event.id) this.cancelForm();
-            await this.load();
+            window.dispatchEvent(new CustomEvent("events-changed")); // reloads this section and the Overview
           } catch (error) {
             toast(friendlyError(error), "error");
+            return;
           } finally {
             this.busyId = null;
           }
+          await offerToCloseLinkedRequest(event);
         },
 
         /** @param {VolunteerEvent} event */

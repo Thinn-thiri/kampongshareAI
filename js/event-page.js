@@ -79,6 +79,11 @@ document.addEventListener("alpine:init", () => {
       }
     },
 
+    /** Started but not ended yet (and not cancelled or completed). */
+    get isHappeningNow() {
+      return Boolean(this.event && (this.event.status === "upcoming" || this.event.status === "ongoing") && eventTiming(this.event) === "now");
+    },
+
     get isOver() {
       return this.event ? !isNotOver(this.event) || this.event.status === "completed" || this.event.status === "cancelled" : false;
     },
@@ -117,11 +122,11 @@ document.addEventListener("alpine:init", () => {
       return "/login.html?next=" + encodeURIComponent(`/event.html?id=${id}&apply=1`);
     },
 
-    /** Donate → the linked request if it's open, otherwise the organization's open requests. */
+    /** Donate → the linked request if it's open and within its deadline, otherwise the organization's open requests. */
     get donateHref() {
       if (!this.event) return "/donor.html";
       const request = this.event.request;
-      if (request?.id && request.status === "open") return `/donor.html?request=${encodeURIComponent(request.id)}`;
+      if (request?.id && request.status === "open" && !isPastDeadline(request)) return `/donor.html?request=${encodeURIComponent(request.id)}`;
       return `/donor.html?org=${encodeURIComponent(this.event.organization_id)}`;
     },
 

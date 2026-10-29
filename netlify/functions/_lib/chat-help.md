@@ -31,7 +31,11 @@ Sign up and tick "I want to volunteer". An admin checks new volunteer accounts f
 
 ### How do offers work?
 
-An offer is your promise to give a number of one item, never more than is still needed. You can have one active offer per item; to change the amount, cancel it and offer again. The organization accepts or declines it. If a request closes, waiting offers are declined automatically, but accepted ones still go ahead.
+An offer is your promise to give a number of one item, never more than is still needed. You can have one active offer per item; to change the amount, cancel it and offer again. The organization accepts or declines it. If a request closes, waiting offers are declined automatically, but accepted ones still go ahead. After a request's deadline, it takes no new offers.
+
+### What happens after a deadline?
+
+Each request can have a deadline. After that day (Singapore time), it stops taking new offers and disappears from the lists. Offers already made can still be accepted, and accepted ones are still delivered. Events work the same way: once an event ends, it leaves the map and takes no new volunteers. Organizations can extend a deadline or close the request.
 
 ### What can I donate?
 
@@ -47,7 +51,7 @@ Yes! One account can do both. Tick both when you sign up, or turn the other one 
 
 ### How do I post a request?
 
-Once an admin has approved your organization, go to Requests and press "New donation request". Add a title, the items and quantities you need, a deadline and drop-off instructions. An admin checks every request before donors can see it.
+Once an admin has approved your organization, go to Requests and press "New donation request". Add a title, the items and quantities you need, a deadline and drop-off instructions. An admin checks every request before donors can see it. After the deadline, donors can't make new offers; you can extend it from your Overview.
 
 ### Why is my request waiting for approval?
 

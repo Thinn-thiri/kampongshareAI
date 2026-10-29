@@ -6,6 +6,11 @@
 //   Shortfall (max 30):             30 × (units still needed ÷ units needed), all items together
 //   Organization's urgency (max 30): critical 30 · high 20 · medium 10 · low 0
 
+import { daysUntil } from "./dates.js";
+
+// Whole days until the deadline, counted in Singapore days (shared with match-items and chat-insights)
+export { daysUntil };
+
 /** Singapore areas (public area names) — same list as SG_AREAS in js/ui.js. */
 export const SG_AREAS = [
   "Ang Mo Kio", "Bedok", "Bishan", "Bukit Batok", "Bukit Merah", "Bukit Panjang", "Bukit Timah",
@@ -21,20 +26,6 @@ const URGENCY_POINTS = { critical: 30, high: 20, medium: 10, low: 0 };
  * @typedef {{ key: 'deadline' | 'shortfall' | 'urgency', label: string, points: number, max: number }} Factor
  * @typedef {{ quantity_needed: number, quantity_remaining: number }} ScoredItem
  */
-
-/**
- * Whole days from today until a YYYY-MM-DD deadline (negative if past), or null.
- * @param {string | null | undefined} deadline
- * @param {Date} today
- * @returns {number | null}
- */
-export function daysUntil(deadline, today) {
-  if (!deadline) return null;
-  const [y, m, d] = deadline.split("-").map(Number);
-  const due = Date.UTC(y, m - 1, d);
-  const now = Date.UTC(today.getFullYear(), today.getMonth(), today.getDate());
-  return Math.round((due - now) / 86400000);
-}
 
 /**
  * @param {number | null} days

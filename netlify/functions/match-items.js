@@ -14,6 +14,7 @@
 // The model and the personal-data filter live in netlify/lib/ai.js (one MODEL constant for all functions).
 import { chat, stripPersonalData } from "../lib/ai.js";
 import { isLang, serverT } from "../lib/messages.js";
+import { daysUntil, notPastDeadlineFilter } from "../lib/dates.js";
 
 /** @typedef {import("../lib/messages.js").Lang} Lang */
 
@@ -108,7 +109,8 @@ function serviceHeaders(key) {
 }
 
 /**
- * Open requests of approved organizations, with the items still needed (same as what the public sees).
+ * Open requests of approved organizations that aren't past their deadline, with the items still needed
+ * (same as what the public sees).
  * @param {Deps} deps
  * @returns {Promise<OpenRequest[]>}
  */
@@ -120,6 +122,7 @@ async function loadOpenRequests(deps) {
       "id,title,deadline,urgency,ai_score,organization:organizations!inner(name,address,approval),request_items(id,name,category,unit,quantity_needed,quantity_remaining)",
     status: "eq.open",
     "organization.approval": "eq.approved",
+    or: notPastDeadlineFilter(deps.today), // never suggest a request past its deadline
   });
   const response = await deps.fetch(`${url}/rest/v1/donation_requests?${params}`, {
     headers: serviceHeaders(key),
@@ -174,20 +177,6 @@ function words(text) {
       .filter((w) => w.length >= 3)
       .map((w) => w.replace(/(xes|ches|shes)$/, (m) => m.slice(0, -2)).replace(/s$/, "")),
   );
-}
-
-/**
- * Whole days from today until a YYYY-MM-DD deadline (negative if past).
- * @param {string | null} deadline
- * @param {Date} today
- * @returns {number | null}
- */
-function daysUntil(deadline, today) {
-  if (!deadline) return null;
-  const [y, m, d] = deadline.split("-").map(Number);
-  const due = Date.UTC(y, m - 1, d);
-  const now = Date.UTC(today.getFullYear(), today.getMonth(), today.getDate());
-  return Math.round((due - now) / 86400000);
 }
 
 /**

@@ -59,6 +59,13 @@ const CHAT_QUESTIONS = [
     followUps: ["dropoff", "what_donate", "most_needed"],
   },
   {
+    id: "deadlines",
+    group: "start",
+    show: everyone,
+    links: [{ labelKey: "chat.link.browseNeeds", href: "/needs.html" }],
+    followUps: ["ending_soon", "how_offers", "upcoming_events"],
+  },
+  {
     id: "what_donate",
     group: "start",
     show: individuals,

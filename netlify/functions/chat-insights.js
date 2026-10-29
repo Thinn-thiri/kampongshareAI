@@ -10,6 +10,7 @@
 // in the language it's typed in. Fixed replies and templates come from netlify/lib/messages.js.
 // Env: SUPABASE_URL, SUPABASE_ANON_KEY (the same public key as in js/config.js), NVIDIA_API_KEY (optional).
 
+import { notEndedFilter, notPastDeadlineFilter, sgToday } from "../lib/dates.js";
 import { chat, stripPersonalData } from "../lib/ai.js";
 import { SG_AREAS, areaOf } from "../lib/urgency.js";
 import { HELP_TEXT, HELP_QUESTIONS } from "./_lib/chat-help.js";
@@ -129,8 +130,8 @@ async function readPublic(deps, table, params) {
 }
 
 /**
- * Every open request item that still needs something, with public facts only (no descriptions).
- * @param {{ env: Record<string, string | undefined>, fetch: typeof fetch }} deps
+ * Every open request item that still needs something and isn't past its deadline, with public facts only (no descriptions).
+ * @param {{ env: Record<string, string | undefined>, fetch: typeof fetch, now?: Date }} deps
  * @returns {Promise<ItemFact[]>}
  */
 async function loadOpenItems(deps) {
@@ -140,6 +141,7 @@ async function loadOpenItems(deps) {
     new URLSearchParams({
       select: "id,deadline,ai_score,organization:organizations(address),request_items(id,name,category,unit,quantity_remaining)",
       status: "eq.open",
+      or: notPastDeadlineFilter(deps.now ?? new Date()), // never suggest a request past its deadline
     }),
   );
   return rows.flatMap((request) =>
@@ -159,7 +161,7 @@ async function loadOpenItems(deps) {
 }
 
 /**
- * Approved events starting in the next 14 days, soonest first.
+ * Approved events that haven't ended and start within the next 14 days, soonest first.
  * @param {{ env: Record<string, string | undefined>, fetch: typeof fetch }} deps
  * @param {Date} now
  * @returns {Promise<EventFact[]>}
@@ -171,7 +173,7 @@ async function loadUpcomingEvents(deps, now) {
     status: "in.(upcoming,ongoing)",
     order: "starts_at.asc",
   });
-  params.append("starts_at", `gte.${now.toISOString()}`);
+  params.append("or", notEndedFilter(now)); // happening now counts; ended events never
   params.append("starts_at", `lte.${new Date(now.getTime() + 14 * DAY_MS).toISOString()}`);
   const rows = await readPublic(deps, "events", params);
   return rows.map((event) => ({ id: event.id, startsAt: event.starts_at, area: areaOf(event.organization?.address ?? null) }));
@@ -669,8 +671,8 @@ export async function handle(req, deps = { env: process.env, fetch }) {
     /** @type {string} */
     let template;
     if (id === "ending_soon") {
-      const today = new Date(now.getTime() + 8 * 3_600_000).toISOString().slice(0, 10); // Singapore date
-      const limit = new Date(now.getTime() + 8 * 3_600_000 + 7 * DAY_MS).toISOString().slice(0, 10);
+      const today = sgToday(now);
+      const limit = sgToday(new Date(now.getTime() + 7 * DAY_MS));
       chosen = items
         .filter((i) => i.deadline && i.deadline >= today && i.deadline <= limit)
         .sort((a, b) => (a.deadline ?? "").localeCompare(b.deadline ?? "") || byNeed(a, b))

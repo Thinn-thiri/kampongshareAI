@@ -44,7 +44,7 @@ Community donation and volunteer platform for Singapore. Hackathon prototype.
 - **Close request:** dialog with an optional reason (`donation_requests.close_reason`, max 300 characters). The database sets `closed_at`.
 - **Cancel event:** dialog with a **required** reason (`events.cancel_reason`, max 300 characters) and a warning that approved volunteers will see it. The database sets `cancelled_at`. Visitors can read the reason (column grant), and `event.html` shows "This event was cancelled: <reason>" and hides the Volunteer button.
 - **Delete** only while nothing depends on the row: requests still pending approval, and events nobody has applied to (`event_has_applications()`). Otherwise show Close / Cancel instead.
-- Maps and public event lists show only upcoming and ongoing events.
+- Maps and public event lists show only upcoming and ongoing events that haven't ended, and request lists only open requests that aren't past their deadline (section 11).
 - History is kept for 12 months (privacy notice); users can ask for it to be deleted sooner.
 - The original migration file (`20261026040000_history_and_cancel.sql`) was rebuilt from the live database; see its header.
 
@@ -83,7 +83,7 @@ package.json           → Tailwind packages + scripts
 js/config.js           → Supabase URL + anon key only
 js/supabase.js         → creates the client
 js/auth.js             → getProfile(), requireAccess('donor' | 'volunteer' | 'organization' | 'admin'), logout
-js/ui.js               → toast(), confirmDialog(), formatDate(), statusBadge(), escapeHtml()
+js/ui.js               → toast(), confirmDialog(), formatDate(), statusBadge(), escapeHtml(), the deadline checks (section 11)
 js/theme.js            → light / dark mode: sets data-theme first thing in <head>, theme menu (section 3)
 js/i18n/en.js, zh.js, ms.js → every text the site shows, in English, 简体中文 and Bahasa Melayu (section 9)
 js/i18n.js             → languages: t(), $t, data-i18n, enumLabel(), areaLabel(), the language menu (section 9)
@@ -91,12 +91,13 @@ js/share.js            → share links, poster image, copy caption (section 5)
 js/chat-questions.js   → every chat question (who sees it, links, follow-ups); the words are in js/i18n/*.js
 js/chat.js             → the "Ask KampongShare" chat widget (section 6.8)
 js/geocode.js          → lookupPostalCode(): postal code → { address, latitude, longitude } via geocode-postal
+js/org-deadlines.js    → organization.html's deadline rows in "Needs your action" and "Also close the linked request?" (section 11)
 js/messaging.js        → private messages: data functions, Realtime / polling, the top bar's unread count (section 10)
 js/messages-page.js    → the messages.html component (UI only)
 jsconfig.json          → turns on type checking for all .js files
 img/og-default.png     → 1200×630 default preview image for shared links
 netlify/functions/     → server code: score-request (AI urgency), match-items, chat-insights, event-caption, share-event, geocode-postal, delete-account, translate-messages (message translation, section 10)
-netlify/lib/           → shared server code: ai.js (NVIDIA model + personal-data filter), urgency.js (score formula), score.js, messages.js (the server's own words in 3 languages)
+netlify/lib/           → shared server code: ai.js (NVIDIA model + personal-data filter), urgency.js (score formula), score.js, messages.js (the server's own words in 3 languages), dates.js (Singapore dates, section 11)
 netlify/functions/_lib/ → chat-help.md / chat-help.js: the chat's help text (generated — see 6.8)
 supabase/migrations/   → database schema and changes (Supabase CLI)
 scripts/               → check-supabase.js, check-contrast.js, check-i18n.js, seed.js, score-requests.js, build-chat-help.js (run with node)
@@ -544,7 +545,7 @@ The kinds and what the panel shows:
 - Shows loading, empty and error states.
 - Database errors are shown to the user in friendly words.
 - No secrets or personal data in frontend code, URLs or console logs.
-- Follows sections 2–7, 9 and 10 of this file.
+- Follows sections 2–7 and 9–11 of this file.
 - Every new text uses a translation key in all three language files; `node scripts/check-i18n.js` passes.
 - No `// @ts-check` warnings in changed files.
 
@@ -620,3 +621,29 @@ Private messages between **individuals and organizations** (the organization is 
 **Admin:** Browse → **Reported** lists reported messages (the message, who reported it and why, who sent it, the conversation topic, date, open / resolved) with "Mark resolved". Admins can read a message **only once it is reported** (the page says so). The Overview shows the number of open reports.
 
 **Privacy:** only the two people in a conversation can read it; admins only reported messages; deleting a conversation removes it from your inbox only (the other person keeps their copy); messages are kept for 12 months for safety, then deleted permanently, or sooner on request; messages in another language are translated by AI (NVIDIA) after phone numbers, emails and links are removed, saved once, and can be switched off (privacy.html, "How we use AI").
+
+---
+
+## 11. Deadlines and event end times
+
+The rules live in `supabase/migrations/20261029040000_deadlines.sql`; the optional `20261029050000_deadline_auto_close.sql` tidies up once a day (needs the `pg_cron` extension).
+
+**The rules (enforced by the database):**
+
+- **Deadlines are whole days in Singapore time.** A request is **past its deadline** when `deadline < today in Asia/Singapore` (`sg_today()` in the database). A request with no deadline never passes it.
+- A request past its deadline takes **no new offers** ("The deadline for this request has passed, so it isn't taking new offers"). Offers already made can still be accepted and delivered, and the organization can still extend the deadline or close the request.
+- An event has **ended** when its end time (or its start time, if it has no end time) is before now; it is **happening now** when it has started but not ended. An ended event takes no new applications or approvals ("This event has already ended"); withdrawing and rejecting still work.
+- `public_stats()` doesn't count past-deadline requests or ended events.
+- **Auto-close (optional):** every day at 2 am Singapore time, open requests 7 days past their deadline are closed ("Deadline passed"; their waiting offers become "Request closed"), and upcoming / ongoing events that ended 3 days ago are marked completed.
+
+**In code — one place:** `js/ui.js` has `sgToday()`, `isPastDeadline(request)`, `eventTiming(event)` (`'upcoming' | 'now' | 'ended'`), `hasEnded(event)`, `eventTimingBadge(event)`, `DEADLINE_BADGE` and `notPastDeadlineFilter()` (Supabase `.or()` filter). `isNotOver()` (js/events.js) and `todayIso()` (js/requests.js) use them. On the server, `netlify/lib/dates.js` has the same rules (`sgToday`, `daysUntil`, `notPastDeadlineFilter`, `notEndedFilter`); `urgency.js` counts days in Singapore time too. Never compare dates in the device's own time zone.
+
+**Where it shows:**
+
+- **Public pages:** home, Browse needs, organization pages and donor Find needs show only open requests that aren't past their deadline (`listOpenRequests`, `listOrgOpenRequests`); maps and event lists only events that haven't ended. A request reached through a link (`needs.html?item=`, `donor.html?request=`) after its deadline shows a "Deadline passed" card with no Offer buttons. `event.html`: "Happening now" while it runs; once ended, "This event has ended" (plus "How it went" if completed) and no Volunteer button; Donate skips a linked request that's past its deadline.
+- **AI:** `match-items` and `chat-insights` never suggest past-deadline requests or ended events (events happening now still count). The chat explains the rules ("What happens after a deadline?").
+- **Donors:** a pending offer on an open request past its deadline shows "Deadline passed — waiting for the organization"; accepted offers keep their drop-off instructions.
+- **Volunteers:** ended events leave Find events; their applications move to History with "Event ended".
+- **Organizations:** "Needs your action" sits at the top of the Overview and lists open requests past their deadline ("Extend deadline": a date picker, today or later · "Close request": the reason is pre-filled "Deadline passed") and events that have ended but are still upcoming / ongoing ("Mark completed" with an outcome summary · "Cancel event"), with the auto-close note. After marking an event completed or cancelled (here or in Events), if its linked request is still open: "Also close the linked request "<title>"?" → Close it (reason "Event ended") / Keep it open. Linking a request whose deadline is after the event's day shows a gentle warning (allowed). Badges: "Deadline passed" on requests; "Happening now" / "Ended" on events.
+- **Admin:** the Overview's "Past their date" cards count open requests past their deadline and events that ended but aren't completed; each opens Browse with a filter (`#browse/requests?view=active&filter=past_deadline`, `#browse/events?view=active&filter=ended`) shown as a "Show all" note.
+

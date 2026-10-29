@@ -19,14 +19,14 @@
  * @property {string} created_at
  * @property {string} updated_at   when the status last changed (the "ended" date in History)
  * @property {{ name: string, unit: string, category: ItemCategory,
- *              request: { title: string, status: RequestStatus, dropoff_instructions: string | null,
+ *              request: { title: string, status: RequestStatus, deadline: string | null, dropoff_instructions: string | null,
  *                         close_reason: string | null, closed_at: string | null,
  *                         organization: { name: string, address: string | null } | null } | null } | null} item
  */
 
 /** What the donor sees of each offer: the item, its request (incl. why it closed) and the organization. */
 const MY_OFFER_COLUMNS =
-  "*, item:request_items(name, unit, category, request:donation_requests(title, status, dropoff_instructions, close_reason, closed_at, organization:organizations(name, address)))";
+  "*, item:request_items(name, unit, category, request:donation_requests(title, status, deadline, dropoff_instructions, close_reason, closed_at, organization:organizations(name, address)))";
 
 /** Offer statuses that are finished and belong in History. */
 const PAST_OFFER_STATUSES = ["delivered", "cancelled", "rejected"];
@@ -50,11 +50,36 @@ async function listOpenRequests() {
     .from("donation_requests")
     .select(`${PUBLIC_REQUEST_COLUMNS}, organization:organizations(name, address), request_items(*)`)
     .eq("status", "open")
+    .or(notPastDeadlineFilter())
     .order("ai_score", { ascending: false, nullsFirst: false })
     .order("deadline", { ascending: true, nullsFirst: false })
     .order("created_at", { ascending: true });
   if (error) throw error;
   return /** @type {DonationRequest[]} */ (/** @type {unknown} */ (data ?? [])).map(sortItems);
+}
+
+/**
+ * One open request reached through a link (?request= or ?item=), even when its deadline has
+ * passed, so the page can say "Deadline passed" instead of "not open". Null when it isn't open.
+ * @param {{ requestId?: string | null, itemId?: string | null }} target
+ * @returns {Promise<DonationRequest | null>}
+ */
+async function getOpenRequest(target) {
+  let requestId = target.requestId ?? null;
+  if (!requestId && target.itemId) {
+    const { data: item, error: itemError } = await db().from("request_items").select("request_id").eq("id", target.itemId).maybeSingle();
+    if (itemError) throw itemError;
+    requestId = item?.request_id ?? null;
+  }
+  if (!requestId) return null;
+  const { data, error } = await db()
+    .from("donation_requests")
+    .select(`${PUBLIC_REQUEST_COLUMNS}, organization:organizations(name, address), request_items(*)`)
+    .eq("id", requestId)
+    .eq("status", "open")
+    .maybeSingle();
+  if (error) throw error;
+  return data ? sortItems(/** @type {DonationRequest} */ (/** @type {unknown} */ (data))) : null;
 }
 
 /**

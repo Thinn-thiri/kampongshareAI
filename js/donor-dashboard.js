@@ -59,6 +59,9 @@ document.addEventListener("alpine:init", () => {
     /** Filters from event.html's Donate button: ?request=<id> or ?org=<id> */
     filterRequestId: new URLSearchParams(location.search).get("request"),
     filterOrgId: new URLSearchParams(location.search).get("org"),
+    /** @type {DonationRequest | null} the linked request (?request=), when its deadline has passed */
+    expiredRequest: null,
+    DEADLINE_BADGE,
 
     get shownRequests() {
       if (this.filterRequestId) return this.requests.filter((r) => r.id === this.filterRequestId);
@@ -77,6 +80,7 @@ document.addEventListener("alpine:init", () => {
 
     clearFilter() {
       this.filterRequestId = null;
+      this.expiredRequest = null;
       this.filterOrgId = null;
       history.replaceState(null, "", location.pathname + location.hash);
     },
@@ -116,6 +120,11 @@ document.addEventListener("alpine:init", () => {
       this.requestsError = "";
       try {
         this.requests = await listOpenRequests();
+        const linked = this.filterRequestId;
+        if (linked && !this.requests.some((r) => r.id === linked)) {
+          const request = await getOpenRequest({ requestId: linked }).catch(() => null);
+          this.expiredRequest = request && isPastDeadline(request) ? request : null;
+        }
       } catch (error) {
         this.requestsError = friendlyError(error);
       } finally {

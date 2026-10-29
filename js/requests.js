@@ -392,6 +392,19 @@ async function closeRequest(id, reason = "") {
 }
 
 /**
+ * Moves an open request's deadline (e.g. after it passed). Only the deadline changes;
+ * the database checks the organization owns the request.
+ * @param {string} id
+ * @param {string} deadline YYYY-MM-DD, today or later
+ * @returns {Promise<void>}
+ */
+async function extendDeadline(id, deadline) {
+  const { data, error } = await db().from("donation_requests").update({ deadline }).eq("id", id).select("id");
+  if (error) throw error;
+  if (!data?.length) throw { code: "42501", message: "No request was updated" }; // i18n-ignore (shown via friendlyError by its code)
+}
+
+/**
  * Deletes a request that is still waiting for approval (nobody has seen it yet).
  * Approved requests are closed instead, so donors and the organization keep their history.
  * @param {string} id
@@ -414,6 +427,7 @@ async function listOrgOpenRequests(orgId) {
     .select(`${PUBLIC_REQUEST_COLUMNS}, request_items(*)`)
     .eq("organization_id", orgId)
     .eq("status", "open")
+    .or(notPastDeadlineFilter())
     .order("ai_score", { ascending: false, nullsFirst: false })
     .order("deadline", { ascending: true, nullsFirst: false });
   if (error) throw error;
@@ -474,11 +488,11 @@ async function setRequestApproval(id, status, note = "") {
 }
 
 /**
- * Today's date as YYYY-MM-DD in the user's time zone.
+ * Today's date as YYYY-MM-DD in Singapore (deadlines are Singapore days).
  * @returns {string}
  */
 function todayIso() {
-  return new Date().toLocaleDateString("en-CA");
+  return sgToday();
 }
 
 /**

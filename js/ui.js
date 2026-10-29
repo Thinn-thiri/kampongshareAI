@@ -212,7 +212,8 @@ function confirmDialog(message, options = {}) {
  * Resolves with the trimmed reason ("" when optional and left empty), or null when cancelled.
  * @param {string} message
  * quickReasons: optional one-tap reasons ("Missing details"…) that fill the note; the text box stays editable.
- * @param {{ title?: string, label?: string, required?: boolean, maxLength?: number, confirmText?: string, cancelText?: string, danger?: boolean, warning?: string, quickReasons?: string[] }} [options]
+ * initialValue: text already in the box (e.g. "Deadline passed"), still editable.
+ * @param {{ title?: string, label?: string, required?: boolean, maxLength?: number, confirmText?: string, cancelText?: string, danger?: boolean, warning?: string, quickReasons?: string[], initialValue?: string }} [options]
  * @returns {Promise<string | null>}
  */
 function reasonDialog(message, options = {}) {
@@ -226,6 +227,7 @@ function reasonDialog(message, options = {}) {
     danger = false,
     warning = "",
     quickReasons = [],
+    initialValue = "",
   } = options;
   const dialog = document.createElement("dialog");
   dialog.className = "dialog";
@@ -260,6 +262,8 @@ function reasonDialog(message, options = {}) {
   const count = /** @type {HTMLElement} */ (dialog.querySelector("#reason-dialog-count"));
   const error = /** @type {HTMLElement} */ (dialog.querySelector("#reason-dialog-error"));
   const updateCount = () => (count.textContent = t("ui.reasonCount", { count: input.value.length, max: maxLength }));
+  input.value = initialValue.slice(0, maxLength);
+  updateCount();
   for (const chip of dialog.querySelectorAll("[data-reason]")) {
     chip.addEventListener("click", () => {
       input.value = (chip.getAttribute("data-reason") ?? "").slice(0, maxLength);
@@ -447,6 +451,82 @@ function statusInfo(status, kind) {
   return STATUS_BADGE[kind][status] ?? { className: "badge badge-neutral", label: status };
 }
 
+// ---------- deadlines and event end times (REQUIREMENTS 11) ----------
+
+/**
+ * Today's date in Singapore as YYYY-MM-DD, whatever the device's time zone.
+ * Deadlines are whole days in Singapore time, like the database's sg_today().
+ * @param {Date} [now]
+ * @returns {string}
+ */
+function sgToday(now = new Date()) {
+  return now.toLocaleDateString("en-CA", { timeZone: "Asia/Singapore" }); // i18n-ignore (a date key, never shown)
+}
+
+/**
+ * True when a request's deadline was before today in Singapore (a request with no deadline never passes it).
+ * @param {{ deadline?: string | null } | null | undefined} request
+ * @returns {boolean}
+ */
+function isPastDeadline(request) {
+  return Boolean(request?.deadline) && String(request?.deadline) < sgToday();
+}
+
+/**
+ * Where an event is in time: 'upcoming' (not started), 'now' (started, not ended) or 'ended'
+ * (its end time, or its start time when it has none, is before now).
+ * @param {{ starts_at: string, ends_at?: string | null }} event
+ * @param {number} [now] milliseconds
+ * @returns {'upcoming' | 'now' | 'ended'}
+ */
+function eventTiming(event, now = Date.now()) {
+  const start = new Date(event.starts_at).getTime();
+  const end = new Date(event.ends_at ?? event.starts_at).getTime();
+  if (end < now) return "ended";
+  return start <= now ? "now" : "upcoming";
+}
+
+/**
+ * @param {{ starts_at: string, ends_at?: string | null }} event
+ * @returns {boolean}
+ */
+function hasEnded(event) {
+  return eventTiming(event) === "ended";
+}
+
+/**
+ * The badge for an event: for approved upcoming / ongoing events it follows the clock
+ * ("Happening now" while it runs, "Ended" once it's over but not yet marked completed);
+ * otherwise the event's status badge.
+ * @param {{ status: string, approval?: string, starts_at: string, ends_at?: string | null }} event
+ * @returns {{ className: string, label: string }}
+ */
+function eventTimingBadge(event) {
+  if (event.status === "upcoming" || event.status === "ongoing") {
+    const timing = eventTiming(event);
+    if (timing === "ended") return { className: "badge badge-warning", label: t("deadlines.ended") };
+    if (timing === "now") return statusInfo("ongoing", "event");
+    return statusInfo("upcoming", "event");
+  }
+  return statusInfo(event.status, "event");
+}
+
+/**
+ * Supabase .or() filter for requests that are still within their deadline (or have none).
+ * @returns {string}
+ */
+function notPastDeadlineFilter() {
+  return `deadline.is.null,deadline.gte.${sgToday()}`; // i18n-ignore (a database filter)
+}
+
+/** The "Deadline passed" badge shown beside an open request's status. */
+const DEADLINE_BADGE = {
+  className: "badge badge-warning",
+  get label() {
+    return t("deadlines.deadlinePassed");
+  },
+};
+
 /**
  * The word and badge classes for an AI urgency score (never colour alone).
  * @param {number | null | undefined} score 0–100, or null when not scored yet
@@ -475,6 +555,8 @@ function urgencyLevel(score) {
 const DB_ERRORS = [
   { pattern: /^Event not found\.?$/, key: "errors.db.eventNotFound" },
   { pattern: /^This event already has all the volunteers it needs\.?$/, key: "errors.db.eventFull" },
+  { pattern: /^This event has already ended\.?$/, key: "errors.db.eventEnded" },
+  { pattern: /^The deadline for this request has passed, so it isn't taking new offers\.?$/, key: "errors.db.deadlinePassed" },
   { pattern: /^Applications cannot be moved to another event or person\.?$/, key: "errors.db.applicationMove" },
   {
     pattern: /^An organization cannot change an application from (?<from>\w+) to (?<to>\w+)\.?$/,

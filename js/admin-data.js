@@ -509,6 +509,39 @@ async function countOpenReports() {
   return count ?? 0;
 }
 
+/**
+ * Supabase .or() filter for events that have ended (end time, or start time when there's none, before now).
+ * @returns {string}
+ */
+function endedEventFilter() {
+  const now = new Date().toISOString();
+  return `ends_at.lt.${now},and(ends_at.is.null,starts_at.lt.${now})`; // i18n-ignore (a database filter)
+}
+
+/**
+ * For the Overview (REQUIREMENTS.md 11): open requests past their deadline, and approved events
+ * that have ended but are still upcoming / ongoing (not marked completed or cancelled).
+ * @returns {Promise<{ pastDeadline: number, endedEvents: number }>}
+ */
+async function countDeadlineAttention() {
+  const [requests, events] = await Promise.all([
+    db().from("donation_requests").select("*", { count: "exact", head: true }).eq("status", "open").lt("deadline", sgToday()),
+    db()
+      .from("events")
+      .select("*", { count: "exact", head: true })
+      .eq("approval", "approved")
+      .in("status", ["upcoming", "ongoing"])
+      .or(endedEventFilter()),
+  ]);
+  if (requests.error) throw requests.error;
+  if (events.error) throw events.error;
+  return { pastDeadline: requests.count ?? 0, endedEvents: events.count ?? 0 };
+}
+
+/** Extra Browse filters from the Overview links (#browse/requests?filter=past_deadline). */
+/** @type {Partial<Record<BrowseKind, string>>} */
+const BROWSE_FILTERS = { requests: "past_deadline", events: "ended" };
+
 /** Which statuses Active / History / All mean for each Browse list. */
 const BROWSE_STATUSES = {
   organizations: { active: ["approved"], history: ["rejected"], all: ["pending", "approved", "rejected"] },
@@ -536,9 +569,10 @@ function likePattern(search) {
  * @param {string} search name or title ("" = everything)
  * @param {number} from
  * @param {number} to inclusive
+ * @param {string} [filter] "past_deadline" (requests) or "ended" (events), from BROWSE_FILTERS
  * @returns {Promise<BrowseRow[]>}
  */
-async function listAdminBrowse(kind, view, search, from, to) {
+async function listAdminBrowse(kind, view, search, from, to, filter = "") {
   const client = db();
   const q = search.trim();
   if (kind === "organizations") {
@@ -556,6 +590,7 @@ async function listAdminBrowse(kind, view, search, from, to) {
       .from("donation_requests")
       .select("id, title, description, urgency, deadline, status, close_reason, closed_at, updated_at, created_at, admin_note, ai_score, organization:organizations(name)")
       .in("status", BROWSE_STATUSES.requests[view]);
+    if (filter === "past_deadline") query = query.eq("status", "open").lt("deadline", sgToday());
     if (q) query = query.ilike("title", likePattern(q));
     const { data, error } = await query.order("created_at", { ascending: false }).range(from, to);
     if (error) throw error;
@@ -568,6 +603,7 @@ async function listAdminBrowse(kind, view, search, from, to) {
       .in("status", BROWSE_STATUSES.events[view]);
     // "Active" = approved and still to come; ones waiting for approval are under To review
     if (view === "active") query = query.eq("approval", "approved");
+    if (filter === "ended") query = query.eq("approval", "approved").in("status", ["upcoming", "ongoing"]).or(endedEventFilter());
     if (q) query = query.ilike("title", likePattern(q));
     const { data, error } = await query.order("starts_at", { ascending: false }).range(from, to);
     if (error) throw error;
