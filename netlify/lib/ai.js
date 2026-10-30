@@ -3,9 +3,13 @@
 // REQUIREMENTS.md 4.6: never send personal data to the AI; callers strip it first with stripPersonalData().
 
 /** The NVIDIA Build model. Change it here only.
- *  nemotron-3.5-bolt-e4b answered in about 1 s with correct JSON for this account's key;
- *  google/gemma-4-31b-it timed out (> 25 s) when tested on 24 Oct 2026. */
-export const MODEL = "nvidia/nemotron-3.5-bolt-e4b";
+ *  nemotron-3.5-lightning-30b-a3b answers in about 1–2 s with correct JSON when its "thinking" is
+ *  turned off (THINKING_OFF below). On 30 Oct 2026 nemotron-3.5-bolt-e4b stopped answering (> 20 s,
+ *  so every AI feature fell back), and google/gemma-4-31b-it timed out (> 25 s) on 24 Oct 2026. */
+export const MODEL = "nvidia/nemotron-3.5-lightning-30b-a3b";
+
+/** Lightning is a reasoning model: without this it spends its tokens thinking and returns no answer. */
+const THINKING_OFF = { chat_template_kwargs: { enable_thinking: false } };
 
 const NVIDIA_URL = "https://integrate.api.nvidia.com/v1/chat/completions";
 const TIMEOUT_MS = 10000;
@@ -40,7 +44,7 @@ export async function chat(messages, options = {}) {
     const response = await doFetch(NVIDIA_URL, {
       method: "POST",
       headers: { "Content-Type": "application/json", Authorization: `Bearer ${apiKey}` },
-      body: JSON.stringify({ model: MODEL, temperature: 0, max_tokens: options.maxTokens ?? 300, messages }),
+      body: JSON.stringify({ model: MODEL, temperature: 0, max_tokens: options.maxTokens ?? 300, ...THINKING_OFF, messages }),
       signal: AbortSignal.timeout(options.timeoutMs ?? TIMEOUT_MS),
     });
     if (!response.ok) return null;
