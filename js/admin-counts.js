@@ -2,10 +2,11 @@
 // How many things are waiting for an admin, for the home page's
 // "Review queue" button. Only admins get real numbers; the database limits what others can count.
 
-/** @typedef {'organizations' | 'volunteers' | 'requests' | 'events' | 'applications' | 'offers'} QueueKey */
+/** @typedef {'organizations' | 'volunteers' | 'requests' | 'events' | 'offers'} QueueKey */
 
-/** The queues where something waits for an admin's decision (offers in progress are monitoring only). */
-const REVIEW_QUEUES = /** @type {QueueKey[]} */ (["organizations", "volunteers", "requests", "events", "applications"]);
+/** The queues where something waits for an admin's decision (offers in progress are monitoring only;
+ * event applications are decided by each event's organization). */
+const REVIEW_QUEUES = /** @type {QueueKey[]} */ (["organizations", "volunteers", "requests", "events"]);
 
 /**
  * Counts for the summary cards. Uses head requests, so no rows are downloaded.
@@ -20,7 +21,6 @@ async function getAdminCounts() {
     ["volunteers", client.from("profiles").select("*", count).eq("is_volunteer", true).eq("volunteer_approval", "pending")],
     ["requests", client.from("donation_requests").select("*", count).eq("status", "pending_approval")],
     ["events", client.from("events").select("*", count).eq("approval", "pending")],
-    ["applications", client.from("volunteer_applications").select("*", count).eq("status", "pending")],
     ["offers", client.from("donation_offers").select("*", count).in("status", ["pending", "accepted"])],
   ];
   const results = await Promise.all(

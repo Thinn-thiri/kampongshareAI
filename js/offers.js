@@ -18,15 +18,20 @@
  * @property {OfferStatus} status
  * @property {string} created_at
  * @property {string} updated_at   when the status last changed (the "ended" date in History)
+ * @property {string | null} [accepted_at]   step times, filled in by the database (REQUIREMENTS.md 12)
+ * @property {string | null} [rejected_at]
+ * @property {string | null} [delivered_at]
+ * @property {string | null} [cancelled_at]
+ * @property {string | null} [reject_note]   the organization's note when it rejected the offer
  * @property {{ name: string, unit: string, category: ItemCategory,
  *              request: { title: string, status: RequestStatus, deadline: string | null, dropoff_instructions: string | null,
- *                         close_reason: string | null, closed_at: string | null,
+ *                         close_reason: string | null, closed_at: string | null, organization_id?: string,
  *                         organization: { name: string, address: string | null } | null } | null } | null} item
  */
 
 /** What the donor sees of each offer: the item, its request (incl. why it closed) and the organization. */
 const MY_OFFER_COLUMNS =
-  "*, item:request_items(name, unit, category, request:donation_requests(title, status, deadline, dropoff_instructions, close_reason, closed_at, organization:organizations(name, address)))";
+  "*, item:request_items(name, unit, category, request:donation_requests(title, status, deadline, dropoff_instructions, close_reason, closed_at, organization_id, organization:organizations(name, address)))";
 
 /** Offer statuses that are finished and belong in History. */
 const PAST_OFFER_STATUSES = ["delivered", "cancelled", "rejected"];
@@ -173,9 +178,16 @@ async function cancelOffer(id) {
  * @property {string} created_at
  * @property {string} updated_at
  * @property {string | null} donor_id   null once the donor deleted their account
+ * @property {string | null} [accepted_at]   step times, filled in by the database (REQUIREMENTS.md 12)
+ * @property {string | null} [rejected_at]
+ * @property {string | null} [delivered_at]
+ * @property {string | null} [cancelled_at]
+ * @property {string | null} [reject_note]   the organization's note when it rejected the offer
  * @property {{ full_name: string, phone: string | null } | null} donor
  * @property {{ name: string, unit: string, category: ItemCategory, request_id: string,
- *              request: { title: string, status: RequestStatus, organization_id: string } }} item
+ *              request: { title: string, status: RequestStatus, organization_id: string, deadline: string | null,
+ *                         dropoff_instructions: string | null, close_reason: string | null, closed_at: string | null,
+ *                         organization?: { name: string, address: string | null } | null } }} item
  */
 
 /**
@@ -187,7 +199,7 @@ async function listIncomingOffers(orgId) {
   const { data, error } = await db()
     .from("donation_offers")
     .select(
-      "*, donor:profile_contacts(full_name, phone), item:request_items!inner(name, unit, category, request_id, request:donation_requests!inner(title, status, organization_id))",
+      "*, donor:profile_contacts(full_name, phone), item:request_items!inner(name, unit, category, request_id, request:donation_requests!inner(title, status, organization_id, deadline, dropoff_instructions, close_reason, closed_at, organization:organizations(name, address)))",
     )
     .eq("item.request.organization_id", orgId)
     .order("created_at", { ascending: false });
@@ -230,10 +242,14 @@ async function listAllOffersForAdmin(filter) {
  * The database checks the move is allowed and updates the item totals.
  * @param {string} id
  * @param {'accepted' | 'rejected' | 'delivered'} status
+ * @param {string} [note] when rejecting: an optional note the donor sees (max 300 characters)
  * @returns {Promise<void>}
  */
-async function setOfferStatus(id, status) {
-  const { data, error } = await db().from("donation_offers").update({ status }).eq("id", id).select("id");
+async function setOfferStatus(id, status, note = "") {
+  /** @type {Record<string, string>} */
+  const change = { status };
+  if (status === "rejected" && note.trim()) change.reject_note = note.trim().slice(0, REASON_MAX_LENGTH);
+  const { data, error } = await db().from("donation_offers").update(change).eq("id", id).select("id");
   if (error) throw error;
   if (!data?.length) throw { code: "42501", message: "No offer was updated" }; // i18n-ignore (shown via friendlyError by its code)
 }
@@ -304,3 +320,56 @@ function offerEndedText(offer) {
   const key = { delivered: "delivered", cancelled: "cancelled", rejected: "ended" }[/** @type {string} */ (offer.status)] ?? "updated";
   return t(`history.${key}`, { date: formatDate(offer.updated_at) });
 }
+
+/**
+ * The offer's journey for the tracker (REQUIREMENTS.md 12): Offer sent → Accepted → Delivered,
+ * or where it stopped (rejected, cancelled, request closed, deadline passed).
+ * @param {DonationOffer | IncomingOffer} offer
+ * @param {{ viewer?: 'donor' | 'org', messageAction?: TrackerAction }} [options]
+ * @returns {Tracker}
+ */
+function offerTracker(offer, options = {}) {
+  const viewer = options.viewer ?? "donor";
+  const request = /** @type {any} */ (offer.item)?.request ?? null;
+  const orgName = request?.organization?.name ?? t("common.organization");
+  /** @type {TrackerStepDef[]} */
+  const defs = [
+    { key: "sent", label: t("tracker.offer.sent"), at: offer.created_at, extra: offer.message ? t(viewer === "donor" ? "tracker.offer.yourMessage" : "tracker.offer.donorMessage", { message: offer.message }) : "" },
+    {
+      key: "accepted",
+      label: t("tracker.offer.accepted"),
+      at: offer.accepted_at ?? null,
+      // while it's the current step the instructions are the "what happens next" line; afterwards they're kept here
+      extra: request?.dropoff_instructions && offer.status === "delivered" ? t("tracker.offer.dropoffAt", { place: request.dropoff_instructions }) : "",
+      action: options.messageAction,
+    },
+    { key: "delivered", label: t("tracker.offer.delivered"), at: offer.delivered_at ?? null },
+  ];
+  const reached = offer.delivered_at || offer.status === "delivered" ? 3 : offer.accepted_at || offer.status === "accepted" ? 2 : 1;
+  if (offer.status === "cancelled") {
+    const label = viewer === "donor" ? t("tracker.offer.cancelledByYou") : t("tracker.offer.cancelledByDonor");
+    return buildTracker(defs, reached, { stop: { label, icon: "x", at: offer.cancelled_at ?? null, reason: "" } });
+  }
+  if (offer.status === "rejected") {
+    const closedFirst = request && request.status !== "open" && (!offer.rejected_at || !request.closed_at || offer.rejected_at >= request.closed_at);
+    if (closedFirst && !offer.reject_note) {
+      const reason = request.close_reason ? t("tracker.offer.closeReason", { reason: request.close_reason }) : t("tracker.offer.requestClosedText");
+      return buildTracker(defs, 1, { stop: { label: enumLabel("offerStatus", "request_closed"), icon: "archive", at: offer.rejected_at ?? null, reason } });
+    }
+    const reason = offer.reject_note ? t("tracker.offer.rejectNote", { note: offer.reject_note }) : "";
+    return buildTracker(defs, 1, { stop: { label: t("tracker.offer.rejected"), icon: "x", at: offer.rejected_at ?? null, reason } });
+  }
+  if (offer.status === "pending" && request?.status === "open" && isPastDeadline(request)) {
+    return buildTracker(defs, 1, {
+      stop: { label: t("deadlines.deadlinePassed"), icon: "archive", at: null, reason: t("tracker.offer.deadlineWaiting", { org: orgName }) },
+    });
+  }
+  if (reached === 3) return buildTracker(defs, 3, { next: t("tracker.offer.thankYou") });
+  if (reached === 2) {
+    const next = request?.deadline ? t("tracker.offer.dropOffBy", { date: formatDate(request.deadline) }) : t("tracker.offer.dropOffSoon");
+    return buildTracker(defs, 2, { next, nextDetail: request?.dropoff_instructions ?? "" });
+  }
+  const next = viewer === "donor" ? t("tracker.offer.waitingFor", { org: orgName }) : t("tracker.offer.waitingForYou");
+  return buildTracker(defs, 1, { next });
+}
+

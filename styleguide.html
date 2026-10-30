@@ -23,6 +23,9 @@
     <script src="/js/auth.js"></script>
     <script src="/js/ui.js"></script>
     <script src="/js/messaging.js"></script>
+    <script src="/js/offers.js"></script>
+    <script src="/js/volunteering.js"></script>
+    <script src="/js/styleguide-trackers.js"></script>
     <script src="/js/chat-questions.js"></script>
     <script src="/js/chat.js"></script>
     <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3/dist/cdn.min.js"></script>
@@ -584,6 +587,53 @@
             <p class="text-sm font-bold text-muted" data-i18n="styleguide.darkTheme">Dark theme</p>
             <div class="toast toast-success" data-i18n="styleguide.sampleSent">Your offer was sent.</div>
             <div class="toast toast-error" data-i18n="styleguide.sampleError">We couldn't reach the server.</div>
+          </div>
+        </div>
+      </section>
+
+      <section aria-labelledby="sg-tracker" class="space-y-4">
+        <h2 id="sg-tracker" class="text-2xl font-bold" data-i18n="styleguide.trackerTitle">Tracking timeline</h2>
+        <p class="text-muted" data-i18n="styleguide.trackerNote">Where an offer or application is: done steps are green with a tick, the current step is marigold (it pulses once), later steps are empty. A journey that stopped ends with an x or an archive box and its reason.</p>
+        <div class="grid gap-4 md:grid-cols-2">
+          <div data-theme="light" class="min-w-0 space-y-4 rounded-lg border border-line bg-canvas p-4" x-data="{ samples: trackerSamples() }">
+            <p class="text-sm font-bold text-muted" data-i18n="styleguide.lightTheme">Light theme</p>
+            <h3 class="text-lg font-semibold" data-i18n="styleguide.trackerOffers">Offers</h3>
+            <template x-for="sample in samples.offers" :key="sample.key">
+              <div class="card space-y-3 p-4">
+                <span class="stamp" x-show="sample.stamp"><i data-lucide="hand-heart"></i><span data-i18n="stamp.delivered">Delivered · Thank you!</span></span>
+                <div x-data="tracker(sample.build)"></div>
+              </div>
+            </template>
+            <div class="card flex items-center gap-3 p-4">
+              <img src="/img/pinny-thanks.svg" alt="" class="pinny" width="72" height="84" />
+              <span class="text-sm font-semibold" data-i18n="stamp.pinnyThanks">Pinny says thank you for giving!</span>
+            </div>
+            <h3 class="text-lg font-semibold" data-i18n="styleguide.trackerApplications">Volunteer applications</h3>
+            <template x-for="sample in samples.applications" :key="sample.key">
+              <div class="card p-4"><div x-data="tracker(sample.build)"></div></div>
+            </template>
+            <h3 class="text-lg font-semibold" data-i18n="styleguide.trackerColumn">Full timeline (details panel)</h3>
+            <div class="card p-4"><div x-data="tracker(samples.column, 'column')"></div></div>
+          </div>
+          <div data-theme="dark" class="min-w-0 space-y-4 rounded-lg border border-line bg-canvas p-4" x-data="{ samples: trackerSamples() }">
+            <p class="text-sm font-bold text-muted" data-i18n="styleguide.darkTheme">Dark theme</p>
+            <h3 class="text-lg font-semibold" data-i18n="styleguide.trackerOffers">Offers</h3>
+            <template x-for="sample in samples.offers" :key="sample.key">
+              <div class="card space-y-3 p-4">
+                <span class="stamp" x-show="sample.stamp"><i data-lucide="hand-heart"></i><span data-i18n="stamp.delivered">Delivered · Thank you!</span></span>
+                <div x-data="tracker(sample.build)"></div>
+              </div>
+            </template>
+            <div class="card flex items-center gap-3 p-4">
+              <img src="/img/pinny-thanks.svg" alt="" class="pinny" width="72" height="84" />
+              <span class="text-sm font-semibold" data-i18n="stamp.pinnyThanks">Pinny says thank you for giving!</span>
+            </div>
+            <h3 class="text-lg font-semibold" data-i18n="styleguide.trackerApplications">Volunteer applications</h3>
+            <template x-for="sample in samples.applications" :key="sample.key">
+              <div class="card p-4"><div x-data="tracker(sample.build)"></div></div>
+            </template>
+            <h3 class="text-lg font-semibold" data-i18n="styleguide.trackerColumn">Full timeline (details panel)</h3>
+            <div class="card p-4"><div x-data="tracker(samples.column, 'column')"></div></div>
           </div>
         </div>
       </section>

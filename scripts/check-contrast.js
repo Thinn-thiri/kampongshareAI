@@ -44,6 +44,7 @@ const NON_TEXT = [
   ["primary", "canvas"],
   ["primary", "board"],
   ["danger", "danger-soft"],
+  ["on-accent", "accent"],
 ];
 
 const MIN_RATIO = 4.5;

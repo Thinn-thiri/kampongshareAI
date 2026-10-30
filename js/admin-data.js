@@ -8,7 +8,7 @@
 /** @typedef {'organizations' | 'requests' | 'events' | 'offers' | 'volunteers' | 'applications' | 'reports'} BrowseKind */
 /** @typedef {'active' | 'history' | 'all'} BrowseView */
 
-/** The "To review" sub-tabs. Volunteers holds both volunteer accounts and event applications. */
+/** The "To review" sub-tabs. Volunteers holds volunteer accounts; event applications are decided by each event's organization. */
 const REVIEW_KINDS = labelledOptions(
   /** @type {Record<ReviewKind, string>} */ ({
     organizations: "admin.kind.organizations",
@@ -49,8 +49,8 @@ const ADMIN_NOTE_MAX = 500;
  * @property {string} key       unique across kinds, e.g. "request-<id>"
  * @property {string} id
  * @property {ReviewKind} kind
- * @property {'organization' | 'request' | 'event' | 'account' | 'application'} subkind
- * @property {string} typeLabel  "Organization", "Request", "Event", "Account", "Application" (a getter: follows the language)
+ * @property {'organization' | 'request' | 'event' | 'account'} subkind
+ * @property {string} typeLabel  "Organization", "Request", "Event", "Account" (a getter: follows the language)
  * @property {string} title
  * @property {string} sender     who sent it
  * @property {string} createdAt
@@ -159,7 +159,7 @@ async function loadReviewItems(kind) {
       raw: event,
     }));
   }
-  const [accounts, applications] = await Promise.all([listVolunteerAccountsForReview(), listApplicationsForReview()]);
+  const accounts = await listVolunteerAccountsForReview();
   /** @type {ReviewItem[]} */
   const items = [
     ...accounts.map((account) => ({
@@ -185,29 +185,6 @@ async function loadReviewItems(kind) {
       },
       raw: account,
     })),
-    ...applications.map((application) => ({
-      key: `application-${application.id}`,
-      id: application.id,
-      kind,
-      subkind: /** @type {const} */ ("application"),
-      get typeLabel() {
-        return t("admin.type.application");
-      },
-      get title() {
-        return application.volunteer?.full_name || t("admin.nameNotGiven");
-      },
-      get sender() {
-        return t("admin.appliedTo", { event: application.event?.title ?? t("admin.anEvent") });
-      },
-      createdAt: application.created_at,
-      get details() {
-        return [
-          { label: t("field.event"), value: application.event?.title ?? t("admin.notAvailable") },
-          { label: t("field.organization"), value: application.event?.organization?.name ?? t("admin.notAvailable") },
-        ];
-      },
-      raw: application,
-    })),
   ];
   return items.sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime());
 }
@@ -229,17 +206,14 @@ async function approveReviewItem(item) {
     case "event":
       await setEventApproval(item.id, "approved");
       return t("admin.approvedToast.event", { title: item.title });
-    case "account":
+    default:
       await setVolunteerApproval(item.id, "approved");
       return t("admin.approvedToast.account", { title: item.title });
-    default:
-      await setApplicationStatus(item.id, "approved");
-      return t("admin.approvedToast.application");
   }
 }
 
 /**
- * Rejects an item. Everything except event applications needs a note the sender will see.
+ * Rejects an item, with a note the sender will see.
  * @param {ReviewItem} item
  * @param {string} note
  * @returns {Promise<string>} the toast message
@@ -255,12 +229,9 @@ async function rejectReviewItem(item, note) {
     case "event":
       await setEventApproval(item.id, "rejected", note);
       return t("admin.rejectedToast.event");
-    case "account":
+    default:
       await setVolunteerApproval(item.id, "rejected", note);
       return t("admin.rejectedToast.account", { title: item.title });
-    default:
-      await setApplicationStatus(item.id, "rejected");
-      return t("admin.rejectedToast.application");
   }
 }
 
@@ -270,10 +241,9 @@ async function rejectReviewItem(item, note) {
  * @returns {{ title: string, message: string }}
  */
 function rejectWording(item) {
-  const event = item.raw.event?.title ? `"${item.raw.event.title}"` : t("admin.theEvent");
   return {
     title: t(`admin.rejectTitle.${item.subkind}`),
-    message: t(`admin.rejectText.${item.subkind}`, { title: item.title, event }),
+    message: t(`admin.rejectText.${item.subkind}`, { title: item.title }),
   };
 }
 

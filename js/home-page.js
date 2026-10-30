@@ -50,7 +50,7 @@ document.addEventListener("alpine:init", () => {
         links.push({ href: "/admin.html#review", label });
       } else {
         if (viewer.isDonor) links.push({ href: "/needs.html", label: t("nav.browseNeeds") });
-        if (viewer.isVolunteer) links.push({ href: "/volunteer.html#events-heading", label: t("index.findEvents") });
+        if (viewer.isVolunteer) links.push({ href: "/volunteer.html#find", label: t("index.findEvents") });
       }
       return links;
     },

@@ -21,6 +21,7 @@
   --color-primary-edge: #17573a;
   --color-on-primary: #ffffff;
   --color-accent: #f2b705;
+  --color-on-accent: #2b211b;
   --color-highlight: #fae196;
   --color-danger: #b42318;
   --color-danger-soft: #fdecea;
@@ -86,6 +87,7 @@
   --color-primary-edge: #17573a;
   --color-on-primary: #ffffff;
   --color-accent: #f2b705;
+  --color-on-accent: #2b211b;
   --color-highlight: #fae196;
   --color-danger: #b42318;
   --color-danger-soft: #fdecea;
@@ -117,6 +119,7 @@
   --color-primary-edge: #447458;
   --color-on-primary: #0e2a1b;
   --color-accent: #f2b705;
+  --color-on-accent: #2b211b;
   --color-highlight: #523e0f;
   --color-danger: #f97066;
   --color-danger-soft: #3a1714;
@@ -947,6 +950,187 @@ input[type="radio"]:focus-visible {
   }
 }
 
+/* ---------- tracking timeline (REQUIREMENTS.md 12) ----------
+   <ol class="tracker tracker-row|tracker-column">: done = green circle + tick, current = marigold circle
+   (pulses once when it first appears), future = empty circle; a stopped journey ends in an x / archive. */
+.tracker {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+.tracker-step {
+  position: relative;
+  min-width: 0;
+}
+.tracker-dot {
+  position: relative;
+  z-index: 1;
+  display: grid;
+  place-items: center;
+  flex-shrink: 0;
+  width: 2rem;
+  height: 2rem;
+  border-radius: 9999px;
+  border: 2px solid var(--color-field-border);
+  background: var(--color-surface);
+  color: var(--color-muted);
+}
+.tracker-dot svg {
+  width: 1.1rem;
+  height: 1.1rem;
+}
+.tracker-done .tracker-dot {
+  border-color: var(--color-primary);
+  background: var(--color-primary);
+  color: var(--color-on-primary);
+}
+.tracker-current .tracker-dot {
+  border-color: var(--color-accent);
+  background: var(--color-accent);
+  color: var(--color-on-accent);
+  box-shadow: 0 0 0 4px color-mix(in srgb, var(--color-accent) 30%, transparent);
+  animation: ks-pulse-once 700ms ease-out 1;
+}
+.tracker-stopped .tracker-dot {
+  background: var(--color-canvas);
+}
+.tracker-stop-x .tracker-dot {
+  border-color: var(--color-danger);
+  background: var(--color-danger-soft);
+  color: var(--color-danger);
+}
+.tracker-label {
+  font-size: var(--text-sm);
+  font-weight: 700;
+  line-height: 1.3;
+  overflow-wrap: anywhere;
+}
+.tracker-date {
+  font-size: var(--text-xs);
+  color: var(--color-muted);
+}
+.tracker-next {
+  font-size: var(--text-sm);
+  font-weight: 700;
+}
+.tracker-extra {
+  font-size: var(--text-sm);
+  color: var(--color-muted);
+  white-space: pre-line;
+  overflow-wrap: anywhere;
+}
+.tracker-list {
+  list-style: disc;
+  padding-left: 1.25rem;
+  font-size: var(--text-sm);
+}
+.tracker-note {
+  margin-top: 0.75rem;
+  border-radius: var(--radius-md);
+  background: var(--color-canvas);
+  padding: 0.75rem;
+  font-size: var(--text-sm);
+}
+/* cards: steps side by side, a line joins each circle to the one before it */
+.tracker-row {
+  display: flex;
+}
+.tracker-row .tracker-step {
+  flex: 1 1 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.25rem;
+  text-align: center;
+  padding: 0 0.3rem;
+}
+/* phones: smaller words in the row, broken only between words (Malay names are long) */
+.tracker-row .tracker-label {
+  font-size: var(--text-xs);
+  overflow-wrap: normal;
+  hyphens: auto;
+}
+@media (min-width: 40rem) {
+  .tracker-row .tracker-label {
+    font-size: var(--text-sm);
+  }
+}
+.tracker-row .tracker-step + .tracker-step::before {
+  content: "";
+  position: absolute;
+  top: calc(1rem - 1.5px);
+  right: 50%;
+  left: -50%;
+  height: 3px;
+  background: var(--color-line);
+}
+.tracker-row .tracker-step:is(.tracker-done, .tracker-current)::before {
+  background: var(--color-primary);
+}
+/* the details panel: steps under each other, a line down the left */
+.tracker-column {
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+}
+.tracker-column .tracker-step {
+  display: grid;
+  grid-template-columns: 2rem 1fr;
+  gap: 0.75rem;
+}
+.tracker-column .tracker-text {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  padding-top: 0.3rem;
+}
+.tracker-column .tracker-step:not(.tracker-last, .tracker-stopped)::after {
+  content: "";
+  position: absolute;
+  left: calc(1rem - 1.5px);
+  top: 2rem;
+  bottom: -1.25rem;
+  width: 3px;
+  background: var(--color-line);
+}
+.tracker-column .tracker-done:not(.tracker-last, .tracker-before-stop)::after {
+  background: var(--color-primary);
+}
+@keyframes ks-pulse-once {
+  from {
+    box-shadow: 0 0 0 0 color-mix(in srgb, var(--color-accent) 70%, transparent);
+  }
+  to {
+    box-shadow: 0 0 0 4px color-mix(in srgb, var(--color-accent) 30%, transparent);
+  }
+}
+
+/* "Delivered · Thank you!": a green rubber stamp, slightly crooked */
+.stamp {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  rotate: -4deg;
+  border: 2.5px solid var(--color-success);
+  border-radius: 6px;
+  padding: 0.25rem 0.65rem;
+  color: var(--color-success);
+  background: color-mix(in srgb, var(--color-success-soft) 70%, transparent);
+  font-family: var(--font-display);
+  font-weight: 800;
+  letter-spacing: 0.01em;
+  box-shadow: inset 0 0 0 1.5px color-mix(in srgb, var(--color-success) 25%, transparent);
+}
+.stamp svg {
+  width: 1.15rem;
+  height: 1.15rem;
+}
+.pinny {
+  width: 4.5rem;
+  height: auto;
+  flex-shrink: 0;
+}
+
 /* reduced motion: notices hang straight and never move */
 @media (prefers-reduced-motion: reduce) {
   .notice,
@@ -969,7 +1153,8 @@ input[type="radio"]:focus-visible {
   .chat-bubble-user,
   .message-mine,
   .message-theirs,
-  .nav-count {
+  .nav-count,
+  .tracker-current .tracker-dot {
     animation: none;
   }
 }

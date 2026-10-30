@@ -46,6 +46,11 @@ document.addEventListener("alpine:init", () => {
     /** @type {HistoryPager<DonationOffer>} */
     history: historyPager(),
     deliveredCount: 0,
+    /** @type {DonationOffer | null} the offer in the timeline panel */
+    panelOffer: null,
+    /** @type {string | null} the delivered offer Pinny thanks (only the first time, REQUIREMENTS.md 12) */
+    pinnyOfferId: null,
+    offerTracker,
 
     /** @type {string | null} the item whose offer form is open */
     offerItemId: null,
@@ -78,6 +83,45 @@ document.addEventListener("alpine:init", () => {
       return "";
     },
 
+    /**
+     * The tracker for an offer; in the panel, "Message <organization>" sits under Accepted.
+     * @param {DonationOffer} offer
+     * @param {boolean} [full]
+     */
+    trackerFor(offer, full = false) {
+      const request = offer.item?.request;
+      const orgId = request?.organization_id;
+      const messageAction =
+        full && orgId && offer.status !== "pending"
+          ? { label: t("tracker.offer.messageOrg", { org: request?.organization?.name ?? t("common.organization") }), run: () => this.messageOrg(orgId, t("messages.topicAbout", { title: request?.title ?? "" })) }
+          : undefined;
+      return offerTracker(offer, { viewer: "donor", messageAction });
+    },
+
+    /**
+     * Opens the full timeline for one offer.
+     * @param {DonationOffer} offer
+     * @param {Event} event
+     */
+    openTimeline(offer, event) {
+      this.panelOffer = offer;
+      openSidePanel("offer-panel", event.currentTarget);
+    },
+
+    /** Pinny says thank you next to the first delivered stamp a donor ever sees (remembered in this browser). */
+    thankWithPinny() {
+      if (this.pinnyOfferId) return;
+      const delivered = this.history.items.find((offer) => offer.status === "delivered");
+      if (!delivered) return;
+      try {
+        if (localStorage.getItem("ks-pinny-thanks")) return;
+        localStorage.setItem("ks-pinny-thanks", "1");
+      } catch {
+        // storage blocked: Pinny shows each time, which is fine
+      }
+      this.pinnyOfferId = delivered.id;
+    },
+
     clearFilter() {
       this.filterRequestId = null;
       this.expiredRequest = null;
@@ -103,6 +147,7 @@ document.addEventListener("alpine:init", () => {
       }
       const donorId = this.profile.id;
       this.history = historyPager((from, to) => listMyOfferHistory(donorId, from, to), () => t("donor.pastOffers"));
+      /** @type {any} */ (this).$watch("history.items", () => this.thankWithPinny());
       await Promise.all([this.loadRequests(), this.loadOffers()]);
     },
 

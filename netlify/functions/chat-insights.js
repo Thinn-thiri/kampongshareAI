@@ -401,7 +401,7 @@ function ownAccountReply(text, lang) {
   /** @type {{ label: string, href: string }[]} */
   const links = [];
   if (/offer|donation|tawaran|derma|捐赠/.test(lower)) links.push({ label: serverT(lang, "myOffers"), href: "/donor.html#offers" });
-  if (/application|task|permohonan|报名/.test(lower)) links.push({ label: serverT(lang, "myApplications"), href: "/volunteer.html#apps-heading" });
+  if (/application|task|permohonan|报名/.test(lower)) links.push({ label: serverT(lang, "myApplications"), href: "/volunteer.html#applications" });
   if (/organi[sz]ation|request|event|pertubuhan|机构/.test(lower)) links.push({ label: serverT(lang, "myOrganization"), href: "/organization.html#overview" });
   if (/password|kata laluan|密码/.test(lower)) {
     return askReply({ summary: serverT(lang, "ownPassword"), links: [privacyLink(lang)], chips: ["account_password", "account_login"], lang });

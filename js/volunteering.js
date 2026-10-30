@@ -14,6 +14,10 @@
  * @property {string | null} message
  * @property {ApplicationStatus} status
  * @property {string} created_at
+ * @property {string} [applied_at]           step times, filled in by the database (REQUIREMENTS.md 12)
+ * @property {string | null} [approved_at]
+ * @property {string | null} [rejected_at]
+ * @property {string | null} [withdrawn_at]
  * @property {{ id: string, title: string, starts_at: string, ends_at: string | null, location_name: string | null,
  *              status: EventStatus, approval: Approval, volunteers_needed: number,
  *              cancel_reason: string | null, cancelled_at: string | null, outcome_summary: string | null,
@@ -29,6 +33,10 @@
  * @property {string | null} message
  * @property {ApplicationStatus} status
  * @property {string} created_at
+ * @property {string} [applied_at]           step times, filled in by the database (REQUIREMENTS.md 12)
+ * @property {string | null} [approved_at]
+ * @property {string | null} [rejected_at]
+ * @property {string | null} [withdrawn_at]
  * @property {{ full_name: string, phone: string | null, available_days: string[], available_times: string[],
  *              interests: string[], skills: string[] } | null} volunteer
  * @property {{ title: string, starts_at: string, location_name: string | null,
@@ -311,22 +319,6 @@ async function countPendingApplications(orgId) {
 }
 
 /**
- * Pending applications for the admin queue, oldest first.
- * @returns {Promise<Application[]>}
- */
-async function listApplicationsForReview() {
-  const { data, error } = await db()
-    .from("volunteer_applications")
-    .select(
-      "*, volunteer:profiles(full_name, phone, available_days, available_times, interests, skills), event:events(title, starts_at, location_name, organization:organizations(name))",
-    )
-    .eq("status", "pending")
-    .order("created_at", { ascending: true });
-  if (error) throw error;
-  return data ?? [];
-}
-
-/**
  * A volunteer account waiting for (or reviewed by) the admin.
  * @typedef {Object} VolunteerAccount
  * @property {string} id
@@ -393,3 +385,62 @@ function validateTask(task) {
   if (task.description.trim().length > 500) errors.description = t("form.errTaskDetailsLong");
   return errors;
 }
+
+/**
+ * The event facts the application tracker needs.
+ * @typedef {{ starts_at: string, ends_at?: string | null, location_name?: string | null, status: EventStatus,
+ *             cancel_reason?: string | null, cancelled_at?: string | null, outcome_summary?: string | null }} TrackerEvent
+ */
+
+/**
+ * The application's journey for the tracker (REQUIREMENTS.md 12): Applied → Approved → Event day → Completed,
+ * or where it stopped (rejected, withdrawn, event cancelled, event ended while still waiting).
+ * @param {MyApplication | Application} application
+ * @param {{ event?: TrackerEvent | null, orgName?: string, tasks?: VolunteerTask[], viewer?: 'volunteer' | 'org' }} [options]
+ * @returns {Tracker}
+ */
+function applicationTracker(application, options = {}) {
+  const viewer = options.viewer ?? "volunteer";
+  const event = options.event ?? /** @type {any} */ (application).event ?? null;
+  const orgName = options.orgName ?? event?.organization?.name ?? t("common.organization");
+  const volunteerId = /** @type {any} */ (application).volunteer_id;
+  const tasks = (options.tasks ?? []).filter((task) => task.event_id === application.event_id && (!volunteerId || task.volunteer_id === volunteerId));
+  const taskLines = tasks.map((task) => (task.due_at ? t("tracker.app.taskDue", { title: task.title, date: formatDate(task.due_at, true) }) : task.title));
+  /** @type {TrackerStepDef[]} */
+  const defs = [
+    { key: "applied", label: t("tracker.app.applied"), at: application.applied_at ?? application.created_at, extra: application.message ? t("tracker.app.message", { message: application.message }) : "" },
+    { key: "approved", label: t("tracker.app.approved"), at: application.approved_at ?? null, list: taskLines },
+    { key: "day", label: t("tracker.app.eventDay"), at: event?.starts_at ?? null },
+    { key: "completed", label: t("tracker.app.completed"), at: event?.status === "completed" ? event.ends_at ?? event.starts_at : null, extra: event?.outcome_summary ?? "" },
+  ];
+  const wasApproved = Boolean(application.approved_at) || application.status === "approved";
+  if (!event) return buildTracker(defs, wasApproved ? 2 : 1, {});
+  const timing = eventTiming(event);
+  if (application.status === "withdrawn") {
+    return buildTracker(defs, application.approved_at ? 2 : 1, { stop: { label: t("tracker.app.withdrawn"), icon: "x", at: application.withdrawn_at ?? null, reason: "" } });
+  }
+  if (application.status === "rejected") {
+    const label = application.approved_at ? t("tracker.app.removed") : t("tracker.app.rejected");
+    return buildTracker(defs, application.approved_at ? 2 : 1, { stop: { label, icon: "x", at: application.rejected_at ?? null, reason: "" } });
+  }
+  if (event.status === "cancelled") {
+    const reason = event.cancel_reason ? t("history.eventCancelledReason", { reason: event.cancel_reason }) : t("history.eventCancelled");
+    return buildTracker(defs, wasApproved ? 2 : 1, { stop: { label: t("tracker.app.eventCancelled"), icon: "archive", at: event.cancelled_at ?? null, reason } });
+  }
+  if (application.status === "pending") {
+    if (event.status === "completed" || timing === "ended") {
+      return buildTracker(defs, 1, { stop: { label: t("history.eventEnded"), icon: "archive", at: event.ends_at ?? event.starts_at, reason: t("tracker.app.endedWhileWaiting") } });
+    }
+    return buildTracker(defs, 1, { next: viewer === "volunteer" ? t("tracker.app.waitingFor", { org: orgName }) : t("tracker.app.waitingForYou") });
+  }
+  // approved
+  if (event.status === "completed") return buildTracker(defs, 4, { next: event.outcome_summary ? t("tracker.app.howItWent") : t("tracker.app.thankYou"), nextDetail: event.outcome_summary ?? "" });
+  if (timing === "upcoming") {
+    const place = event.location_name ?? "";
+    const next = place ? t("tracker.app.seeYouAt", { date: formatDate(event.starts_at, true), place }) : t("tracker.app.seeYou", { date: formatDate(event.starts_at, true) });
+    return buildTracker(defs, 2, { next, nextDetail: taskLines.length ? t("tracker.app.tasks", { tasks: taskLines.join(" · ") }) : "" });
+  }
+  if (timing === "now") return buildTracker(defs, 3, { next: t("enum.eventStatus.ongoing") });
+  return buildTracker(defs, 3, { next: viewer === "volunteer" ? t("tracker.app.waitingComplete", { org: orgName }) : t("tracker.app.markComplete") });
+}
+

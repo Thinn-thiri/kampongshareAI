@@ -727,73 +727,94 @@
             <p class="text-danger" x-text="error"></p>
             <button type="button" class="btn btn-secondary mt-3" @click="load()" data-i18n="common.tryAgain">Try again</button>
           </div>
-          <div class="card flex flex-col items-center gap-3 text-center py-10" x-show="!loading && !error && filter === 'active' && activeOffers.length === 0" x-cloak>
+          <div class="card flex flex-col items-center gap-3 text-center py-10" x-show="!loading && !error && filter === 'active' && offers.length === 0" x-cloak>
             <i data-lucide="inbox" class="size-10 text-primary" aria-hidden="true"></i>
-            <p class="text-muted" x-text="offers.length === 0
-              ? $t('orgDash.noOffers')
-              : $t('orgDash.nothingNeedsAction')"></p>
+            <p class="text-muted" data-i18n="orgDash.noOffers">No offers yet. They'll appear here when donors respond to your requests.</p>
           </div>
           <div class="card flex flex-col items-center gap-3 text-center py-10"
             x-show="!loading && !error && filter === 'history' && history.loaded && !history.loading && history.items.length === 0" x-cloak>
             <i data-lucide="history" class="size-10 text-primary" aria-hidden="true"></i>
-            <p class="text-muted" data-i18n="orgDash.noPastOffers">No past offers yet. Delivered, rejected and cancelled offers will appear here.</p>
+            <p class="text-muted" data-i18n="orgDash.noPastOffers">No past offers yet. Rejected and cancelled offers will appear here.</p>
           </div>
 
-          <ul class="grid gap-4 md:grid-cols-2" x-show="!loading && !error" x-ref="historyList">
-            <template x-for="offer in (filter === 'active' ? activeOffers : history.items)" :key="offer.id">
+          <!-- The board: New · Accepted · Delivered, each card has the button that moves it on (REQUIREMENTS.md 12) -->
+          <div class="space-y-4" x-show="!loading && !error && filter === 'active' && offers.length > 0" x-cloak>
+            <!-- phones: the columns become tabs -->
+            <div class="tablist md:hidden" role="tablist" aria-label="Offer board" data-i18n-attr="aria-label:orgDash.boardLabel" @keydown="onBoardKey($event)">
+              <template x-for="column in columns" :key="column.value">
+                <button type="button" role="tab" class="tab" :id="`board-tab-${column.value}`" :aria-selected="(boardTab === column.value).toString()"
+                  :tabindex="boardTab === column.value ? 0 : -1" :aria-controls="`board-col-${column.value}`" @click="boardTab = column.value">
+                  <span x-text="column.label"></span> <span class="tab-count" x-text="columnCount(column.value)"></span>
+                </button>
+              </template>
+            </div>
+            <div class="grid gap-4 md:grid-cols-3">
+              <template x-for="column in columns" :key="column.value">
+                <section :id="`board-col-${column.value}`" class="min-w-0 space-y-3 rounded-lg border border-line bg-canvas p-3"
+                  :class="boardTab === column.value ? '' : 'max-md:hidden'" :aria-labelledby="`board-${column.value}-heading`">
+                  <h3 :id="`board-${column.value}-heading`" tabindex="-1" class="flex items-center justify-between gap-2 text-lg font-semibold">
+                    <span x-text="column.label"></span>
+                    <span class="badge badge-neutral" x-text="$t('orgDash.boardCount', { count: columnCount(column.value) })"></span>
+                  </h3>
+                  <p class="text-sm text-muted" x-show="columnCount(column.value) === 0" x-text="$t(`orgDash.boardEmpty.${column.value}`)"></p>
+                  <ul class="space-y-3">
+                    <template x-for="offer in columnOffers(column.value)" :key="offer.id">
+                      <li class="card space-y-2 p-4">
+                        <button type="button" class="link text-left font-semibold break-words" @click="openTimeline(offer, $event)" aria-haspopup="dialog"
+                          :aria-label="$t('tracker.seeTimelineFor', { item: what(offer) })" x-text="what(offer)"></button>
+                        <p class="text-sm text-muted break-words" x-text="$t('orgDash.forRequest', { title: offer.item.request.title })"></p>
+                        <p class="text-sm break-words">
+                          <span x-text="offer.donor ? (offer.donor.full_name || $t('admin.nameNotGiven')) : $t('admin.deletedAccount')"></span>
+                          <span class="text-muted" x-text="'· ' + (offer.status === 'delivered'
+                            ? $t('orgDash.deliveredOn', { date: formatDate(offer.delivered_at ?? offer.updated_at) })
+                            : $t('orgDash.offeredAgo', { when: timeAgo(offer.created_at) }))"></span>
+                        </p>
+                        <p class="flex items-start gap-1.5 text-sm text-success" x-show="offer.item.category === 'food' && offer.food_safety_confirmed">
+                          <i data-lucide="circle-check" class="mt-0.5 size-4 shrink-0" aria-hidden="true"></i>
+                          <span data-i18n="orgDash.foodConfirmed">Donor confirmed the food is sealed, unopened and not expired.</span>
+                        </p>
+                        <div class="flex flex-wrap gap-2 pt-1" x-show="offer.status === 'pending'">
+                          <button type="button" class="btn btn-primary min-h-11 px-3" :disabled="busyId === offer.id" @click="act(offer, 'accepted')"
+                            :aria-label="$t('orgDash.acceptWhat', { what: what(offer) })">
+                            <span class="spinner" x-show="busyId === offer.id" x-cloak aria-hidden="true"></span>
+                            <span data-i18n="orgDash.accept">Accept</span>
+                          </button>
+                          <button type="button" class="btn btn-danger min-h-11 px-3" :disabled="busyId === offer.id" @click="act(offer, 'rejected')"
+                            :aria-label="$t('orgDash.rejectWhat', { what: what(offer) })" data-i18n="common.reject">Reject</button>
+                        </div>
+                        <div class="pt-1" x-show="offer.status === 'accepted'">
+                          <button type="button" class="btn btn-primary min-h-11 px-3" :disabled="busyId === offer.id" @click="act(offer, 'delivered')"
+                            :aria-label="$t('orgDash.deliveredWhat', { what: what(offer) })">
+                            <span class="spinner" x-show="busyId === offer.id" x-cloak aria-hidden="true"></span>
+                            <span data-i18n="orgDash.markDelivered">Mark delivered</span>
+                          </button>
+                        </div>
+                      </li>
+                    </template>
+                  </ul>
+                  <button type="button" class="btn btn-secondary w-full" x-show="column.value === 'delivered' && columnCount('delivered') > deliveredShown" @click="showMoreDelivered()"
+                    data-i18n="common.showMore">Show more</button>
+                </section>
+              </template>
+            </div>
+          </div>
+
+          <!-- History: rejected and cancelled offers, with their timeline -->
+          <ul class="grid gap-4 md:grid-cols-2" x-show="!loading && !error && filter === 'history'" x-ref="historyList">
+            <template x-for="offer in history.items" :key="offer.id">
               <li class="card flex flex-col gap-3">
                 <div class="flex flex-wrap items-start justify-between gap-3">
                   <div class="min-w-0">
-                    <p class="font-semibold break-words" x-text="$t('orgDash.offerLine', { quantity: offer.quantity, unit: offer.item.unit, item: offer.item.name })"></p>
+                    <p class="font-semibold break-words" x-text="what(offer)"></p>
                     <p class="text-sm text-muted break-words" x-text="$t('orgDash.forRequest', { title: offer.item.request.title })"></p>
-                    <p class="text-xs text-muted" x-show="filter === 'history'" x-text="offerEndedText(offer)"></p>
+                    <p class="text-sm break-words" x-text="offer.donor ? (offer.donor.full_name || $t('admin.nameNotGiven')) : $t('admin.deletedAccount')"></p>
                   </div>
                   <span :class="statusInfo(offer.status, 'offer').className" x-text="statusInfo(offer.status, 'offer').label"></span>
                 </div>
-
-                <dl class="grid gap-x-3 gap-y-1 text-sm grid-cols-[max-content_1fr]">
-                  <dt class="text-muted" data-i18n="orgDash.donor">Donor</dt>
-                  <dd class="break-words" x-text="offer.donor ? (offer.donor.full_name || $t('admin.nameNotGiven')) : $t('admin.deletedAccount')"></dd>
-                  <!-- The phone is only needed to arrange drop-off, so History doesn't show it -->
-                  <dt class="text-muted" x-show="filter === 'active'" data-i18n="field.phone">Phone</dt>
-                  <dd x-show="filter === 'active'">
-                    <template x-if="offer.donor?.phone">
-                      <a :href="`tel:${offer.donor.phone}`" class="font-medium text-primary underline" x-text="offer.donor.phone"></a>
-                    </template>
-                    <span class="text-muted" x-show="!offer.donor?.phone" data-i18n="common.notGiven">Not given</span>
-                  </dd>
-                  <dt class="text-muted" data-i18n="orgDash.offered">Offered</dt>
-                  <dd x-text="formatDate(offer.created_at)"></dd>
-                </dl>
-                <p class="text-xs text-muted" x-show="filter === 'active'" data-i18n="orgDash.donorDetailsNote">The donor's details are only shown to you, to arrange drop-off.</p>
-
-                <p class="rounded-md bg-canvas p-3 text-sm whitespace-pre-line break-words" x-show="offer.message" x-text="offer.message"></p>
-                <p class="flex items-start gap-1.5 text-sm text-success" x-show="offer.item.category === 'food' && offer.food_safety_confirmed">
-                  <i data-lucide="circle-check" class="mt-0.5 size-4 shrink-0" aria-hidden="true"></i>
-                  <span data-i18n="orgDash.foodConfirmed">Donor confirmed the food is sealed, unopened and not expired.</span>
-                </p>
-
-                <div class="mt-auto flex flex-wrap gap-3 pt-1">
-                  <template x-if="offer.status === 'pending'">
-                    <div class="flex flex-wrap gap-3">
-                      <button type="button" class="btn btn-primary" :disabled="busyId === offer.id" @click="act(offer, 'accepted')">
-                        <span class="spinner" x-show="busyId === offer.id" x-cloak aria-hidden="true"></span>
-                        <span data-i18n="orgDash.accept">Accept</span>
-                      </button>
-                      <button type="button" class="btn btn-danger" :disabled="busyId === offer.id" @click="act(offer, 'rejected')" data-i18n="common.reject">Reject</button>
-                    </div>
-                  </template>
-                  <template x-if="offer.status === 'accepted'">
-                    <button type="button" class="btn btn-primary" :disabled="busyId === offer.id" @click="act(offer, 'delivered')">
-                      <span class="spinner" x-show="busyId === offer.id" x-cloak aria-hidden="true"></span>
-                      <span data-i18n="orgDash.markDelivered">Mark delivered</span>
-                    </button>
-                  </template>
-                  <button type="button" class="btn btn-secondary" x-show="offer.donor_id" :disabled="messaging" @click="messageDonor(offer)"
-                    :aria-label="$t('messages.messageDonorNamed', { name: offer.donor?.full_name || $t('orgDash.theDonor') })">
-                    <i data-lucide="message-circle" class="size-4" aria-hidden="true"></i>
-                    <span data-i18n="messages.messageDonor">Message donor</span>
-                  </button>
+                <div x-data="tracker(() => trackerFor(offer))"></div>
+                <div>
+                  <button type="button" class="btn btn-secondary" @click="openTimeline(offer, $event)" aria-haspopup="dialog"
+                    :aria-label="$t('tracker.seeTimelineFor', { item: what(offer) })" data-i18n="tracker.seeTimeline">See timeline</button>
                 </div>
               </li>
             </template>
@@ -804,6 +825,43 @@
               <span data-i18n="common.showMore">Show more</span>
             </button>
           </div>
+
+          <!-- One offer's full timeline, as the donor sees it, plus the donor's details -->
+          <dialog id="org-offer-panel" class="side-panel" aria-labelledby="org-offer-panel-title" @close="onSidePanelEvent($event)" @click="onSidePanelEvent($event)">
+            <div class="sticky top-0 z-10 flex items-center justify-between gap-3 border-b border-line bg-surface p-4">
+              <h3 id="org-offer-panel-title" class="text-lg font-semibold" tabindex="-1" data-panel-title data-i18n="tracker.offerTimelineOrg">Offer timeline</h3>
+              <button type="button" class="btn btn-ghost size-11 shrink-0 px-0" @click="closeSidePanel('org-offer-panel')" aria-label="Close timeline" data-i18n-attr="aria-label:tracker.closeTimeline">
+                <i data-lucide="x" class="size-5" aria-hidden="true"></i>
+              </button>
+            </div>
+            <template x-if="panelOffer">
+              <div class="space-y-5 p-4">
+                <div class="space-y-1">
+                  <p class="font-semibold break-words" x-text="what(panelOffer)"></p>
+                  <p class="text-sm text-muted break-words" x-text="$t('orgDash.forRequest', { title: panelOffer.item.request.title })"></p>
+                </div>
+                <dl class="grid grid-cols-[max-content_1fr] gap-x-3 gap-y-1 text-sm">
+                  <dt class="text-muted" data-i18n="orgDash.donor">Donor</dt>
+                  <dd class="break-words" x-text="panelOffer.donor ? (panelOffer.donor.full_name || $t('admin.nameNotGiven')) : $t('admin.deletedAccount')"></dd>
+                  <!-- the phone is only needed to arrange drop-off -->
+                  <dt class="text-muted" x-show="panelOffer.status === 'pending' || panelOffer.status === 'accepted'" data-i18n="field.phone">Phone</dt>
+                  <dd x-show="panelOffer.status === 'pending' || panelOffer.status === 'accepted'">
+                    <template x-if="panelOffer.donor?.phone">
+                      <a :href="`tel:${panelOffer.donor.phone}`" class="font-medium text-primary underline" x-text="panelOffer.donor.phone"></a>
+                    </template>
+                    <span class="text-muted" x-show="!panelOffer.donor?.phone" data-i18n="common.notGiven">Not given</span>
+                  </dd>
+                </dl>
+                <p class="text-xs text-muted" data-i18n="orgDash.donorDetailsNote">The donor's details are only shown to you, to arrange drop-off.</p>
+                <div x-data="tracker(() => trackerFor(panelOffer), 'column')"></div>
+                <button type="button" class="btn btn-secondary" x-show="panelOffer.donor_id" :disabled="messaging" @click="messageDonor(panelOffer)"
+                  :aria-label="$t('messages.messageDonorNamed', { name: panelOffer.donor?.full_name || $t('orgDash.theDonor') })">
+                  <i data-lucide="message-circle" class="size-4" aria-hidden="true"></i>
+                  <span data-i18n="messages.messageDonor">Message donor</span>
+                </button>
+              </div>
+            </template>
+          </dialog>
         </section>
       </template>
 
@@ -1148,6 +1206,7 @@
                             <dd x-text="formatDate(application.created_at)"></dd>
                           </dl>
                           <p class="rounded-md bg-surface p-2 whitespace-pre-line break-words" x-show="application.message" x-text="application.message"></p>
+                          <div class="rounded-md bg-surface p-3" x-data="tracker(() => trackerFor(application))"></div>
 
                           <div class="flex flex-wrap gap-2">
                             <template x-if="application.status === 'pending'">

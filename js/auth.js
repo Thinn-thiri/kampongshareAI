@@ -538,6 +538,12 @@ const DASHBOARD_SECTIONS = {
     { href: "/donor.html#find", labelKey: "nav.findNeeds", icon: "package-open" },
     { href: "/donor.html#offers", labelKey: "nav.myOffers", icon: "hand-heart", countKey: "dropoff" },
   ],
+  volunteer: [
+    { href: "/volunteer.html#overview", labelKey: "nav.overview", icon: "layout-dashboard" },
+    { href: "/volunteer.html#find", labelKey: "nav.findEvents", icon: "calendar" },
+    { href: "/volunteer.html#applications", labelKey: "nav.myApplications", icon: "clipboard-list", countKey: "applications" },
+    { href: "/volunteer.html#tasks", labelKey: "nav.myTasks", icon: "list-checks", countKey: "tasks" },
+  ],
   admin: [
     { href: "/admin.html#overview", labelKey: "nav.overview", icon: "layout-dashboard" },
     { href: "/admin.html#review", labelKey: "nav.toReview", icon: "inbox", countKey: "review" },
@@ -610,13 +616,14 @@ document.addEventListener("alpine:init", () => {
 
     /**
      * The dashboard sections to show in the bars, if any: admins and organizations always;
-     * donors always, or — for people who also volunteer — while they're on donor.html.
+     * donors and volunteers always, or — for people who do both — while they're on that dashboard.
      */
     get sections() {
       const profile = this.profile;
       if (!profile) return null;
       if (profile.role === "admin" || profile.role === "organization") return DASHBOARD_SECTIONS[profile.role] ?? null;
       if (profile.is_donor && (!profile.is_volunteer || location.pathname === "/donor.html")) return DASHBOARD_SECTIONS.donor ?? null;
+      if (profile.is_volunteer && (!profile.is_donor || location.pathname === "/volunteer.html")) return DASHBOARD_SECTIONS.volunteer ?? null;
       return null;
     },
 
@@ -653,12 +660,15 @@ document.addEventListener("alpine:init", () => {
       const donating = { href: "/donor.html", labelKey: "nav.donating", icon: "hand-heart" };
       const volunteering = { href: "/volunteer.html", labelKey: "nav.volunteering", icon: "users" };
       const donorSections = DASHBOARD_SECTIONS.donor ?? [];
+      const volunteerSections = DASHBOARD_SECTIONS.volunteer ?? [];
       if (profile.is_donor && profile.is_volunteer) {
-        // on donor.html: its sections, plus a way over to volunteering
-        return location.pathname === "/donor.html" ? [...donorSections, volunteering] : [donating, volunteering, needs, profileLink];
+        // on a dashboard: its sections, plus a way over to the other one
+        if (location.pathname === "/donor.html") return [...donorSections, volunteering];
+        if (location.pathname === "/volunteer.html") return [...volunteerSections, donating];
+        return [donating, volunteering, needs, profileLink];
       }
       if (profile.is_donor && !profile.is_volunteer) return [...donorSections, profileLink];
-      if (profile.is_volunteer) return [volunteering, { href: "/#events-heading", labelKey: "nav.events", icon: "calendar" }, profileLink];
+      if (profile.is_volunteer) return volunteerSections;
       return [donating, needs, profileLink];
     },
 

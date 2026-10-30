@@ -457,23 +457,13 @@
                   <span :class="offerDisplay(offer).className" x-text="offerDisplay(offer).label"></span>
                 </div>
 
-                <!-- Pending on a request past its deadline: the organization can still accept it -->
-                <p class="rounded-md bg-warning-soft p-3 text-sm text-warning" x-show="offer.status === 'pending' && offer.item?.request?.status === 'open' && isPastDeadline(offer.item?.request)"
-                  data-i18n="deadlines.waitingForOrg">Deadline passed — waiting for the organization</p>
+                <!-- where it is: Offer sent → Accepted → Delivered (REQUIREMENTS.md 12) -->
+                <div x-data="tracker(() => trackerFor(offer))"></div>
 
-                <!-- Accepted: where to bring it -->
-                <div class="rounded-md border border-info bg-info-soft p-4 text-info" x-show="offer.status === 'accepted'">
-                  <p class="font-semibold" data-i18n="donor.acceptedDropOff">Your offer was accepted — please drop off at:</p>
-                  <p class="mt-1 whitespace-pre-line break-words text-ink"
-                    x-text="offer.item?.request?.dropoff_instructions || $t('donor.orgWillContact')"></p>
-                  <p class="mt-1 text-sm break-words" x-show="offer.item?.request?.organization?.address"
-                    x-text="$t('donor.orgAddress', { address: offer.item?.request?.organization?.address })"></p>
-                </div>
-
-                <p class="text-sm text-muted whitespace-pre-line break-words" x-show="offer.message" x-text="$t('donor.yourMessage', { message: offer.message })"></p>
-
-                <div x-show="isActiveOffer(offer)">
-                  <button type="button" class="btn btn-danger" :disabled="cancellingId === offer.id" @click="cancel(offer)">
+                <div class="flex flex-wrap gap-3">
+                  <button type="button" class="btn btn-secondary" @click="openTimeline(offer, $event)" aria-haspopup="dialog"
+                    :aria-label="$t('tracker.seeTimelineFor', { item: offer.item?.name ?? '' })" data-i18n="tracker.seeTimeline">See timeline</button>
+                  <button type="button" class="btn btn-danger" x-show="isActiveOffer(offer)" :disabled="cancellingId === offer.id" @click="cancel(offer)">
                     <span class="spinner" x-show="cancellingId === offer.id" x-cloak aria-hidden="true"></span>
                     <span data-i18n="donor.cancelOffer">Cancel offer</span>
                   </button>
@@ -510,9 +500,21 @@
                   </div>
                   <span :class="offerDisplay(offer).className" x-text="offerDisplay(offer).label"></span>
                 </div>
-                <p class="text-sm text-muted whitespace-pre-line break-words"
-                  x-show="offer.status === 'rejected' && offer.item?.request?.status !== 'open' && offer.item?.request?.close_reason"
-                  x-text="$t('admin.reasonLine', { reason: offer.item?.request?.close_reason })"></p>
+                <!-- delivered: a rubber stamp, and (the first time only) Pinny says thank you -->
+                <div class="flex flex-wrap items-center gap-4 py-1" x-show="offer.status === 'delivered'">
+                  <span class="stamp"><i data-lucide="hand-heart"></i><span data-i18n="stamp.delivered">Delivered · Thank you!</span></span>
+                  <template x-if="pinnyOfferId === offer.id">
+                    <span class="flex items-center gap-2">
+                      <img src="/img/pinny-thanks.svg" alt="" class="pinny" width="72" height="84" />
+                      <span class="text-sm font-semibold" data-i18n="stamp.pinnyThanks">Pinny says thank you for giving!</span>
+                    </span>
+                  </template>
+                </div>
+                <div x-data="tracker(() => trackerFor(offer))"></div>
+                <div>
+                  <button type="button" class="btn btn-secondary" @click="openTimeline(offer, $event)" aria-haspopup="dialog"
+                    :aria-label="$t('tracker.seeTimelineFor', { item: offer.item?.name ?? '' })" data-i18n="tracker.seeTimeline">See timeline</button>
+                </div>
               </li>
             </template>
           </ul>
@@ -524,6 +526,27 @@
           </div>
         </div>
       </section>
+
+      <!-- The full timeline of one offer (a sheet on the right; full screen on phones) -->
+      <dialog id="offer-panel" class="side-panel" aria-labelledby="offer-panel-title" @close="onSidePanelEvent($event)" @click="onSidePanelEvent($event)">
+        <div class="sticky top-0 z-10 flex items-center justify-between gap-3 border-b border-line bg-surface p-4">
+          <h2 id="offer-panel-title" class="text-lg font-semibold" tabindex="-1" data-panel-title data-i18n="tracker.offerTimeline">Your offer's timeline</h2>
+          <button type="button" class="btn btn-ghost size-11 shrink-0 px-0" @click="closeSidePanel('offer-panel')" aria-label="Close timeline" data-i18n-attr="aria-label:tracker.closeTimeline">
+            <i data-lucide="x" class="size-5" aria-hidden="true"></i>
+          </button>
+        </div>
+        <template x-if="panelOffer">
+          <div class="space-y-5 p-4">
+            <div>
+              <p class="font-semibold break-words" x-text="$t('orgDash.offerLine', { quantity: panelOffer.quantity, unit: panelOffer.item?.unit ?? '', item: panelOffer.item?.name ?? $t('donor.itemGone') })"></p>
+              <p class="text-sm text-muted break-words" x-text="[panelOffer.item?.request?.title, panelOffer.item?.request?.organization?.name].filter(Boolean).join(' · ') || $t('donor.requestGone')"></p>
+              <p class="mt-1 text-sm break-words" x-show="panelOffer.status === 'accepted' && panelOffer.item?.request?.organization?.address"
+                x-text="$t('donor.orgAddress', { address: panelOffer.item?.request?.organization?.address })"></p>
+            </div>
+            <div x-data="tracker(() => trackerFor(panelOffer, true), 'column')"></div>
+          </div>
+        </template>
+      </dialog>
     </main>
   </body>
 </html>

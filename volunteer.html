@@ -133,22 +133,6 @@
         <p class="mt-1 text-muted" data-i18n="volunteer.intro">Find an event near you, apply, and the organization will confirm your place.</p>
       </div>
 
-      <!-- Summary -->
-      <section aria-label="Summary" data-i18n-attr="aria-label:volunteer.summary" class="grid grid-cols-3 gap-3 sm:gap-4">
-        <div class="card p-4 sm:p-5">
-          <p class="text-sm text-muted" data-i18n="volunteer.upcomingEvents">Upcoming events</p>
-          <p class="mt-1 text-2xl font-bold sm:text-3xl" x-text="loadingEvents ? '–' : events.length">–</p>
-        </div>
-        <div class="card p-4 sm:p-5">
-          <p class="text-sm text-muted" data-i18n="volunteer.activeApplications">My active applications</p>
-          <p class="mt-1 text-2xl font-bold sm:text-3xl" x-text="loadingApplications ? '–' : activeApplicationCount">–</p>
-        </div>
-        <div class="card p-4 sm:p-5">
-          <p class="text-sm text-muted" data-i18n="volunteer.openTasks">My open tasks</p>
-          <p class="mt-1 text-2xl font-bold sm:text-3xl" x-text="loadingTasks ? '–' : openTaskCount">–</p>
-        </div>
-      </section>
-
       <!-- Volunteer account not approved yet: read-only -->
       <div class="rounded-md border border-warning bg-warning-soft p-4 text-warning" x-show="profile && !accountApproved && accountStatus !== 'rejected'" x-cloak role="status">
         <p class="font-semibold" data-i18n="volunteer.pendingTitle">Your volunteer account is waiting for admin approval</p>
@@ -175,8 +159,53 @@
         <a href="/profile.html" class="btn btn-secondary mt-3" data-i18n="common.goToProfile">Go to my profile</a>
       </div>
 
-      <!-- Upcoming events -->
-      <section class="space-y-4" aria-labelledby="events-heading">
+      <!-- ===================== Overview ===================== -->
+      <div class="space-y-8" x-show="section === 'overview'">
+        <h2 class="text-2xl font-semibold" data-i18n="nav.overview">Overview</h2>
+
+        <section aria-label="Summary" data-i18n-attr="aria-label:volunteer.summary" class="grid grid-cols-3 gap-3 sm:gap-4">
+          <a href="#find" class="card block p-4 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary sm:p-5">
+            <span class="block text-sm text-muted" data-i18n="volunteer.upcomingEvents">Upcoming events</span>
+            <span class="mt-1 block text-2xl font-bold sm:text-3xl" x-text="loadingEvents ? '–' : events.length">–</span>
+          </a>
+          <a href="#applications" class="card block p-4 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary sm:p-5">
+            <span class="block text-sm text-muted" data-i18n="volunteer.activeApplications">My active applications</span>
+            <span class="mt-1 block text-2xl font-bold sm:text-3xl" x-text="loadingApplications ? '–' : activeApplicationCount">–</span>
+          </a>
+          <a href="#tasks" class="card block p-4 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary sm:p-5">
+            <span class="block text-sm text-muted" data-i18n="volunteer.openTasks">My open tasks</span>
+            <span class="mt-1 block text-2xl font-bold sm:text-3xl" x-text="loadingTasks ? '–' : openTaskCount">–</span>
+          </a>
+        </section>
+
+        <!-- Your next confirmed event -->
+        <section class="card space-y-3" aria-labelledby="coming-up-heading">
+          <h3 id="coming-up-heading" class="text-lg font-semibold" data-i18n="volunteer.comingUp">Coming up</h3>
+          <div class="space-y-2" x-show="loadingApplications" role="status"><span class="sr-only" data-i18n="common.loading">Loading…</span>
+            <div class="skeleton h-5 w-2/3"></div><div class="skeleton h-5 w-1/2"></div>
+          </div>
+          <div class="space-y-3" x-show="!loadingApplications && !nextEvent" x-cloak>
+            <p class="text-muted" data-i18n="volunteer.comingUpEmpty">No confirmed events yet. When an organization approves your application, your next event shows here.</p>
+            <a href="#find" class="btn btn-secondary" data-i18n="volunteer.comingUpFind">Find an event</a>
+          </div>
+          <template x-if="!loadingApplications && nextEvent">
+            <div class="space-y-3">
+              <div class="min-w-0">
+                <p class="font-semibold break-words" x-text="nextEvent.event?.title"></p>
+                <p class="text-sm text-muted"
+                  x-text="nextEvent.event ? `${formatEventTime(nextEvent.event.starts_at, nextEvent.event.ends_at)} · ${nextEvent.event.location_name ?? ''}` : ''"></p>
+                <p class="text-sm text-primary" x-text="nextEvent.event?.organization?.name"></p>
+              </div>
+              <div x-data="tracker(() => trackerFor(nextEvent))"></div>
+              <button type="button" class="btn btn-secondary" @click="openTimeline(nextEvent, $event)" aria-haspopup="dialog"
+                :aria-label="$t('tracker.seeTimelineFor', { item: nextEvent.event?.title ?? '' })" data-i18n="tracker.seeTimeline">See timeline</button>
+            </div>
+          </template>
+        </section>
+      </div>
+
+      <!-- ===================== Find events ===================== -->
+      <section class="space-y-4" x-show="section === 'find'" x-cloak aria-labelledby="events-heading">
         <h2 id="events-heading" class="text-xl font-semibold" data-i18n="volunteer.upcomingEvents">Upcoming events</h2>
 
         <div class="grid gap-4 md:grid-cols-2" x-show="loadingEvents" role="status"><span class="sr-only" data-i18n="volunteer.loadingEvents">Loading events…</span>
@@ -252,8 +281,8 @@
         </div>
       </section>
 
-      <!-- My applications: Active | History -->
-      <section class="space-y-4" aria-labelledby="apps-heading">
+      <!-- ===================== My applications: Active | History ===================== -->
+      <section class="space-y-4" x-show="section === 'applications'" x-cloak aria-labelledby="apps-heading">
         <div class="flex flex-wrap items-center justify-between gap-3">
           <h2 id="apps-heading" class="text-xl font-semibold" data-i18n="volunteer.myApplications">My applications</h2>
           <div class="segmented w-full sm:w-auto" role="group" aria-label="Show applications" data-i18n-attr="aria-label:volunteer.showApplications">
@@ -273,20 +302,25 @@
           <div class="card flex flex-col items-center gap-3 text-center py-10" x-show="!loadingApplications && !applicationsError && activeApplications.length === 0" x-cloak>
             <i data-lucide="clipboard-list" class="size-10 text-primary" aria-hidden="true"></i>
             <p class="text-muted" data-i18n="volunteer.noActiveApplications">No active applications — choose an upcoming event above.</p>
-            <a href="#events-heading" class="btn btn-secondary" data-i18n="volunteer.seeUpcoming">See upcoming events</a>
+            <a href="#find" class="btn btn-secondary" data-i18n="volunteer.seeUpcoming">See upcoming events</a>
           </div>
 
           <ul class="space-y-3" x-show="!loadingApplications && !applicationsError">
             <template x-for="application in activeApplications" :key="application.id">
-              <li class="card flex flex-wrap items-start justify-between gap-3">
-                <div class="min-w-0">
-                  <p class="font-semibold break-words" x-text="application.event?.title ?? $t('volunteer.eventGone')"></p>
-                  <p class="text-sm text-muted" x-show="application.event"
-                    x-text="application.event ? `${formatEventTime(application.event.starts_at, application.event.ends_at)} · ${application.event.location_name ?? ''}` : ''"></p>
-                  <p class="text-sm text-primary" x-text="application.event?.organization?.name"></p>
-                </div>
-                <div class="flex flex-wrap items-center gap-3">
+              <li class="card space-y-3">
+                <div class="flex flex-wrap items-start justify-between gap-3">
+                  <div class="min-w-0">
+                    <p class="font-semibold break-words" x-text="application.event?.title ?? $t('volunteer.eventGone')"></p>
+                    <p class="text-sm text-muted" x-show="application.event"
+                      x-text="application.event ? `${formatEventTime(application.event.starts_at, application.event.ends_at)} · ${application.event.location_name ?? ''}` : ''"></p>
+                    <p class="text-sm text-primary" x-text="application.event?.organization?.name"></p>
+                  </div>
                   <span :class="badges[application.status].className" x-text="badges[application.status].label"></span>
+                </div>
+                <div x-data="tracker(() => trackerFor(application))"></div>
+                <div class="flex flex-wrap items-center gap-3">
+                  <button type="button" class="btn btn-secondary" @click="openTimeline(application, $event)" aria-haspopup="dialog"
+                    :aria-label="$t('tracker.seeTimelineFor', { item: application.event?.title ?? '' })" data-i18n="tracker.seeTimeline">See timeline</button>
                   <button type="button" class="btn btn-danger"
                     :disabled="busyId === application.id || application.status === 'approved'"
                     :aria-describedby="application.status === 'approved' ? `app-confirmed-${application.id}` : null"
@@ -295,7 +329,7 @@
                     <span data-i18n="volunteer.withdraw">Withdraw</span>
                   </button>
                 </div>
-                <p :id="`app-confirmed-${application.id}`" class="helper-text mt-0 w-full" x-show="application.status === 'approved'" x-text="confirmedNote"></p>
+                <p :id="`app-confirmed-${application.id}`" class="helper-text mt-0" x-show="application.status === 'approved'" x-text="confirmedNote"></p>
               </li>
             </template>
           </ul>
@@ -331,10 +365,12 @@
                   </button>
                   </div>
                 </div>
-                <p class="text-sm font-medium break-words" x-show="applicationOutcome(application).text"
-                  :class="application.event?.status === 'cancelled' ? 'text-warning' : 'text-ink'" x-text="applicationOutcome(application).text"></p>
-                <p class="text-sm text-muted whitespace-pre-line break-words" x-show="applicationOutcome(application).detail"
-                  x-text="applicationOutcome(application).detail"></p>
+                <p class="sr-only" x-show="applicationOutcome(application).text" x-text="applicationOutcome(application).text"></p>
+                <div x-data="tracker(() => trackerFor(application))"></div>
+                <div>
+                  <button type="button" class="btn btn-secondary" @click="openTimeline(application, $event)" aria-haspopup="dialog"
+                    :aria-label="$t('tracker.seeTimelineFor', { item: application.event?.title ?? '' })" data-i18n="tracker.seeTimeline">See timeline</button>
+                </div>
               </li>
             </template>
           </ul>
@@ -347,8 +383,8 @@
         </div>
       </section>
 
-      <!-- My tasks: Active | History -->
-      <section class="space-y-4" aria-labelledby="tasks-heading">
+      <!-- ===================== My tasks: Active | History ===================== -->
+      <section class="space-y-4" x-show="section === 'tasks'" x-cloak aria-labelledby="tasks-heading">
         <div class="flex flex-wrap items-center justify-between gap-3">
           <h2 id="tasks-heading" class="text-xl font-semibold" data-i18n="volunteer.myTasks">My tasks</h2>
           <div class="segmented w-full sm:w-auto" role="group" aria-label="Show tasks" data-i18n-attr="aria-label:volunteer.showTasks">
@@ -423,6 +459,26 @@
           </div>
         </div>
       </section>
+      <!-- One application's full timeline (a sheet on the right; full screen on phones) -->
+      <dialog id="app-panel" class="side-panel" aria-labelledby="app-panel-title" @close="onSidePanelEvent($event)" @click="onSidePanelEvent($event)">
+        <div class="sticky top-0 z-10 flex items-center justify-between gap-3 border-b border-line bg-surface p-4">
+          <h2 id="app-panel-title" class="text-lg font-semibold" tabindex="-1" data-panel-title data-i18n="tracker.appTimeline">Your application's timeline</h2>
+          <button type="button" class="btn btn-ghost size-11 shrink-0 px-0" @click="closeSidePanel('app-panel')" aria-label="Close timeline" data-i18n-attr="aria-label:tracker.closeTimeline">
+            <i data-lucide="x" class="size-5" aria-hidden="true"></i>
+          </button>
+        </div>
+        <template x-if="panelApp">
+          <div class="space-y-5 p-4">
+            <div>
+              <p class="font-semibold break-words" x-text="panelApp.event?.title ?? $t('volunteer.eventGone')"></p>
+              <p class="text-sm text-muted" x-show="panelApp.event"
+                x-text="panelApp.event ? `${formatEventTime(panelApp.event.starts_at, panelApp.event.ends_at)} · ${panelApp.event.location_name ?? ''}` : ''"></p>
+              <p class="text-sm text-primary" x-text="panelApp.event?.organization?.name"></p>
+            </div>
+            <div x-data="tracker(() => trackerFor(panelApp), 'column')"></div>
+          </div>
+        </template>
+      </dialog>
     </main>
   </body>
 </html>

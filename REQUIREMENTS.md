@@ -20,7 +20,7 @@ Community donation and volunteer platform for Singapore. Hackathon prototype.
 
 **Volunteer rules (enforced by the database):**
 
-- **Volunteer accounts need admin approval first** (`profiles.volunteer_approval`: pending / approved / rejected). New volunteers — and anyone who turns volunteering on later — start as **pending**: they can browse events (read only) but can't apply. The admin approves or rejects them in the "Volunteer accounts waiting" queue; rejecting needs a note (`profiles.volunteer_note`) that the volunteer sees, and they can press "Ask for review again". Volunteers who existed before this rule were approved automatically. After approval, organizations still approve each event application.
+- **Volunteer accounts need admin approval first** (`profiles.volunteer_approval`: pending / approved / rejected). New volunteers — and anyone who turns volunteering on later — start as **pending**: they can browse events (read only) but can't apply. The admin approves or rejects them in the "Volunteer accounts waiting" queue; rejecting needs a note (`profiles.volunteer_note`) that the volunteer sees, and they can press "Ask for review again". Volunteers who existed before this rule were approved automatically. After approval, **only the event's organization** approves or rejects each event application — admins can't (the database refuses: "Only the event's organization can approve or reject volunteers for an event"; `20261030060000_org_approves_applications.sql`).
 
 - `events.volunteers_needed` is the limit (0 = no limit; the event form should ask for at least 1). Once that many are approved, new applications and approvals are refused: show **"Event full"**.
 - Volunteers can **withdraw** a **pending** application (status `withdrawn`, confirm dialog first). Once **approved**, the Withdraw button is shown disabled with the note "Your place is confirmed — please contact the organization if you can't make it"; only the organization can then remove them, which frees the spot. They can **apply again** later (`withdrawn` → `pending`) if the event still has room.
@@ -29,6 +29,8 @@ Community donation and volunteer platform for Singapore. Hackathon prototype.
 **Core flow:** approved organization posts a request with items → admin approves → AI scores urgency with reasons → donor browses (sorted by urgency) or gets AI recommendations → donor offers against one specific item (never more than remaining) → organization accepts / rejects → marks delivered → request becomes fulfilled automatically.
 
 **Donor dashboard (`donor.html`):** sections Overview · Find needs · My offers (`#overview`, `#find`, `#offers`). Overview: the summary cards (each links to its section), "Ready to drop off" (accepted offers with their drop-off instructions) and the "What can you give?" AI box. Find needs: open requests with the Offer form (event.html's Donate button, `?request=` / `?org=`, opens it filtered). My offers: Active | History. The "My offers" badge counts accepted offers waiting to be dropped off.
+
+**Volunteer dashboard (`volunteer.html`):** sections Overview · Find events · My applications · My tasks (`#overview`, `#find`, `#applications`, `#tasks`; older `#events-heading`, `#apps-heading` and `#tasks-heading` links still work). The account-approval and consent notes show above every section. Overview: the summary cards (each links to its section) and "Coming up" (the next confirmed event with its tracker). Find events: upcoming events with Apply. My applications and My tasks: Active | History. Badges: My applications = confirmed places for events that haven't ended, My tasks = open tasks.
 
 **Organization dashboard (`organization.html`):** sections Overview · Requests · Offers · Events (`#overview`, `#requests`, `#offers`, `#events`; older `#requests-heading` links still work, and `?new=request` opens the new-request form). Overview: approval status until approved, the 4 summary cards (each links to its section), "Needs your action" (offers to accept or deliver, volunteer applications waiting, items waiting for admin approval) and the organization's details (a summary with "Edit details" once approved). Before approval, Requests, Offers and Events show a locked card. Badges: Offers = offers waiting, Events = volunteer applications waiting.
 
@@ -39,7 +41,7 @@ Community donation and volunteer platform for Singapore. Hackathon prototype.
 - Every list is split into **Active** and **History** tabs (Alpine). History is newest first, shows the status badge, the date it ended (`closed_at`, `cancelled_at` or `updated_at`) and any reason, and loads **20 at a time** with "Show more". Friendly empty states ("No past donations yet").
   - **Donor:** Active = pending and accepted offers; History = delivered, cancelled, rejected. An offer declined because its request closed shows "Request closed" plus the request's `close_reason`.
   - **Volunteer:** Active = pending and approved applications for upcoming or ongoing events, and open tasks; History = everything else. Cancelled event → "Event cancelled: <reason>"; completed → "Event completed" with the outcome summary.
-  - **Organization:** requests Active (pending approval, open) | History (fulfilled, closed, rejected); events Upcoming (upcoming, ongoing) | Past & cancelled (completed, cancelled); offers Active | History. Completed events can still have their outcome summary edited; everything else about a past event is read-only.
+  - **Organization:** requests Active (pending approval, open) | History (fulfilled, closed, rejected); events Upcoming (upcoming, ongoing) | Past & cancelled (completed, cancelled); offers: the board New · Accepted · Delivered | History (rejected, cancelled) — section 12. Completed events can still have their outcome summary edited; everything else about a past event is read-only.
   - **Admin:** a History section with status filters for requests, events, offers and applications, plus "Recently closed or cancelled" (last 30 days) to spot unusual activity.
 - **Close request:** dialog with an optional reason (`donation_requests.close_reason`, max 300 characters). The database sets `closed_at`.
 - **Cancel event:** dialog with a **required** reason (`events.cancel_reason`, max 300 characters) and a warning that approved volunteers will see it. The database sets `cancelled_at`. Visitors can read the reason (column grant), and `event.html` shows "This event was cancelled: <reason>" and hides the Volunteer button.
@@ -91,6 +93,7 @@ js/share.js            → share links, poster image, copy caption (section 5)
 js/chat-questions.js   → every chat question (who sees it, links, follow-ups); the words are in js/i18n/*.js
 js/chat.js             → the "Ask KampongShare" chat widget (section 6.8)
 js/geocode.js          → lookupPostalCode(): postal code → { address, latitude, longitude } via geocode-postal
+js/styleguide-trackers.js → sample records for the tracker states on styleguide.html (section 12)
 js/org-deadlines.js    → organization.html's deadline rows in "Needs your action" and "Also close the linked request?" (section 11)
 js/messaging.js        → private messages: data functions, Realtime / polling, the top bar's unread count (section 10)
 js/messages-page.js    → the messages.html component (UI only)
@@ -202,6 +205,7 @@ Everything is defined once in `src/input.css`: theme tokens in `@theme` (Tailwin
 ### Components (classes above, reused everywhere)
 
 - **Pinned notices (the signature — donation request cards only:** home "Pinned up this week", Browse needs, organization pages, donor Find needs, and the organization's own active requests on organization.html; History cards stay calm**):** the grid gets `noticeboard` (cork background) and each card is `article.notice`: paper, 6px corners, a marigold pin (CSS, no markup) at the top centre with a short shadow, and a gentle alternating tilt (−1°, 0.6°, −0.4°, 0.9°; never more than 1.2°). Hover (pointer devices only) or keyboard focus inside: straightens to 0° and lifts 2px with a soft spring (about 0.26 s), the card's shadow grows, and the pin is pressed in (smaller, shorter shadow). With `prefers-reduced-motion`: no tilt, no movement.
+- **Tracking timeline:** `tracker` (Alpine, js/ui.js) draws the steps of an offer or application — section 12. Delivered offers get a green rubber `stamp`; Pinny (`img/pinny-thanks.svg`, the noticeboard pin mascot) says thank you once.
 - **Tear-off tabs:** on notices, "still needed" is a strip of tabs (`itemTabs()` in js/requests.js, `.tear-tabs` with `role="img"` and the same label as the bar): one tab per unit up to 10, otherwise 10 tabs of 10%; solid = received, striped = promised, dashed and empty = still needed; at least one empty tab while anything is needed. "6 of 10 bags" is written under it.
 - **Cards:** `card` — everything else (events, stats, forms, review cards): straight, surface, 1px `line` border that turns `primary` on hover, 14px corners, no lift.
 - **Buttons:** `btn btn-primary` (main action: green on a solid darker edge, `box-shadow: 0 3px 0 primary-edge`; pressed: moves down 2px, edge 1px), `btn btn-secondary` (paper with an ink border and ink edge, same press), `btn btn-danger` (only for destructive actions, same shape in danger colours), `btn btn-ghost` (text only). No gradients or glow. Show a spinner and disable while an action is running so nothing is submitted twice.
@@ -226,7 +230,7 @@ Everything is defined once in `src/input.css`: theme tokens in `@theme` (Tailwin
 - **Mobile-first.** Must work at 360px wide with no sideways scrolling. Breakpoints at 640px and 1024px.
 - Content max width 1100px, centred, 16px side padding on mobile.
 - Top bar: logo, the logged-in person's own name, the main links, language menu (section 9), theme control, Messages button with the unread count (individuals and organizations, section 10), profile menu with logout. On mobile, a bottom navigation bar with the 3–4 main sections for that role.
-- **Dashboards are split into sections** linked from the top bar (`DASHBOARD_SECTIONS` in js/auth.js) instead of one long page: an Overview first, then one section per job. The section is kept in the URL hash, so reloading and Back / Forward work; a badge shows what's waiting (sent with the `dashboard-counts` event). Admin: Overview · To review · Browse. Organization: Overview · Requests · Offers · Events. Donor: Overview · Find needs · My offers (people who also volunteer see the donor sections on donor.html, plus the Donating / Volunteering switch).
+- **Dashboards are split into sections** linked from the top bar (`DASHBOARD_SECTIONS` in js/auth.js) instead of one long page: an Overview first, then one section per job. The section is kept in the URL hash, so reloading and Back / Forward work; a badge shows what's waiting (sent with the `dashboard-counts` event). Admin: Overview · To review · Browse. Organization: Overview · Requests · Offers · Events. Donor: Overview · Find needs · My offers. Volunteer: Overview · Find events · My applications · My tasks. People who do both see each dashboard's sections on its own page, plus the Donating / Volunteering switch.
 - Dashboards start with 3–4 summary stat cards (e.g., "Open requests", "Items still needed", "Offers waiting").
 - Lists become card grids on desktop, single column on mobile.
 - Map pages: map fills the top of the screen, list of events below (mobile) or beside it (desktop).
@@ -500,7 +504,7 @@ Admins **review and moderate**; they do not create content. Admins cannot create
 
 ### 7.1 Overview
 
-- Four count cards: Organizations, Requests, Events, Volunteers waiting (volunteer accounts + event applications). Each links to its "To review" sub-tab.
+- Four count cards: Organizations, Requests, Events, Volunteers waiting (volunteer accounts). Each links to its "To review" sub-tab.
 - "Waiting longest": the 5 oldest pending items of any kind, each linking to it.
 - "Recently closed or cancelled" (last 7 days) and the public impact numbers (`public_stats`).
 
@@ -509,7 +513,7 @@ Admins **review and moderate**; they do not create content. Admins cannot create
 - Sub-tabs Organizations · Requests · Events · Volunteers, each with a count; the "To review" tab shows the total waiting. Oldest first.
 - **One shared review card** for every kind: type, title, who sent it, "Waiting 2 days", 2–3 key details, and View details · Reject · Approve (primary).
 - **View details** opens a side panel (`<dialog class="side-panel">`: a sheet on the right on desktop, full screen on phones) with everything needed to decide, plus Approve / Reject. Closes with the button, Escape or the backdrop; focus returns to the card.
-- **Reject** opens a dialog with quick reasons ("Missing details", "Couldn't verify the organization", "Not suitable for the platform", "Duplicate") that fill the note, plus a text box; the note is required (event applications have no note, so they get a plain confirm).
+- **Reject** opens a dialog with quick reasons ("Missing details", "Couldn't verify the organization", "Not suitable for the platform", "Duplicate") that fill the note, plus a text box; the note is required.
 - After an action: a toast, the card disappears, every count updates. Empty sub-tab: "All caught up ✓".
 
 The kinds and what the panel shows:
@@ -517,7 +521,7 @@ The kinds and what the panel shows:
 1. **Organizations** — `organizations.approval = 'pending'`: name, description, address, map pin, phone, owner's name and phone (emails live in Supabase's auth system and aren't readable from the browser). Approve → it can post requests and events.
 2. **Donation requests** — `status = 'pending_approval'`: organization, title, items and quantities, deadline, urgency. Approve → `status = 'open'`; Reject → `status = 'rejected'`.
 3. **Events** — `approval = 'pending'`: organization, title, place, date and time, linked request. Approve → appears on the map and can be shared.
-4. **Volunteers** — both **volunteer accounts** waiting for approval (`profiles.volunteer_approval = 'pending'`: phone, area, availability, interests, skills) and **event applications** (`status = 'pending'`: volunteer's name, event, message, availability and interests). Each card says "Account" or "Application".
+4. **Volunteers** — **volunteer accounts** waiting for approval (`profiles.volunteer_approval = 'pending'`: phone, area, availability, interests, skills). Event applications aren't here: each event's organization decides on them (section 1); admins can only see them in Browse → Applications.
 
 ### 7.3 Browse (replaces the old monitoring and History sections)
 
@@ -545,7 +549,7 @@ The kinds and what the panel shows:
 - Shows loading, empty and error states.
 - Database errors are shown to the user in friendly words.
 - No secrets or personal data in frontend code, URLs or console logs.
-- Follows sections 2–7 and 9–11 of this file.
+- Follows sections 2–7 and 9–12 of this file.
 - Every new text uses a translation key in all three language files; `node scripts/check-i18n.js` passes.
 - No `// @ts-check` warnings in changed files.
 
@@ -646,4 +650,26 @@ The rules live in `supabase/migrations/20261029040000_deadlines.sql`; the option
 - **Volunteers:** ended events leave Find events; their applications move to History with "Event ended".
 - **Organizations:** "Needs your action" sits at the top of the Overview and lists open requests past their deadline ("Extend deadline": a date picker, today or later · "Close request": the reason is pre-filled "Deadline passed") and events that have ended but are still upcoming / ongoing ("Mark completed" with an outcome summary · "Cancel event"), with the auto-close note. After marking an event completed or cancelled (here or in Events), if its linked request is still open: "Also close the linked request "<title>"?" → Close it (reason "Event ended") / Keep it open. Linking a request whose deadline is after the event's day shows a gentle warning (allowed). Badges: "Deadline passed" on requests; "Happening now" / "Ended" on events.
 - **Admin:** the Overview's "Past their date" cards count open requests past their deadline and events that ended but aren't completed; each opens Browse with a filter (`#browse/requests?view=active&filter=past_deadline`, `#browse/events?view=active&filter=ended`) shown as a "Show all" note.
+
+---
+
+## 12. Tracking timeline
+
+The step times are recorded by the database (`supabase/migrations/20261030040000_status_times.sql`), never by the page: offers `accepted_at`, `rejected_at`, `delivered_at`, `cancelled_at`; applications `applied_at`, `approved_at`, `rejected_at`, `withdrawn_at`. Older records only have the times that were known; a missing time shows "Date not recorded". An organization can add an optional note when it rejects an offer (`donation_offers.reject_note`, max 300 characters, only together with pending → rejected — `20261030050000_offer_reject_note.sql`).
+
+**One shared tracker:** `buildTracker()` and the Alpine component `tracker` in `js/ui.js`, styled in `src/input.css` (`.tracker`, `.tracker-row` on cards, `.tracker-column` in the details panel). The steps come from `offerTracker()` (js/offers.js) and `applicationTracker()` (js/volunteering.js).
+
+- Done step: filled `primary` circle with a tick; current step: marigold (`accent`) circle with a clock, `ink`-coloured icon (`on-accent`), one gentle pulse when it first appears (none with reduced motion); future step: empty dashed circle. The lines between steps turn green as steps complete.
+- Under each step: its name and date (full date and time in the panel). One "what happens next" line under the current step (under the tracker on cards).
+- A journey that stopped ends at that step with an x (rejected, cancelled, withdrawn) or an archive box (request closed, deadline passed, event cancelled, event ended), its date and reason; later steps are hidden.
+- Never colour alone: icon + words on every step; an ordered list with `aria-current="step"` and a hidden summary ("Step 2 of 3: Accepted").
+- "See timeline" opens a `<dialog class="side-panel">` with the full timeline (`openSidePanel()` / `closeSidePanel()` / `onSidePanelEvent()`; focus goes back to the button).
+
+**Offers:** Offer sent → Accepted → Delivered. Next: pending "Waiting for <organization> to reply"; accepted "Drop off by <deadline>" plus the drop-off instructions; delivered "Thank you!". Stops: Rejected (with the organization's note), Request closed (with its reason), Cancelled by you / by the donor, Deadline passed (pending offers on past-deadline requests). The panel shows the donor's message under "Offer sent", and the drop-off address plus "Message <organization>" under "Accepted". Delivered offers get the stamp "Delivered · Thank you!"; the first delivered stamp a donor sees also shows Pinny (`localStorage` `ks-pinny-thanks`, try/catch).
+
+**Organization offers board** (`organization.html#offers`): columns New · Accepted · Delivered with counts (tabs with counts on phones); cards show the item, quantity, donor name and how long ago it was offered, plus the button that moves it on (Accept / Reject on New — Reject asks for the optional note — and Mark delivered on Accepted; Delivered shows the date, newest 10 then "Show more"). Buttons only, no drag and drop; moving a card shows a toast, updates the counts and moves focus to its new column. Tapping a card opens its timeline with the donor's details and "Message donor". History holds rejected and cancelled offers.
+
+**Volunteer applications:** Applied → Approved → Event day (the event's start time) → Completed (the event marked completed; shown with its end time). Next: pending "Waiting for <organization>"; approved "See you on <date> at <place>" plus their tasks; event day "Happening now"; completed the outcome summary. Stops: Rejected (or "Removed by the organization" after approval), Withdrawn, Event cancelled (with the reason), Event ended (still pending). Shown on volunteer.html (cards and panel) and in each event's volunteer list on organization.html.
+
+**Style guide:** every step and stop in both themes (sample data in `js/styleguide-trackers.js`).
 

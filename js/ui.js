@@ -556,6 +556,8 @@ const DB_ERRORS = [
   { pattern: /^Event not found\.?$/, key: "errors.db.eventNotFound" },
   { pattern: /^This event already has all the volunteers it needs\.?$/, key: "errors.db.eventFull" },
   { pattern: /^This event has already ended\.?$/, key: "errors.db.eventEnded" },
+  { pattern: /^A note can only be added when the organization rejects an offer\.?$/, key: "errors.db.rejectNoteOnly" },
+  { pattern: /^Only the event's organization can approve or reject volunteers for an event\.?$/, key: "errors.db.orgDecidesApplications" },
   { pattern: /^The deadline for this request has passed, so it isn't taking new offers\.?$/, key: "errors.db.deadlinePassed" },
   { pattern: /^Applications cannot be moved to another event or person\.?$/, key: "errors.db.applicationMove" },
   {
@@ -803,3 +805,194 @@ document.addEventListener("alpine:init", () => {
     },
   }));
 });
+
+// ---------- tracking timeline (REQUIREMENTS.md 12) ----------
+// One shared tracker for offers and volunteer applications. The steps and their times come from
+// offerTracker() (js/offers.js) and applicationTracker() (js/volunteering.js); the database fills
+// in the times. Never colour alone: every step has an icon and words, and screen readers get a
+// summary ("Step 2 of 3: Accepted") plus aria-current="step".
+
+/**
+ * @typedef {'done' | 'current' | 'future'} TrackerState
+ * @typedef {{ label: string, run: () => void }} TrackerAction
+ * @typedef {Object} TrackerStep
+ * @property {string} key
+ * @property {string} label
+ * @property {string | null} at        when it happened (null: not reached, or not recorded)
+ * @property {TrackerState} state
+ * @property {string} [extra]           shown under the step in the full timeline (e.g. the donor's message)
+ * @property {string[]} [list]          lines shown under the step in the full timeline (e.g. tasks)
+ * @property {TrackerAction} [action]   a button under the step in the full timeline
+ * @typedef {{ label: string, icon: 'x' | 'archive', at: string | null, reason: string }} TrackerStop
+ * @typedef {Object} Tracker
+ * @property {TrackerStep[]} steps     only the steps shown (later steps are hidden once it stopped)
+ * @property {TrackerStop | null} stop
+ * @property {number} nextIndex        the step the "what happens next" line belongs to (-1: none)
+ * @property {string} next
+ * @property {string} nextDetail
+ * @property {string} summary          for screen readers
+ * @typedef {{ key: string, label: string, at: string | null, extra?: string, list?: string[], action?: TrackerAction }} TrackerStepDef
+ */
+
+/**
+ * Builds a tracker from its steps, how many were reached and (if it ended early) the stop.
+ * @param {TrackerStepDef[]} defs  every step of the journey, in order
+ * @param {number} reached        how many steps were reached (1 = only the first)
+ * @param {{ stop?: TrackerStop | null, next?: string, nextDetail?: string }} [extra]
+ * @returns {Tracker}
+ */
+function buildTracker(defs, reached, extra = {}) {
+  const stop = extra.stop ?? null;
+  const count = Math.max(1, Math.min(reached, defs.length));
+  const finished = !stop && count === defs.length;
+  const shown = stop ? defs.slice(0, count) : defs;
+  /** @type {TrackerStep[]} */
+  const steps = shown.map((def, index) => ({
+    ...def,
+    at: index < count ? def.at : null,
+    state: index < count - 1 || finished || stop ? "done" : index === count - 1 ? "current" : "future",
+  }));
+  const current = defs[count - 1];
+  const summary = stop
+    ? t("tracker.summaryStopped", { step: current.label, stop: stop.label })
+    : t("tracker.summary", { step: count, total: defs.length, label: current.label });
+  return { steps, stop, nextIndex: stop ? -1 : count - 1, next: extra.next ?? "", nextDetail: extra.nextDetail ?? "", summary };
+}
+
+/**
+ * "3 hours ago", "yesterday" — in the reader's language.
+ * @param {string | Date | null | undefined} value
+ * @returns {string}
+ */
+function timeAgo(value) {
+  if (!value) return "";
+  const then = new Date(value).getTime();
+  if (Number.isNaN(then)) return "";
+  const seconds = Math.round((then - Date.now()) / 1000);
+  const format = new Intl.RelativeTimeFormat(locale(), { numeric: "auto" });
+  /** @type {[Intl.RelativeTimeFormatUnit, number][]} */
+  const units = [["day", 86400], ["hour", 3600], ["minute", 60]];
+  for (const [unit, size] of units) {
+    if (Math.abs(seconds) >= size) return format.format(Math.round(seconds / size), unit);
+  }
+  return t("tracker.justNow");
+}
+
+/** The tracker's markup: static text only — every value is shown with x-text. */
+const TRACKER_MARKUP = `
+<p class="sr-only" x-text="model.summary"></p>
+<ol class="tracker" :class="layout === 'column' ? 'tracker-column' : 'tracker-row'">
+  <template x-for="(step, index) in model.steps" :key="step.key">
+    <li class="tracker-step" :class="[{ done: 'tracker-done', current: 'tracker-current', future: 'tracker-future' }[step.state],
+        index === model.steps.length - 1 ? (model.stop ? 'tracker-before-stop' : 'tracker-last') : '']"
+      :aria-current="step.state === 'current' ? 'step' : null">
+      <span class="tracker-dot" aria-hidden="true">
+        <span x-show="step.state === 'done'"><i data-lucide="check"></i></span>
+        <span x-show="step.state === 'current'"><i data-lucide="clock"></i></span>
+        <span x-show="step.state === 'future'"><i data-lucide="circle-dashed"></i></span>
+      </span>
+      <div class="tracker-text">
+        <p class="tracker-label"><span x-text="step.label"></span><span class="sr-only" x-text="stateText(step.state)"></span></p>
+        <p class="tracker-date" x-show="step.state !== 'future'" x-text="dateText(step.at)"></p>
+        <template x-if="layout === 'column'">
+          <div class="space-y-2">
+            <p class="tracker-next" x-show="index === model.nextIndex && model.next" x-text="model.next"></p>
+            <p class="tracker-extra" x-show="index === model.nextIndex && model.nextDetail" x-text="model.nextDetail"></p>
+            <p class="tracker-extra" x-show="step.extra" x-text="step.extra"></p>
+            <ul class="tracker-list" x-show="step.list?.length">
+              <template x-for="line in step.list ?? []" :key="line"><li x-text="line"></li></template>
+            </ul>
+            <template x-if="step.action">
+              <button type="button" class="btn btn-secondary min-h-11 gap-1.5 px-3 text-sm" @click="step.action.run()">
+                <i data-lucide="message-circle" class="size-4"></i><span x-text="step.action.label"></span>
+              </button>
+            </template>
+          </div>
+        </template>
+      </div>
+    </li>
+  </template>
+  <template x-if="model.stop">
+    <li class="tracker-step tracker-stopped" :class="model.stop.icon === 'x' ? 'tracker-stop-x' : ''">
+      <span class="tracker-dot" aria-hidden="true">
+        <span x-show="model.stop.icon === 'x'"><i data-lucide="circle-x"></i></span>
+        <span x-show="model.stop.icon === 'archive'"><i data-lucide="archive"></i></span>
+      </span>
+      <div class="tracker-text">
+        <p class="tracker-label" x-text="model.stop.label"></p>
+        <p class="tracker-date" x-show="model.stop.at" x-text="dateText(model.stop.at)"></p>
+        <p class="tracker-extra" x-show="layout === 'column' && model.stop.reason" x-text="model.stop.reason"></p>
+      </div>
+    </li>
+  </template>
+</ol>
+<template x-if="layout === 'row' && (model.next || model.stop?.reason)">
+  <div class="tracker-note">
+    <p class="font-semibold" x-text="model.stop ? model.stop.reason : model.next"></p>
+    <p class="whitespace-pre-line break-words text-muted" x-show="!model.stop && model.nextDetail" x-text="model.nextDetail"></p>
+  </div>
+</template>`;
+
+document.addEventListener("alpine:init", () => {
+  const Alpine = /** @type {any} */ (window).Alpine;
+  // <div x-data="tracker(() => offerTracker(offer), 'row')"></div> — 'row' on cards, 'column' in the details panel.
+  Alpine.data("tracker", (/** @type {() => Tracker} */ getModel, /** @type {'row' | 'column'} */ layout = "row") => ({
+    layout,
+    get model() {
+      return getModel();
+    },
+    init() {
+      const el = /** @type {HTMLElement} */ (/** @type {any} */ (this).$el);
+      el.innerHTML = TRACKER_MARKUP; // static markup only
+      // Alpine has already walked this element, so bring the new markup to life here
+      for (const child of [...el.children]) Alpine.initTree(child);
+    },
+    /** @param {TrackerState} state */
+    stateText(state) {
+      return t(`tracker.state.${state}`);
+    },
+    /** @param {string | null} at */
+    dateText(at) {
+      if (!at) return t("tracker.notRecorded");
+      return formatDate(at, layout === "column");
+    },
+  }));
+});
+
+/** The button that opened a details panel, so focus can go back to it. @type {HTMLElement | null} */
+let sidePanelOpener = null;
+
+/**
+ * Opens a <dialog class="side-panel"> and moves focus to its title (REQUIREMENTS.md 3).
+ * @param {string} id
+ * @param {EventTarget | null} [opener]
+ */
+function openSidePanel(id, opener) {
+  const dialog = /** @type {HTMLDialogElement | null} */ (document.getElementById(id));
+  if (!dialog) return;
+  sidePanelOpener = opener instanceof HTMLElement ? opener : null;
+  if (!dialog.open) dialog.showModal();
+  setTimeout(() => /** @type {HTMLElement | null} */ (dialog.querySelector("[data-panel-title]"))?.focus(), 0);
+}
+
+/**
+ * Closes the panel (button, Escape or a click on the backdrop) and gives focus back.
+ * @param {string} id
+ */
+function closeSidePanel(id) {
+  /** @type {HTMLDialogElement | null} */ (document.getElementById(id))?.close();
+}
+
+/**
+ * For the panel's @close and @click: puts focus back on the opener; a click outside the sheet closes it.
+ * @param {Event} event
+ */
+function onSidePanelEvent(event) {
+  const dialog = /** @type {HTMLDialogElement} */ (event.currentTarget);
+  if (event.type === "click") {
+    if (event.target === dialog) dialog.close(); // the backdrop
+    return;
+  }
+  sidePanelOpener?.focus();
+  sidePanelOpener = null;
+}

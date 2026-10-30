@@ -29,6 +29,14 @@ document.addEventListener("alpine:init", () => {
     badges: APPLICATION_BADGE,
     formatAvailability,
 
+    /**
+     * The application's journey as the organization sees it (REQUIREMENTS.md 12).
+     * @param {Application} application
+     */
+    trackerFor(application) {
+      return applicationTracker(application, { event, tasks: this.tasks, viewer: "org" });
+    },
+
     get approvedCount() {
       return this.applications.filter((a) => a.status === "approved").length;
     },

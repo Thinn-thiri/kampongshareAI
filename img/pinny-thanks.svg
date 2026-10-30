@@ -1,0 +1,22 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 96 112">
+  <!-- Pinny, KampongShare's noticeboard pin, saying thank you (fixed light palette: it's an image) -->
+  <ellipse cx="48" cy="106" rx="20" ry="4" fill="#2B211B" opacity="0.12"/>
+  <!-- the needle -->
+  <path d="M48 76 L48 104" stroke="#8A7967" stroke-width="4" stroke-linecap="round"/>
+  <!-- the pin's collar -->
+  <path d="M30 70 Q48 82 66 70 L62 78 Q48 86 34 78 Z" fill="#C99400"/>
+  <!-- the head -->
+  <circle cx="48" cy="42" r="32" fill="#F2B705"/>
+  <circle cx="48" cy="42" r="32" fill="none" stroke="#C99400" stroke-width="3"/>
+  <ellipse cx="36" cy="26" rx="9" ry="5" fill="#FFFDF7" opacity="0.55" transform="rotate(-25 36 26)"/>
+  <!-- face -->
+  <path d="M34 40 q4 -5 8 0" fill="none" stroke="#2B211B" stroke-width="3" stroke-linecap="round"/>
+  <path d="M54 40 q4 -5 8 0" fill="none" stroke="#2B211B" stroke-width="3" stroke-linecap="round"/>
+  <circle cx="31" cy="49" r="4" fill="#F7A072" opacity="0.8"/>
+  <circle cx="65" cy="49" r="4" fill="#F7A072" opacity="0.8"/>
+  <path d="M41 50 q7 7 14 0" fill="none" stroke="#2B211B" stroke-width="3" stroke-linecap="round"/>
+  <!-- arms hugging a green heart -->
+  <path d="M20 54 q6 12 20 12" fill="none" stroke="#C99400" stroke-width="4" stroke-linecap="round"/>
+  <path d="M76 54 q-6 12 -20 12" fill="none" stroke="#C99400" stroke-width="4" stroke-linecap="round"/>
+  <path d="M48 76 C36 68 34 58 41 56 C45 55 47 58 48 60 C49 58 51 55 55 56 C62 58 60 68 48 76 Z" fill="#1E6B47" stroke="#FFFDF7" stroke-width="2"/>
+</svg>

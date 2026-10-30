@@ -27,7 +27,9 @@ function readAdminRoute() {
     const hash =
       queue === "offers" || (queue === "requests" && tab === "open") || (queue === "organizations" && tab === "approved")
         ? `#browse/${queue}?view=active`
-        : `#review/${queue === "applications" ? "volunteers" : queue}`;
+        : queue === "applications" // decided by organizations now; admins can still browse them
+          ? "#browse/applications?view=active"
+          : `#review/${queue}`;
     history.replaceState(null, "", location.pathname + hash);
   }
   const [path, query = ""] = location.hash.replace(/^#/, "").split("?");
@@ -357,24 +359,16 @@ document.addEventListener("alpine:init", () => {
       /** @param {ReviewItem} item */
       async reject(item) {
         const wording = rejectWording(item);
-        let note = "";
-        if (item.subkind === "application") {
-          // the rules have no note for event applications
-          const ok = await confirmDialog(wording.message, { title: wording.title, confirmText: t("common.reject"), danger: true });
-          if (!ok) return;
-        } else {
-          const reason = await reasonDialog(wording.message, {
-            title: wording.title,
-            label: t("admin.noteLabel"),
-            required: true,
-            maxLength: ADMIN_NOTE_MAX,
-            quickReasons: quickRejectReasons(),
-            confirmText: t("common.reject"),
-            danger: true,
-          });
-          if (reason === null) return;
-          note = reason;
-        }
+        const note = await reasonDialog(wording.message, {
+          title: wording.title,
+          label: t("admin.noteLabel"),
+          required: true,
+          maxLength: ADMIN_NOTE_MAX,
+          quickReasons: quickRejectReasons(),
+          confirmText: t("common.reject"),
+          danger: true,
+        });
+        if (note === null) return;
         this.busyId = item.id;
         try {
           toast(await rejectReviewItem(item, note));

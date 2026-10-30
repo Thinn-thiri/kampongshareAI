@@ -1,10 +1,36 @@
 // @ts-check
 // Volunteer dashboard (volunteer.html): upcoming events, "My applications" and "My tasks".
+// Four sections, Overview · Find events · My applications · My tasks, linked from the top bar
+// (js/auth.js DASHBOARD_SECTIONS) and kept in the URL hash, so reloading and Back / Forward work.
 // UI state only — database calls live in js/volunteering.js and js/events.js.
+
+/** @typedef {'overview' | 'find' | 'applications' | 'tasks'} VolunteerSection */
+
+const VOLUNTEER_SECTIONS = /** @type {VolunteerSection[]} */ (["overview", "find", "applications", "tasks"]);
+
+/** Older links pointed at the headings of the one long page. */
+const OLD_VOLUNTEER_HASHES = /** @type {Record<string, VolunteerSection>} */ ({
+  "events-heading": "find",
+  "apps-heading": "applications",
+  "tasks-heading": "tasks",
+});
+
+/**
+ * The section in the hash.
+ * @returns {VolunteerSection}
+ */
+function readVolunteerSection() {
+  const hash = location.hash.replace(/^#/, "");
+  if (VOLUNTEER_SECTIONS.includes(/** @type {VolunteerSection} */ (hash))) return /** @type {VolunteerSection} */ (hash);
+  return OLD_VOLUNTEER_HASHES[hash] ?? "overview";
+}
 
 document.addEventListener("alpine:init", () => {
   const Alpine = /** @type {any} */ (window).Alpine;
   Alpine.data("volunteerDashboard", () => ({
+    /** @type {VolunteerSection} */
+    section: readVolunteerSection(),
+
     /** @type {Profile | null} */
     profile: null,
 
@@ -47,6 +73,25 @@ document.addEventListener("alpine:init", () => {
     },
     taskOptions: TASK_STATUS_OPTIONS,
     formatEventTime,
+    /** @type {MyApplication | null} the application in the timeline panel */
+    panelApp: null,
+
+    /**
+     * The application's journey: Applied → Approved → Event day → Completed (REQUIREMENTS.md 12).
+     * @param {MyApplication} application
+     */
+    trackerFor(application) {
+      return applicationTracker(application, { tasks: this.tasks, viewer: "volunteer" });
+    },
+
+    /**
+     * @param {MyApplication} application
+     * @param {Event} event
+     */
+    openTimeline(application, event) {
+      this.panelApp = application;
+      openSidePanel("app-panel", event.currentTarget);
+    },
 
     async init() {
       try {
@@ -55,6 +100,19 @@ document.addEventListener("alpine:init", () => {
         this.profile = null;
       }
       if (!this.profile?.is_volunteer) return; // the page guard is redirecting
+      // older links (#apps-heading…): show the section's own address so the top bar marks it
+      const showOldHashAsSection = () => {
+        if (!OLD_VOLUNTEER_HASHES[location.hash.replace(/^#/, "")]) return false;
+        history.replaceState(null, "", `${location.pathname}${location.search}#${readVolunteerSection()}`);
+        window.dispatchEvent(new HashChangeEvent("hashchange"));
+        return true;
+      };
+      window.addEventListener("hashchange", () => {
+        if (showOldHashAsSection()) return;
+        this.section = readVolunteerSection();
+        window.scrollTo({ top: 0 });
+      });
+      showOldHashAsSection();
       this.appHistory = historyPager(async (from, to) => this.pastApplications.slice(from, to + 1), () => t("volunteer.pastApplications"));
       this.taskHistory = historyPager(async (from, to) => this.pastTasks.slice(from, to + 1), () => t("volunteer.pastTasks"));
       await Promise.all([this.loadEvents(), this.loadApplications(), this.loadTasks()]);
@@ -120,6 +178,25 @@ document.addEventListener("alpine:init", () => {
       return this.activeTasks.length;
     },
 
+    /** Confirmed places for events that haven't ended: the "My applications" badge. */
+    get confirmedApplications() {
+      return this.activeApplications.filter((a) => a.status === "approved");
+    },
+
+    /** The soonest confirmed event, for "Coming up" on the Overview. */
+    get nextEvent() {
+      /** @param {MyApplication} a */
+      const start = (a) => new Date(a.event?.starts_at ?? 0).getTime();
+      return [...this.confirmedApplications].sort((a, b) => start(a) - start(b))[0] ?? null;
+    },
+
+    /** Badges in the top bar and bottom bar. */
+    sendCounts() {
+      window.dispatchEvent(
+        new CustomEvent("dashboard-counts", { detail: { applications: this.confirmedApplications.length, tasks: this.openTaskCount } }),
+      );
+    },
+
     /** @param {'active' | 'history'} tab */
     showAppTab(tab) {
       this.appTab = tab;
@@ -162,6 +239,7 @@ document.addEventListener("alpine:init", () => {
       this.applicationsError = "";
       try {
         this.applications = await listMyApplications(this.profile.id);
+        this.sendCounts();
         if (this.appHistory.loaded) await this.appHistory.load();
       } catch (error) {
         this.applicationsError = friendlyError(error);
@@ -176,6 +254,7 @@ document.addEventListener("alpine:init", () => {
       this.tasksError = "";
       try {
         this.tasks = await listMyTasks(this.profile.id);
+        this.sendCounts();
         if (this.taskHistory.loaded) await this.taskHistory.load();
       } catch (error) {
         this.tasksError = friendlyError(error);
@@ -285,7 +364,8 @@ document.addEventListener("alpine:init", () => {
       try {
         await withdrawApplication(application.id);
         toast(t("volunteer.withdrawn"));
-        focusHeading("apps-heading"); // the card may be gone: keep keyboard users in this section
+        // the card may be gone: keep keyboard users in the section they're in
+        focusHeading(this.section === "find" ? "events-heading" : "apps-heading");
         await this.reloadAll();
       } catch (error) {
         toast(friendlyError(error), "error");
@@ -304,6 +384,7 @@ document.addEventListener("alpine:init", () => {
       try {
         await updateTaskStatus(task.id, task.status);
         toast(t("volunteer.taskUpdated"));
+        this.sendCounts();
       } catch (error) {
         task.status = previous;
         toast(friendlyError(error), "error");
