@@ -27,7 +27,7 @@ Every HDB block has a noticeboard where neighbours pin what they need. **Kampong
 
 | Token                  | Light                       | Dark ("noticeboard at night") | Use for                                                                 |
 | ---------------------- | --------------------------- | ----------------------------- | ----------------------------------------------------------------------- |
-| canvas                 | `#FFFDF7` paper             | `#1C1612`                     | page background                                                         |
+| canvas                 | `#F7F1E6` paper             | `#1C1612`                     | page background                                                         |
 | surface                | `#FFFFFF`                   | `#26201B`                     | cards, inputs, dialogs                                                  |
 | board                  | `#E7D3B8` cork              | `#3A2E24`                     | thin strip above "Most needed" only, search box tint, icon hover circle |
 | ink                    | `#2B211B` kopi brown        | `#F5EEE6`                     | text                                                                    |
@@ -171,7 +171,7 @@ Every field follows the same anatomy:
 
 | State                        | Look                                                                                                                                                             |
 | ---------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Default                      | light cork-tinted background (board 22% on surface), 2 px field-border, radius 10 px                                                                             |
+| Default                      | light cork-tinted background (board 22% on surface; plain white on the profile page and in filter bars), 2 px field-border, radius 10 px                                                                             |
 | Hover                        | border turns ink colour                                                                                                                                          |
 | Focus                        | surface background, 2 px green border plus a soft marigold glow (the green border is what meets contrast)                                                         |
 | Error                        | danger border, danger-soft background, a message below with an alert icon ("Enter a 6-digit postal code"), `aria-invalid="true"`, linked with `aria-describedby` |

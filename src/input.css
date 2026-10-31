@@ -14,8 +14,8 @@
   --color-black: #000000;
   --color-transparent: transparent;
   --color-current: currentColor;
-  --color-canvas: #fffdf7;
-  --color-canvas-hover: #f6efe3;
+  --color-canvas: #f7f1e6;
+  --color-canvas-hover: #efe5d4;
   --color-surface: #ffffff;
   --color-board: #e7d3b8;
   --color-ink: #2b211b;
@@ -75,8 +75,8 @@
   color-scheme: light;
 }
 [data-theme="light"] {
-  --color-canvas: #fffdf7;
-  --color-canvas-hover: #f6efe3;
+  --color-canvas: #f7f1e6;
+  --color-canvas-hover: #efe5d4;
   --color-surface: #ffffff;
   --color-board: #e7d3b8;
   --color-ink: #2b211b;
@@ -456,9 +456,10 @@ html.theme-changing * {
     @apply pl-12;
     background-color: color-mix(in srgb, var(--color-board) 30%, var(--color-surface));
   }
-  /* filter bars sit straight on the page, so their fields are plain white */
+  /* plain white fields: filter bars (straight on the page) and the profile page */
   .filter-bar .input,
-  .filter-bar .search-field > .input {
+  .filter-bar .search-field > .input,
+  .white-fields .input:not(:disabled, [readonly]) {
     @apply bg-surface;
   }
 
