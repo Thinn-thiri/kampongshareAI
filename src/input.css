@@ -334,7 +334,7 @@ html.theme-changing * {
   .badge {
     @apply inline-flex items-center gap-1 rounded-full px-3 py-1 text-sm leading-5 font-bold whitespace-nowrap;
   }
-  /* a smaller badge for the urgency on a notice, so it doesn't compete with the title */
+  /* a smaller badge (notice urgency, admin statuses), so it doesn't compete with the title */
   .badge-sm {
     @apply px-2 py-0.5;
     font-size: 0.8125rem;

@@ -215,7 +215,7 @@
                 <li>
                   <a :href="`#review/${item.kind}?item=${item.id}`" class="-mx-2 flex flex-wrap items-center justify-between gap-2 rounded-md px-2 py-3 hover:bg-canvas focus-visible:outline-2 focus-visible:outline-primary">
                     <span class="min-w-0">
-                      <span class="badge badge-plain" x-text="item.typeLabel"></span>
+                      <span class="badge badge-plain badge-sm" x-text="item.typeLabel"></span>
                       <span class="ml-1 font-bold break-words" x-text="item.title"></span>
                       <span class="block text-sm text-muted" x-text="item.sender"></span>
                     </span>
@@ -304,7 +304,7 @@
             <template x-for="item in review[reviewKind]" :key="item.key">
               <article class="card flex flex-col gap-3">
                 <div class="flex flex-wrap items-center gap-2">
-                  <span class="badge badge-plain" x-text="item.typeLabel"></span>
+                  <span class="badge badge-plain badge-sm" x-text="item.typeLabel"></span>
                   <span class="text-sm text-warning" x-text="waitingText(item.createdAt)"></span>
                 </div>
                 <div class="min-w-0">
@@ -402,7 +402,7 @@
                       </div>
                     </template>
                   </div>
-                  <span :class="statusInfo(row.status, row.statusKind).className" x-text="statusInfo(row.status, row.statusKind).label"></span>
+                  <span class="badge-sm" :class="statusInfo(row.status, row.statusKind).className" x-text="statusInfo(row.status, row.statusKind).label"></span>
                 </div>
                 <p class="text-sm text-muted break-words" x-show="row.detail" x-text="row.detail"></p>
                 <p class="text-sm text-muted" x-text="row.whenText"></p>
@@ -453,7 +453,7 @@
                       <span class="break-words" x-text="row.detail"></span>
                       <span class="mt-1 block break-words text-ink" x-show="row.reason" x-text="row.reason"></span>
                     </td>
-                    <td class="px-4 py-3"><span :class="statusInfo(row.status, row.statusKind).className" x-text="statusInfo(row.status, row.statusKind).label"></span></td>
+                    <td class="px-4 py-3"><span class="badge-sm" :class="statusInfo(row.status, row.statusKind).className" x-text="statusInfo(row.status, row.statusKind).label"></span></td>
                     <td class="px-4 py-3 whitespace-nowrap text-muted" x-text="row.whenText"></td>
                     <td class="px-4 py-3">
                       <div class="flex justify-end gap-2">
@@ -495,7 +495,7 @@
             <div class="flex flex-1 flex-col">
               <div class="flex-1 space-y-4 p-4">
                 <div class="flex flex-wrap items-center gap-2">
-                  <span class="badge badge-plain" x-text="panelItem.typeLabel"></span>
+                  <span class="badge badge-plain badge-sm" x-text="panelItem.typeLabel"></span>
                   <span class="text-sm text-warning" x-text="waitingText(panelItem.createdAt)"></span>
                 </div>
                 <p class="text-sm text-muted" x-text="`${panelItem.sender} · ${formatDate(panelItem.createdAt)}`"></p>
