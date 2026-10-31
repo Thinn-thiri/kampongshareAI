@@ -144,27 +144,27 @@ const CHAT_MARKUP = `
             <div :class="message.from === 'user' ? 'flex justify-end' : ''">
               <div :class="message.from === 'user' ? 'chat-bubble-user' : message.error ? 'chat-bubble-bot text-danger' : 'chat-bubble-bot'">
                 <p class="flex items-center gap-2" x-show="message.thinking"><span class="spinner" aria-hidden="true"></span> <span data-i18n="chat.thinking">Thinking…</span></p>
-                <span class="badge badge-ai mb-1" x-show="message.ai" data-i18n="common.aiSuggested">AI-suggested</span>
+                <span class="badge badge-ai badge-sm mb-1 text-[0.75rem]" x-show="message.ai" data-i18n="common.aiSuggested">AI-suggested</span>
                 <p class="whitespace-pre-line" x-show="!message.thinking" x-text="message.text"></p>
 
                 <ul class="mt-2 space-y-2" x-show="message.items?.length">
                   <template x-for="item in (message.items || [])" :key="item.id">
-                    <li class="rounded-md border-[1.5px] border-edge bg-surface p-3">
-                      <p class="font-bold break-words" x-text="item.name"></p>
-                      <p class="text-sm text-muted" x-text="$t('chat.stillNeeded', { count: item.quantity_remaining, unit: item.unit })"></p>
-                      <p class="text-sm break-words" x-text="[item.request?.title, item.request?.organization?.name].filter(Boolean).join(' · ')"></p>
-                      <a class="btn btn-secondary mt-2 min-h-11 px-3 text-[0.8125rem]" x-show="offerHrefFor(item.id)" :href="offerHrefFor(item.id)"
+                    <li class="rounded-md border-[1.5px] border-edge bg-surface px-2.5 py-2">
+                      <p class="text-[0.875rem] leading-5 font-bold break-words" x-text="item.name"></p>
+                      <p class="text-[0.75rem] leading-4 text-muted" x-text="$t('chat.stillNeeded', { count: item.quantity_remaining, unit: item.unit })"></p>
+                      <p class="text-[0.75rem] leading-4 break-words" x-text="[item.request?.title, item.request?.organization?.name].filter(Boolean).join(' · ')"></p>
+                      <a class="btn btn-secondary mt-1.5 min-h-9 px-3 text-[0.75rem]" x-show="offerHrefFor(item.id)" :href="offerHrefFor(item.id)"
                         :aria-label="$t('chat.offerItem', { item: item.name })" data-i18n="common.offer">Offer</a>
                     </li>
                   </template>
                 </ul>
                 <ul class="mt-2 space-y-2" x-show="message.events?.length">
                   <template x-for="event in (message.events || [])" :key="event.id">
-                    <li class="rounded-md border-[1.5px] border-edge bg-surface p-3">
-                      <p class="font-bold break-words" x-text="event.title"></p>
-                      <p class="text-sm text-muted" x-text="formatDate(event.starts_at, true)"></p>
-                      <p class="text-sm break-words" x-text="[event.location_name, event.organization?.name].filter(Boolean).join(' · ')"></p>
-                      <a class="btn btn-secondary mt-2 min-h-11 px-3 text-[0.8125rem]" :href="'/event.html?id=' + event.id" :aria-label="$t('chat.viewEvent', { event: event.title })" data-i18n="events.viewEvent">View event</a>
+                    <li class="rounded-md border-[1.5px] border-edge bg-surface px-2.5 py-2">
+                      <p class="text-[0.875rem] leading-5 font-bold break-words" x-text="event.title"></p>
+                      <p class="text-[0.75rem] leading-4 text-muted" x-text="formatDate(event.starts_at, true)"></p>
+                      <p class="text-[0.75rem] leading-4 break-words" x-text="[event.location_name, event.organization?.name].filter(Boolean).join(' · ')"></p>
+                      <a class="btn btn-secondary mt-1.5 min-h-9 px-3 text-[0.75rem]" :href="'/event.html?id=' + event.id" :aria-label="$t('chat.viewEvent', { event: event.title })" data-i18n="events.viewEvent">View event</a>
                     </li>
                   </template>
                 </ul>

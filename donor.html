@@ -44,7 +44,7 @@
         <!-- pushes the links and buttons to the right -->
         <span class="flex-1" aria-hidden="true"></span>
         <!-- Desktop links (phones and tablets use the bottom bar) -->
-        <nav class="hidden items-center gap-1 lg:flex" aria-label="Site" data-i18n-attr="aria-label:nav.site" x-show="ready" x-cloak>
+        <nav class="top-track hidden lg:flex" aria-label="Site" data-i18n-attr="aria-label:nav.site" x-show="ready" x-cloak>
           <template x-for="link in topLinks" :key="link.href">
             <a :href="link.href" class="top-link" :aria-current="isCurrent(link.href) ? 'page' : null">
               <span x-text="$t(link.labelKey)"></span>

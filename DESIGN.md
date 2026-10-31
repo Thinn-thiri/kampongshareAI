@@ -199,8 +199,9 @@ Every field follows the same anatomy:
 ### 6.6 Navigation
 
 - **Top bar:** logo · Browse needs · Messages (unread count) · avatar menu (theme, language, profile, Donating/Volunteering switch, log out). Visitors: logo · Browse needs · Log in · Sign up, with a small settings menu.
-- **Current page:** bold, with a 2 px green line under it.
+- **Current page:** in the top bar, a solid green pill (primary) with white bold text; other links are plain and get a light cream background on hover. In the phone bottom bar: bold, with a 2 px green line under it.
 - **Chat button:** round, bottom right, above any phone navigation.
+- **Folder tabs** (switchers like Active | History, Upcoming | Past & cancelled): like paper file dividers. The chosen tab is a white paper tab with a soft `edge` border, joined to the line under the tabs; the others sit 4 px lower in cork (board 45% on canvas) with muted text. Words, never colour alone, say which is chosen (bold + `aria-pressed` / `aria-current`).
 
 ### 6.7 Feedback
 
