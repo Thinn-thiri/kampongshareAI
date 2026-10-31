@@ -142,7 +142,7 @@ All text must exist in **English, 中文 and BM** (see the Languages section in 
 
 - Surface colour, radius 14 px, **a soft 1.5 px `edge` border, no shadow**, separated by space. Hover (if clickable): background changes to the slightly darker canvas shade.
 - Same three-facts rule; extra actions go in a **More (⋯)** menu.
-- **Dashboard summary cards:** the label in Body muted, the number in Fraunces 700 at 40 px (phones 32), so the numbers can be read at a glance.
+- **Dashboard summary cards:** the label at 14 px muted, the number in Fraunces 700 at 30 px (phones 26), so the numbers can be read at a glance.
 
 ### 6.3 Buttons
 

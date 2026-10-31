@@ -255,10 +255,12 @@ html.theme-changing * {
   }
   /* dashboard summary cards: a clear label and a big number */
   .stat-label {
-    @apply block text-base leading-6 text-muted;
+    @apply block text-muted;
+    font-size: 0.875rem;
+    line-height: 1.25rem;
   }
   .stat-number {
-    @apply mt-2 block text-4xl font-bold tabular-nums text-ink;
+    @apply mt-1 block text-2xl font-bold tabular-nums text-ink;
     font-family: var(--font-display);
   }
   .card-title {
@@ -689,13 +691,10 @@ html.theme-changing * {
 /* title and display are smaller on phones (28 → 24, 40 → 32) */
 @media (max-width: 639px) {
   .text-2xl,
-  .title {
+  .title,
+  .stat-number {
     font-size: 1.625rem;
     line-height: 2rem;
-  }
-  .stat-number {
-    font-size: 2rem;
-    line-height: 2.25rem;
   }
   .text-4xl,
   .display {
