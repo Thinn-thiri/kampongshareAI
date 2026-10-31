@@ -1149,12 +1149,24 @@
 
                 <!-- Volunteers for this event -->
                 <div class="pt-1" x-data="eventVolunteers(event)" x-show="event.approval === 'approved' || event.status === 'completed'">
-                  <button type="button" class="btn btn-quiet -ml-3 px-3" :aria-expanded="open.toString()" :aria-controls="`volunteers-${event.id}`" @click="toggle()">
-                    <span x-text="open ? $t('orgDash.hideVolunteers') : $t('orgDash.volunteers')"></span>
-                    <span class="badge badge-warning" x-show="loaded && pendingCount > 0" x-text="$t('orgDash.waitingCount', { count: pendingCount })"></span>
+                  <button type="button" class="btn btn-quiet -ml-3 px-3" aria-haspopup="dialog" :aria-controls="`volunteers-${event.id}`" @click="openPanel($event)">
+                    <span data-i18n="orgDash.volunteers">Volunteers</span>
+                    <span class="badge badge-warning badge-sm" x-show="loaded && pendingCount > 0" x-text="$t('orgDash.waitingCount', { count: pendingCount })"></span>
                   </button>
 
-                  <div :id="`volunteers-${event.id}`" class="mt-3 space-y-3" x-show="open" x-cloak>
+                  <!-- the volunteers open in a side panel (a sheet on the right; full screen on phones) -->
+                  <dialog :id="`volunteers-${event.id}`" class="side-panel" :aria-labelledby="`volunteers-title-${event.id}`"
+                    @close="onPanelEvent($event)" @click="onPanelEvent($event)">
+                  <div class="sticky top-0 z-10 flex items-start justify-between gap-3 bg-surface p-4 shadow-sm">
+                    <div class="min-w-0 pt-1">
+                      <h2 :id="`volunteers-title-${event.id}`" class="card-title" tabindex="-1" data-panel-title data-i18n="orgDash.volunteers">Volunteers</h2>
+                      <p class="text-[0.875rem] leading-5 text-muted break-words" x-text="event.title"></p>
+                    </div>
+                    <button type="button" class="icon-btn" @click="closeSidePanel(`volunteers-${event.id}`)" aria-label="Close" data-i18n-attr="aria-label:common.close">
+                      <i class="ph ph-x" aria-hidden="true"></i>
+                    </button>
+                  </div>
+                  <div class="space-y-3 p-4 sm:p-6">
                     <p class="text-sm" :class="isFull ? 'text-danger' : 'text-muted'" x-show="loaded" x-text="summary"></p>
                     <div class="space-y-2" x-show="loading" role="status"><span class="sr-only" data-i18n="orgDash.loadingVolunteers">Loading volunteers…</span>
                       <div class="skeleton h-5 w-2/3"></div><div class="skeleton h-4 w-1/2"></div>
@@ -1256,6 +1268,7 @@
                     </ul>
                     <button type="button" class="btn btn-quiet -ml-3 px-3" x-show="loaded && !loading" @click="load()" data-i18n="orgDash.refresh">Refresh</button>
                   </div>
+                  </dialog>
                 </div>
               </li>
             </template>

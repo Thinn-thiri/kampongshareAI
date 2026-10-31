@@ -1,5 +1,5 @@
 // @ts-check
-// "Volunteers" panel inside each event card on organization.html: review applications,
+// "Volunteers" side panel for each event card on organization.html: review applications,
 // remove approved volunteers, assign tasks and see their status.
 // UI state only — database calls live in js/volunteering.js.
 
@@ -61,9 +61,23 @@ document.addEventListener("alpine:init", () => {
       return this.applications.filter((a) => a.status !== "withdrawn").sort((a, b) => order[a.status] - order[b.status]);
     },
 
-    async toggle() {
-      this.open = !this.open;
-      if (this.open && !this.loaded) await this.load();
+    /**
+     * Opens this event's volunteers in the side panel (a sheet on the right; full screen on phones).
+     * @param {Event} clickEvent
+     */
+    async openPanel(clickEvent) {
+      this.open = true;
+      openSidePanel(`volunteers-${event.id}`, clickEvent.currentTarget);
+      if (!this.loaded) await this.load();
+    },
+
+    /**
+     * The panel's @close and @click: a click on the backdrop closes it; closing gives focus back to the button.
+     * @param {Event} panelEvent
+     */
+    onPanelEvent(panelEvent) {
+      if (panelEvent.type === "close") this.open = false;
+      onSidePanelEvent(panelEvent);
     },
 
     async load() {
