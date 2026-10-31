@@ -274,7 +274,8 @@
                   <i class="ph ph-lock-simple mt-1 size-4 shrink-0 text-muted" aria-hidden="true"></i>
                   <span x-text="cannotSend"></span>
                 </p>
-                <label for="message-input" class="label" data-i18n="messages.label">Your message</label>
+                <!-- the label and the Enter / Shift+Enter hint are for screen readers; the counter appears once you type -->
+                <label for="message-input" class="sr-only" data-i18n="messages.label">Your message</label>
                 <div class="flex items-end gap-2">
                   <textarea id="message-input" placeholder="e.g. Hi! When can I drop off the rice?" data-i18n-attr="placeholder:messages.placeholder" class="input input-oneline" rows="1" :maxlength="maxLength" x-model="draft"
                     @keydown="onKeydown($event)" :disabled="Boolean(cannotSend)" :aria-invalid="sendError ? 'true' : null"
@@ -285,10 +286,8 @@
                     <span x-text="sending ? $t('common.sending') : $t('messages.send')">Send</span>
                   </button>
                 </div>
-                <div class="mt-1 flex flex-wrap justify-between gap-x-3">
-                  <p id="message-hint" class="helper-text mt-0" data-i18n="messages.hint">Enter sends · Shift+Enter adds a new line</p>
-                  <p id="message-count" class="counter mt-0" :class="draft.length >= maxLength ? 'counter-limit' : ''" x-text="$t('messages.count', { count: draft.length, max: maxLength })"></p>
-                </div>
+                <p id="message-hint" class="sr-only" data-i18n="messages.hint">Enter sends · Shift+Enter adds a new line</p>
+                <p id="message-count" class="counter mt-1" x-show="draft.length" x-cloak :class="draft.length >= maxLength ? 'counter-limit' : ''" x-text="$t('messages.count', { count: draft.length, max: maxLength })"></p>
                 <p id="message-error" class="field-error" x-show="sendError" x-cloak x-text="sendError" role="alert"></p>
               </form>
             </div>
