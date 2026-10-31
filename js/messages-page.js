@@ -419,10 +419,7 @@ document.addEventListener("alpine:init", () => {
         const c = this.current;
         if (!c || this.sending || this.cannotSend) return;
         const body = this.draft.trim();
-        if (!body) {
-          this.sendError = t("errors.db.typeAMessage");
-          return;
-        }
+        if (!body) return; // nothing typed (Send is disabled then): send nothing, say nothing
         this.sending = true;
         this.sendError = "";
         try {

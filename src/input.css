@@ -705,7 +705,7 @@ html.theme-changing * {
     @apply sm:flex sm:h-[calc(100dvh-4rem)] sm:flex-col sm:pb-4;
   }
   .messages-layout {
-    @apply grid grid-cols-[minmax(0,1fr)] gap-4 sm:min-h-[22rem] sm:flex-1 sm:grid-cols-[17rem_minmax(0,1fr)] lg:grid-cols-[20rem_minmax(0,1fr)];
+    @apply grid grid-cols-[minmax(0,1fr)] gap-4 sm:min-h-[22rem] sm:flex-1 sm:grid-cols-[15rem_minmax(0,1fr)] lg:grid-cols-[17rem_minmax(0,1fr)];
   }
   .conversation-link {
     @apply flex min-h-11 items-start gap-3 px-4 py-3 hover:bg-canvas-hover aria-[current=true]:bg-primary-soft;
