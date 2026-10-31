@@ -75,7 +75,7 @@ To log in, press Log in at the top and enter your email and password. To log out
 
 ### I forgot my password
 
-Sorry — the site can't reset passwords yet, and there's no way to change your password on the site. Please email us using the address in the Privacy Notice, and we'll help you get back in.
+The site can't reset passwords yet, and there's no way to change your password on the site. Please email us using the address in the Privacy Notice, and we'll help you get back in.
 
 ### How do I change my details?
 

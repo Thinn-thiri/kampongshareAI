@@ -185,7 +185,7 @@ function confirmDialog(message, options = {}) {
   dialog.setAttribute("aria-labelledby", "confirm-dialog-title");
   dialog.innerHTML = `
     <form method="dialog">
-      <h2 id="confirm-dialog-title" class="text-lg font-semibold">${escapeHtml(title)}</h2>
+      <h2 id="confirm-dialog-title" class="card-title">${escapeHtml(title)}</h2>
       <p class="mt-2 text-muted">${escapeHtml(message)}</p>
       ${note ? `<p class="mt-3 text-sm text-muted">${escapeHtml(note)}</p>` : ""}
       <div class="mt-6 flex flex-col-reverse gap-3 sm:flex-row sm:justify-end">
@@ -239,13 +239,13 @@ function reasonDialog(message, options = {}) {
     : "";
   dialog.innerHTML = `
     <form method="dialog" novalidate>
-      <h2 id="reason-dialog-title" class="text-lg font-semibold">${escapeHtml(title)}</h2>
+      <h2 id="reason-dialog-title" class="card-title">${escapeHtml(title)}</h2>
       <p class="mt-2 text-muted">${escapeHtml(message)}</p>
-      ${warning ? `<p class="mt-3 rounded-md bg-warning-soft p-3 text-sm text-warning">${escapeHtml(warning)}</p>` : ""}
+      ${warning ? `<p class="mt-3 note-warning">${escapeHtml(warning)}</p>` : ""}
       ${chips}
       <div class="mt-4">
         <label for="reason-dialog-input" class="label">${escapeHtml(label)}${
-          required ? ' <span class="text-danger" aria-hidden="true">*</span>' : ` <span class="font-normal text-muted">${escapeHtml(t("common.optional"))}</span>`
+          required ? '' : ` <span class="font-normal text-muted">${escapeHtml(t("common.optional"))}</span>`
         }</label>
         <textarea id="reason-dialog-input" class="input py-2" rows="3" maxlength="${maxLength}" ${required ? "required" : ""}
           aria-describedby="reason-dialog-count reason-dialog-error"></textarea>
@@ -700,37 +700,27 @@ function stepNumber(button, delta) {
 }
 
 /**
- * Turns <i data-lucide="name"> placeholders into Lucide icons, now and whenever Alpine adds more.
- * Icons are decorative (aria-hidden), so if Lucide fails to load the page still works.
- * @returns {void}
+ * Category icons (DESIGN.md 7): Phosphor duotone with a marigold fill, full class names.
+ * @type {Record<string, string>}
  */
-function startIcons() {
-  const lucide = /** @type {any} */ (window).lucide;
-  if (!lucide?.createIcons) return;
-  const draw = () => {
-    lucide.createIcons({ attrs: { "aria-hidden": "true", focusable: "false" } });
-    // Lucide keeps data-lucide on the <svg> it draws. Remove it, so a drawn icon is never
-    // drawn again: redrawing swapped the icon under the pointer and could swallow clicks,
-    // and each redraw looked like a "new icon" to the observer below (an endless loop).
-    for (const svg of document.querySelectorAll("svg[data-lucide]")) svg.removeAttribute("data-lucide");
-  };
-  draw();
-  let queued = false;
-  /** Only <i data-lucide> placeholders still need drawing. @param {Node} node */
-  const hasPlaceholder = (node) => node instanceof Element && (node.matches("i[data-lucide]") || node.querySelector("i[data-lucide]") !== null);
-  new MutationObserver((mutations) => {
-    if (queued) return;
-    const added = mutations.some((m) => [...m.addedNodes].some(hasPlaceholder));
-    if (!added) return;
-    queued = true;
-    requestAnimationFrame(() => {
-      queued = false;
-      draw();
-    });
-  }).observe(document.body, { childList: true, subtree: true });
-}
+const CATEGORY_ICON = {
+  food: "ph-duotone ph-bowl-food category-icon",
+  clothing: "ph-duotone ph-t-shirt category-icon",
+  hygiene: "ph-duotone ph-drop category-icon",
+  household: "ph-duotone ph-house category-icon",
+  baby: "ph-duotone ph-baby category-icon",
+  education: "ph-duotone ph-book-open category-icon",
+  other: "ph-duotone ph-gift category-icon",
+};
 
-document.addEventListener("DOMContentLoaded", startIcons);
+/**
+ * The icon classes for an item category (unknown categories get the gift).
+ * @param {string | null | undefined} category
+ * @returns {string}
+ */
+function categoryIcon(category) {
+  return CATEGORY_ICON[category ?? "other"] ?? CATEGORY_ICON.other;
+}
 
 /**
  * Tab lists scroll sideways on phones (and Malay or Chinese labels can be longer): whenever a tab
@@ -773,6 +763,38 @@ window.addEventListener("language-changed", () => {
 
 // Create the toast area early so screen readers already know about it when the first toast appears.
 document.addEventListener("DOMContentLoaded", getToastRegion);
+
+// The More (⋯) menu on cards (DESIGN.md 6.2): extra actions in a role="menu".
+// <div class="relative" x-data="moreMenu" @keydown.escape="closeMenu(true)" @click.outside="closeMenu(false)">
+//   <button x-ref="moreButton" class="icon-btn" @click="toggleMenu()" …>  <div class="menu" role="menu" x-show="menuOpen">…menuitems…</div>
+// Up / Down move between the items; Escape closes and gives focus back to the button.
+document.addEventListener("alpine:init", () => {
+  const Alpine = /** @type {any} */ (window).Alpine;
+  Alpine.data("moreMenu", () => ({
+    menuOpen: false,
+    toggleMenu() {
+      this.menuOpen = !this.menuOpen;
+      if (this.menuOpen) setTimeout(() => this.items()[0]?.focus(), 0);
+    },
+    /** @param {boolean} refocus */
+    closeMenu(refocus) {
+      if (!this.menuOpen) return;
+      this.menuOpen = false;
+      if (refocus) /** @type {any} */ (this).$refs.moreButton?.focus();
+    },
+    /** @returns {HTMLElement[]} */
+    items() {
+      const all = /** @type {HTMLElement[]} */ ([.../** @type {any} */ (this).$root.querySelectorAll('[role="menuitem"]')]);
+      return all.filter((item) => item.offsetParent !== null);
+    },
+    /** @param {number} step */
+    moveMenu(step) {
+      const items = this.items();
+      const at = items.indexOf(/** @type {HTMLElement} */ (document.activeElement));
+      items[(at + step + items.length) % items.length]?.focus();
+    },
+  }));
+});
 
 // Show / hide button for password fields: <div class="password-field" x-data="passwordToggle">.
 // Only switches the input's type; it never reads, logs or stores the password itself.
@@ -887,9 +909,9 @@ const TRACKER_MARKUP = `
         index === model.steps.length - 1 ? (model.stop ? 'tracker-before-stop' : 'tracker-last') : '']"
       :aria-current="step.state === 'current' ? 'step' : null">
       <span class="tracker-dot" aria-hidden="true">
-        <span x-show="step.state === 'done'"><i data-lucide="check"></i></span>
-        <span x-show="step.state === 'current'"><i data-lucide="clock"></i></span>
-        <span x-show="step.state === 'future'"><i data-lucide="circle-dashed"></i></span>
+        <span x-show="step.state === 'done'"><i class="ph ph-check" aria-hidden="true"></i></span>
+        <span x-show="step.state === 'current'"><i class="ph ph-clock" aria-hidden="true"></i></span>
+        <span x-show="step.state === 'future'"><i class="ph ph-circle-dashed" aria-hidden="true"></i></span>
       </span>
       <div class="tracker-text">
         <p class="tracker-label"><span x-text="step.label"></span><span class="sr-only" x-text="stateText(step.state)"></span></p>
@@ -903,8 +925,8 @@ const TRACKER_MARKUP = `
               <template x-for="line in step.list ?? []" :key="line"><li x-text="line"></li></template>
             </ul>
             <template x-if="step.action">
-              <button type="button" class="btn btn-secondary min-h-11 gap-1.5 px-3 text-sm" @click="step.action.run()">
-                <i data-lucide="message-circle" class="size-4"></i><span x-text="step.action.label"></span>
+              <button type="button" class="btn btn-secondary min-h-11 gap-2 px-3 text-sm" @click="step.action.run()">
+                <i class="ph ph-chat-circle size-4" aria-hidden="true"></i><span x-text="step.action.label"></span>
               </button>
             </template>
           </div>
@@ -915,8 +937,8 @@ const TRACKER_MARKUP = `
   <template x-if="model.stop">
     <li class="tracker-step tracker-stopped" :class="model.stop.icon === 'x' ? 'tracker-stop-x' : ''">
       <span class="tracker-dot" aria-hidden="true">
-        <span x-show="model.stop.icon === 'x'"><i data-lucide="circle-x"></i></span>
-        <span x-show="model.stop.icon === 'archive'"><i data-lucide="archive"></i></span>
+        <span x-show="model.stop.icon === 'x'"><i class="ph ph-x-circle" aria-hidden="true"></i></span>
+        <span x-show="model.stop.icon === 'archive'"><i class="ph ph-archive" aria-hidden="true"></i></span>
       </span>
       <div class="tracker-text">
         <p class="tracker-label" x-text="model.stop.label"></p>
@@ -928,7 +950,7 @@ const TRACKER_MARKUP = `
 </ol>
 <template x-if="layout === 'row' && (model.next || model.stop?.reason)">
   <div class="tracker-note">
-    <p class="font-semibold" x-text="model.stop ? model.stop.reason : model.next"></p>
+    <p class="font-bold" x-text="model.stop ? model.stop.reason : model.next"></p>
     <p class="whitespace-pre-line break-words text-muted" x-show="!model.stop && model.nextDetail" x-text="model.nextDetail"></p>
   </div>
 </template>`;

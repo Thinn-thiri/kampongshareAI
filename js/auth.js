@@ -534,26 +534,26 @@ document.addEventListener("DOMContentLoaded", async () => {
  */
 const DASHBOARD_SECTIONS = {
   donor: [
-    { href: "/donor.html#overview", labelKey: "nav.overview", icon: "layout-dashboard" },
-    { href: "/donor.html#find", labelKey: "nav.findNeeds", icon: "package-open" },
-    { href: "/donor.html#offers", labelKey: "nav.myOffers", icon: "hand-heart", countKey: "dropoff" },
+    { href: "/donor.html#overview", labelKey: "nav.overview", icon: "ph ph-squares-four" },
+    { href: "/donor.html#find", labelKey: "nav.findNeeds", icon: "ph ph-package" },
+    { href: "/donor.html#offers", labelKey: "nav.myOffers", icon: "ph ph-hand-heart", countKey: "dropoff" },
   ],
   volunteer: [
-    { href: "/volunteer.html#overview", labelKey: "nav.overview", icon: "layout-dashboard" },
-    { href: "/volunteer.html#find", labelKey: "nav.findEvents", icon: "calendar" },
-    { href: "/volunteer.html#applications", labelKey: "nav.myApplications", icon: "clipboard-list", countKey: "applications" },
-    { href: "/volunteer.html#tasks", labelKey: "nav.myTasks", icon: "list-checks", countKey: "tasks" },
+    { href: "/volunteer.html#overview", labelKey: "nav.overview", icon: "ph ph-squares-four" },
+    { href: "/volunteer.html#find", labelKey: "nav.findEvents", icon: "ph ph-calendar-blank" },
+    { href: "/volunteer.html#applications", labelKey: "nav.myApplications", icon: "ph ph-clipboard-text", countKey: "applications" },
+    { href: "/volunteer.html#tasks", labelKey: "nav.myTasks", icon: "ph ph-list-checks", countKey: "tasks" },
   ],
   admin: [
-    { href: "/admin.html#overview", labelKey: "nav.overview", icon: "layout-dashboard" },
-    { href: "/admin.html#review", labelKey: "nav.toReview", icon: "inbox", countKey: "review" },
-    { href: "/admin.html#browse", labelKey: "nav.browse", icon: "list" },
+    { href: "/admin.html#overview", labelKey: "nav.overview", icon: "ph ph-squares-four" },
+    { href: "/admin.html#review", labelKey: "nav.toReview", icon: "ph ph-tray", countKey: "review" },
+    { href: "/admin.html#browse", labelKey: "nav.browse", icon: "ph ph-list" },
   ],
   organization: [
-    { href: "/organization.html#overview", labelKey: "nav.overview", icon: "layout-dashboard" },
-    { href: "/organization.html#requests", labelKey: "nav.requests", icon: "package-open" },
-    { href: "/organization.html#offers", labelKey: "nav.offers", icon: "inbox", countKey: "offers" },
-    { href: "/organization.html#events", labelKey: "nav.events", icon: "calendar", countKey: "events" },
+    { href: "/organization.html#overview", labelKey: "nav.overview", icon: "ph ph-squares-four" },
+    { href: "/organization.html#requests", labelKey: "nav.requests", icon: "ph ph-package" },
+    { href: "/organization.html#offers", labelKey: "nav.offers", icon: "ph ph-tray", countKey: "offers" },
+    { href: "/organization.html#events", labelKey: "nav.events", icon: "ph ph-calendar-blank", countKey: "events" },
   ],
 };
 
@@ -628,20 +628,20 @@ document.addEventListener("alpine:init", () => {
     },
 
     /**
-     * Desktop top bar links. Visitors: Home · Browse needs. Logged in: Home · My dashboard
-     * (people who both donate and volunteer get the Donating / Volunteering switch instead).
-     * Admins and organizations get their dashboard's sections instead of "My dashboard".
+     * Desktop top bar links (DESIGN.md 6.6; the logo is the way home). Visitors: Browse needs.
+     * Logged in: Browse needs, then the dashboard's sections when there are any, otherwise My dashboard.
+     * Admins don't get Browse needs (their own section is called Browse).
      * @returns {{ href: string, labelKey: string, badge?: number | null }[]}
      */
     get topLinks() {
-      const home = { href: "/", labelKey: "nav.home" };
-      if (!this.profile) return [home, { href: "/needs.html", labelKey: "nav.browseNeeds" }];
+      const needs = { href: "/needs.html", labelKey: "nav.browseNeeds" };
+      if (!this.profile) return [needs];
+      const first = this.profile.role === "admin" ? [] : [needs];
       const sections = this.sections;
       if (sections) {
-        return [home, ...sections.map((s) => ({ href: s.href, labelKey: s.labelKey, badge: s.countKey ? this.counts[s.countKey] : null }))];
+        return [...first, ...sections.map((s) => ({ href: s.href, labelKey: s.labelKey, badge: s.countKey ? this.counts[s.countKey] : null }))];
       }
-      if (this.canSwitch) return [home];
-      return [home, { href: dashboardFor(this.profile), labelKey: "nav.myDashboard" }];
+      return [...first, { href: dashboardFor(this.profile), labelKey: "nav.myDashboard" }];
     },
 
     /**
@@ -650,15 +650,15 @@ document.addEventListener("alpine:init", () => {
      */
     get bottomLinks() {
       const profile = this.profile;
-      const needs = { href: "/needs.html", labelKey: "nav.needs", icon: "package-open" };
-      const profileLink = { href: "/profile.html", labelKey: "nav.profile", icon: "user-round" };
+      const needs = { href: "/needs.html", labelKey: "nav.needs", icon: "ph ph-package" };
+      const profileLink = { href: "/profile.html", labelKey: "nav.profile", icon: "ph ph-user" };
       if (!profile) {
-        return [{ href: "/", labelKey: "nav.home", icon: "house" }, needs, { href: "/login.html", labelKey: "nav.logIn", icon: "log-in" }];
+        return [{ href: "/", labelKey: "nav.home", icon: "ph ph-house" }, needs, { href: "/login.html", labelKey: "nav.logIn", icon: "ph ph-sign-in" }];
       }
       if (profile.role === "organization") return DASHBOARD_SECTIONS.organization ?? [];
       if (profile.role === "admin") return [...(DASHBOARD_SECTIONS.admin ?? []), profileLink];
-      const donating = { href: "/donor.html", labelKey: "nav.donating", icon: "hand-heart" };
-      const volunteering = { href: "/volunteer.html", labelKey: "nav.volunteering", icon: "users" };
+      const donating = { href: "/donor.html", labelKey: "nav.donating", icon: "ph ph-hand-heart" };
+      const volunteering = { href: "/volunteer.html", labelKey: "nav.volunteering", icon: "ph ph-users" };
       const donorSections = DASHBOARD_SECTIONS.donor ?? [];
       const volunteerSections = DASHBOARD_SECTIONS.volunteer ?? [];
       if (profile.is_donor && profile.is_volunteer) {
@@ -704,5 +704,87 @@ document.addEventListener("alpine:init", () => {
     },
 
     logout,
+  }));
+
+  // The avatar menu (logged in) or the small settings menu (visitors), inside topBar: theme,
+  // language, and for people who are logged in their profile, the Donating / Volunteering switch
+  // and Log out. A role="menu" with menuitemradio groups; Up / Down / Home / End move,
+  // Escape closes and returns focus to the button.
+  Alpine.data("accountMenu", () => ({
+    open: false,
+    themeOptions: THEME_OPTIONS,
+    languages: LANGUAGES,
+    /** @type {ThemeChoice} */
+    theme: currentThemeChoice,
+
+    init() {
+      window.addEventListener("theme-changed", (event) => {
+        this.theme = /** @type {CustomEvent<ThemeChoice>} */ (event).detail;
+      });
+    },
+
+    get lang() {
+      return Alpine.store("i18n").lang;
+    },
+
+    get language() {
+      return languageInfo(this.lang);
+    },
+
+    /** The first letter of the person's name, for the avatar. */
+    get initial() {
+      const name = /** @type {any} */ (this).profile?.full_name ?? "";
+      return name.trim().charAt(0).toUpperCase() || "?";
+    },
+
+    /** Always says "Language" in all three languages, so anyone can find it (WCAG 3.1). */
+    get buttonLabel() {
+      const what = /** @type {any} */ (this).profile ? t("nav.accountMenu") : t("nav.settings");
+      return `${what} · Language / 语言 / Bahasa — ${this.language.name}`; // i18n-ignore (the name is in each language already)
+    },
+
+    toggle() {
+      this.open = !this.open;
+      // focus the first item so arrow keys work straight away
+      if (this.open) setTimeout(() => this.items()[0]?.focus(), 0);
+    },
+
+    /** @param {ThemeChoice} choice */
+    pickTheme(choice) {
+      setTheme(choice);
+      this.close(true);
+    },
+
+    /** @param {Lang} code */
+    pickLang(code) {
+      setLang(code);
+      this.close(true);
+    },
+
+    /** @param {boolean} refocus return focus to the button (Escape or after picking) */
+    close(refocus) {
+      if (!this.open) return;
+      this.open = false;
+      if (refocus) /** @type {any} */ (this).$refs.menuButton.focus();
+    },
+
+    /** The menu's items that are showing. @returns {HTMLElement[]} */
+    items() {
+      const all = /** @type {HTMLElement[]} */ ([.../** @type {any} */ (this).$root.querySelectorAll('[role^="menuitem"]')]);
+      return all.filter((item) => item.offsetParent !== null);
+    },
+
+    /** @param {number} step */
+    move(step) {
+      const items = this.items();
+      const at = items.indexOf(/** @type {HTMLElement} */ (document.activeElement));
+      items[(at + step + items.length) % items.length]?.focus();
+    },
+
+    /** @param {number} index 0 = first, -1 = last */
+    moveTo(index) {
+      const items = this.items();
+      items.at(index)?.focus();
+    },
   }));
 });

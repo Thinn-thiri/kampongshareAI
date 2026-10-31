@@ -28,7 +28,7 @@ Community donation and volunteer platform for Singapore. Hackathon prototype.
 
 **Core flow:** approved organization posts a request with items → admin approves → AI scores urgency with reasons → donor browses (sorted by urgency) or gets AI recommendations → donor offers against one specific item (never more than remaining) → organization accepts / rejects → marks delivered → request becomes fulfilled automatically.
 
-**Donor dashboard (`donor.html`):** sections Overview · Find needs · My offers (`#overview`, `#find`, `#offers`). Overview: the summary cards (each links to its section), "Ready to drop off" (accepted offers with their drop-off instructions) and the "What can you give?" AI box. Find needs: open requests with the Offer form (event.html's Donate button, `?request=` / `?org=`, opens it filtered). My offers: Active | History. The "My offers" badge counts accepted offers waiting to be dropped off.
+**Donor dashboard (`donor.html`):** sections Overview · Find needs · My offers (`#overview`, `#find`, `#offers`). Overview: the summary cards (each links to its section), "Ready to drop off" (accepted offers with their drop-off instructions) and the "What can you give?" AI box. Find needs: open requests as pinned notices; Offer opens the request details panel with each item's Offer form (event.html's Donate button, `?request=` / `?org=`, opens it filtered). My offers: Active | History. The "My offers" badge counts accepted offers waiting to be dropped off.
 
 **Volunteer dashboard (`volunteer.html`):** sections Overview · Find events · My applications · My tasks (`#overview`, `#find`, `#applications`, `#tasks`; older `#events-heading`, `#apps-heading` and `#tasks-heading` links still work). The account-approval and consent notes show above every section. Overview: the summary cards (each links to its section) and "Coming up" (the next confirmed event with its tracker). Find events: upcoming events with Apply. My applications and My tasks: Active | History. Badges: My applications = confirmed places for events that haven't ended, My tasks = open tasks.
 
@@ -70,14 +70,14 @@ Community donation and volunteer platform for Singapore. Hackathon prototype.
 | Hosting          | Netlify (`npx netlify dev` for local testing)                                                                                                                                                                                                                                                                                             |
 | Map              | Leaflet + OpenStreetMap tiles (show the required attribution)                                                                                                                                                                                                                                                                             |
 | Geocoding        | **OneMap Search API** (Singapore Land Authority): 6-digit postal code → address + latitude/longitude, to place map pins automatically. Called **only** from the Netlify Function `geocode-postal` (logged-in users), never from the browser. Only the postal code is sent. OneMap's Search API now requires a token: set `ONEMAP_EMAIL` / `ONEMAP_PASSWORD` in `.env` and Netlify env (free account at onemap.gov.sg/apidocs/register); the function fetches and caches the 3-day token. OneMap's terms don't require attribution for API data, but show "Address lookup by OneMap (Singapore Land Authority)" next to the field. In the browser, always use `lookupPostalCode()` from `js/geocode.js` — **reuse it for event locations in step 9**. |
-| Icons            | Lucide icons (`https://unpkg.com/lucide@latest`)                                                                                                                                                                                                                                                                                          |
-| Fonts            | Google Fonts (`display=swap`): **Bricolage Grotesque** 600–800 for headings, **Atkinson Hyperlegible** 400 / 700 for everything else (made for readers with low vision); Chinese falls back to the device's Chinese font (section 3) |
+| Icons            | Phosphor icons (`@phosphor-icons/web@2.1.1` regular + duotone stylesheets from unpkg): `<i class="ph ph-name">`; duotone with a marigold fill only for categories (`categoryIcon()` in js/ui.js) |
+| Fonts            | Google Fonts (`display=swap`): **Fraunces** 600 / 700 for titles, **Lexend** 400 / 700 for everything else (made for easier reading); Chinese falls back to the device's Chinese font (DESIGN.md 4) |
 
 ### File layout
 
 ```
 index.html  signup.html  login.html  donor.html  organization.html  volunteer.html  admin.html
-profile.html  privacy.html  messages.html (private messages, section 10)
+profile.html  privacy.html  messages.html (private messages, section 10)  404.html (Pinny, "We can't find that page")
 event.html  needs.html  org.html   (public pages — work without logging in, section 6)
 src/input.css          → Tailwind source: theme tokens + shared components (EDIT THIS)
 css/style.css          → generated by Tailwind (NEVER edit by hand; add to .gitignore)
@@ -86,10 +86,11 @@ js/config.js           → Supabase URL + anon key only
 js/supabase.js         → creates the client
 js/auth.js             → getProfile(), requireAccess('donor' | 'volunteer' | 'organization' | 'admin'), logout
 js/ui.js               → toast(), confirmDialog(), formatDate(), statusBadge(), escapeHtml(), the deadline checks (section 11)
-js/theme.js            → light / dark mode: sets data-theme first thing in <head>, theme menu (section 3)
+js/theme.js            → light / dark mode: sets data-theme first thing in <head>, the theme choices in the account / settings menu (DESIGN.md)
 js/i18n/en.js, zh.js, ms.js → every text the site shows, in English, 简体中文 and Bahasa Melayu (section 9)
 js/i18n.js             → languages: t(), $t, data-i18n, enumLabel(), areaLabel(), the language menu (section 9)
-js/share.js            → share links, poster image, copy caption (section 5)
+js/share.js            → share links, poster image with a QR code, copy caption (section 5)
+js/request-panel.js    → the pinned notice's helpers and the request details panel (items, Offer forms, urgency, drop-off)
 js/chat-questions.js   → every chat question (who sees it, links, follow-ups); the words are in js/i18n/*.js
 js/chat.js             → the "Ask KampongShare" chat widget (section 6.8)
 js/geocode.js          → lookupPostalCode(): postal code → { address, latitude, longitude } via geocode-postal
@@ -119,7 +120,7 @@ scripts/               → check-supabase.js, check-contrast.js, check-i18n.js, 
 - While coding, run `npm run dev:css` in one terminal and `npx netlify dev` in another.
 - `netlify.toml`: build command `npm run build`, publish directory `.`
 - Every HTML page links the generated file: `<link rel="stylesheet" href="/css/style.css">`
-- Load the fonts in each page's `<head>` with one Google Fonts `<link>`: `family=Atkinson+Hyperlegible:wght@400;700&family=Bricolage+Grotesque:opsz,wght@12..96,600..800&display=swap`.
+- Load the fonts in each page's `<head>` with one Google Fonts `<link>`: `family=Fraunces:opsz,wght@9..144,600..700&family=Lexend:wght@400;700&display=swap`.
 - **Do not** use the Tailwind Play CDN (`@tailwindcss/browser`) — it is for development only, not production.
 
 ### 2.2 Tailwind rules
@@ -157,103 +158,7 @@ scripts/               → check-supabase.js, check-contrast.js, check-i18n.js, 
 
 ## 3. UI and design system
 
-### Look and feel — "the void deck noticeboard"
-
-KampongShare is the community noticeboard where neighbours pin up what they need. Paper and cork, kopi-brown ink, noticeboard green, marigold pins and tape. Warm, plain and calm; one primary action per screen. Only the donation request cards are "pinned"; everything else stays straight and quiet.
-
-**Avoid the generic "AI website" look:** no all-caps labels or eyebrows above headings, no single highlighted word in headlines, no gradient backgrounds, glow shadows or frosted glass, no fade-in on every section (the only welcome moment is the home page's first section, `.welcome`, off with reduced motion), few emojis (use Lucide icons), no arrow characters in button labels. Write in a neighbourly voice ("What our neighbours need this week", "Nothing pinned here yet").
-
-### Theme and shared components — `src/input.css`
-
-Everything is defined once in `src/input.css`: theme tokens in `@theme` (Tailwind turns `--color-primary` into `bg-primary`, `text-primary`, `border-primary`…), the same light values again under `[data-theme="light"]`, dark values under `[data-theme="dark"]`, and the component classes. **Never use fixed colours** in HTML or JS (no `bg-white`, `text-black`, Tailwind's palette or hex codes); only the tokens, or `dark:` for a one-off. The only exceptions are things downloaded or shared as images (the poster in `js/share.js`, `img/og-default.png`, `img/favicon.svg`), which use the fixed light palette.
-
-**Colour tokens**
-
-| Token | Light | Dark ("noticeboard at night") | Use |
-| --- | --- | --- | --- |
-| `canvas` | `#FFFDF7` paper | `#1C1612` | page background |
-| `surface` | `#FFFFFF` | `#26201B` | cards, notices, inputs |
-| `board` | `#E7D3B8` cork | `#3A2E24` | behind pinned notices, search tint, icon-button hover; **only `ink` text directly on it** |
-| `ink` | `#2B211B` kopi brown | `#F5EEE6` | text |
-| `muted` | `#6B5D52` | `#C2B2A3` | secondary text (not on `board`) |
-| `line` | `#E9DFD2` | `#3A2F27` | card borders, ruled lines |
-| `field-border` | `#8A7967` | `#8F7F70` | input, checkbox and stepper borders (3:1) |
-| `primary` / `primary-hover` / `primary-soft` | `#1E6B47` / `#17573A` / `#E3F1E8` | `#7BD3A0` / `#9BE0B7` / `#16301F` | noticeboard green: buttons, links, focus ring |
-| `primary-edge` | `#17573A` | `#447458` | the solid edge under primary buttons |
-| `on-primary` | `#FFFFFF` | `#0E2A1B` | text on primary |
-| `accent` | `#F2B705` marigold | `#F2B705` | pins, tape, focus glow — **never text on paper** |
-| `highlight` | `#FAE196` | `#523E0F` | the highlighter stroke behind hovered links |
-| `danger` / `danger-soft` / `danger-edge` / `on-danger` | `#B42318` / `#FDECEA` / `#7E1911` / `#FFFFFF` | `#F97066` / `#3A1714` / `#893E38` / `#2A0B08` | destructive actions, errors |
-| `success` / `success-soft` | `#1E6B47` / `#E3F1E8` | `#7BD3A0` / `#16301F` | |
-| `warning` / `warning-soft` | `#8A5A00` / `#FDF3D3` | `#F2B705` / `#3A2C0A` | |
-| `info` / `info-soft` | `#1F4E8C` / `#E4EDF8` | `#9CC3F5` / `#172A44` | |
-
-**Type:** `--font-sans: "Atkinson Hyperlegible", "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", "Noto Sans SC", system-ui, sans-serif` (keep the Chinese fallbacks); headings (h1–h3) use `--font-display` ("Bricolage Grotesque" + the same fallbacks), 600–800, letter-spacing −0.015em. Scale: `text-xs` 13, `text-sm` 15, `text-base` 17, `text-lg` / `text-xl` 20, `text-2xl` 26, `text-3xl` 34, `text-4xl` 44 px. Body line-height 1.55; paragraphs are at most 75 characters wide. Use Tailwind's spacing and these text sizes; don't invent new ones.
-
-**Corners by role:** notices 6px, buttons and inputs 10px (`rounded-md`), cards 14px (`rounded-lg`), pills and badges `rounded-full`.
-
-**Contrast check:** `node scripts/check-contrast.js` reads both themes from `src/input.css` and checks text pairs reach 4.5:1 (ink and muted on canvas and surface, ink on board, primary on canvas, surface, primary-soft and highlight, on-primary on primary and primary-hover, on-danger on danger, each status colour on its soft background and on canvas) and the parts of controls reach 3:1 (field-border on surface and canvas; primary on surface, canvas and board for the focus ring; danger on danger-soft for the error border). Run it after changing any colour.
-
-### Light and dark mode
-
-- **Theme control** in the top bar of every page: a 44 × 44 px button (Lucide `monitor` / `sun` / `moon`, `aria-label="Theme: …"`) that opens a menu with three `menuitemradio` choices: **System** (default, follows the device), **Light** and **Dark**. Keyboard: Enter opens it, Up / Down move, Escape closes and returns focus.
-- The choice is saved in `localStorage` under `ks-theme`; every read and write is wrapped in try/catch, so with storage blocked the page still works and follows the device. "System" follows `prefers-color-scheme` live (no reload).
-- **No white flash:** `js/theme.js` is the first script in every page's `<head>`, before the stylesheets. It sets `data-theme="light" | "dark"` on `<html>` before anything is drawn. Every page loads the same file.
-- No colour transition on first load; a 150 ms transition only when the user switches (off with `prefers-reduced-motion`).
-- Leaflet: tiles stay as they are; popups, zoom buttons and the attribution use the theme colours (attribution stays readable).
-
-### Components (classes above, reused everywhere)
-
-- **Pinned notices (the signature — donation request cards only:** home "Pinned up this week", Browse needs, organization pages, donor Find needs, and the organization's own active requests on organization.html; History cards stay calm**):** the grid gets `noticeboard` (cork background) and each card is `article.notice`: paper, 6px corners, a marigold pin (CSS, no markup) at the top centre with a short shadow, and a gentle alternating tilt (−1°, 0.6°, −0.4°, 0.9°; never more than 1.2°). Hover (pointer devices only) or keyboard focus inside: straightens to 0° and lifts 2px with a soft spring (about 0.26 s), the card's shadow grows, and the pin is pressed in (smaller, shorter shadow). With `prefers-reduced-motion`: no tilt, no movement.
-- **Tracking timeline:** `tracker` (Alpine, js/ui.js) draws the steps of an offer or application — section 12. Delivered offers get a green rubber `stamp`; Pinny (`img/pinny-thanks.svg`, the noticeboard pin mascot) says thank you once.
-- **Tear-off tabs:** on notices, "still needed" is a strip of tabs (`itemTabs()` in js/requests.js, `.tear-tabs` with `role="img"` and the same label as the bar): one tab per unit up to 10, otherwise 10 tabs of 10%; solid = received, striped = promised, dashed and empty = still needed; at least one empty tab while anything is needed. "6 of 10 bags" is written under it.
-- **Cards:** `card` — everything else (events, stats, forms, review cards): straight, surface, 1px `line` border that turns `primary` on hover, 14px corners, no lift.
-- **Buttons:** `btn btn-primary` (main action: green on a solid darker edge, `box-shadow: 0 3px 0 primary-edge`; pressed: moves down 2px, edge 1px), `btn btn-secondary` (paper with an ink border and ink edge, same press), `btn btn-danger` (only for destructive actions, same shape in danger colours), `btn btn-ghost` (text only). No gradients or glow. Show a spinner and disable while an action is running so nothing is submitted twice.
-- **Focus:** every keyboard focus shows a 3px `primary` outline 2px away (inside tab lists it's drawn inside). Inputs show their focus border instead.
-- **Links in text:** `primary` with a thin underline; on hover a marigold `highlight` sweeps up behind the whole word (a background, so it wraps across lines). Applies to `a.text-primary` inside the page and to `.link`.
-- **Top bar and bottom bar:** the current page gets a short strip of marigold "tape" under it (`.top-link`, `.segmented-link`, `.bottom-nav-link`). Icon buttons (theme, language, messages, chat close) use `icon-btn`: a cork circle behind the icon on hover and focus.
-- **Paper forms:** `.input` for inputs, selects and textareas — surface, 1.5px `field-border`, 10px corners, at least 44px tall; label above in Atkinson 700, helper text in `muted` below; placeholders are realistic examples ("e.g. 5 bags of rice"), never the only label. Focus: 2px `primary` border plus a soft marigold glow (decorative; the green border meets contrast). Error: `aria-invalid="true"` gives a danger border on `danger-soft`, and `.field-error` (linked with `aria-describedby`) shows a Lucide alert-circle before the message. Longer textareas (descriptions, messages) add `input-ruled` (faint notepaper lines matched to the line-height). Search fields sit in `.search-field` (pill, magnifier, cork-tinted). Number fields for quantities are `.stepper`s: 44 × 44 − and + buttons ("Decrease" / "Increase", `stepNumber()` in js/ui.js) that respect `min` and `max` (e.g. what's still needed). Checkboxes and radios are 24px with a green tick or dot and a marigold glow on focus; selects use a Lucide chevron-down. The password eye button stays inside the field.
-- **Status badges** (pill shape, soft background + strong text):
-  - requests: pending_approval = warning, open = info, fulfilled = success, closed / rejected = neutral / danger
-  - offers: pending = warning, accepted = info, delivered = success, rejected / cancelled = neutral
-- **Urgency badge:** shows the AI score number **and** a word (Critical 80–100, High 60–79, Medium 40–59, Low 0–39). Never rely on color alone.
-- **"Why this score?" panel:** a collapsible section under the urgency badge showing the AI reasons, labelled with a small "AI-suggested" tag.
-- **Forms:** visible labels above every input (no placeholder-only labels), helper text under tricky fields, inline error messages in red below the field, required fields marked.
-- **Motion (small and quick, 150–220 ms, only where something opens or appears after a tap):** menus drop down, "Why this score?" and the Offer form (`.reveal`) slide open, dialogs grow in over a fading backdrop, the details panel slides in from the right (rises on phones), the chat panel rises, toasts and new chat / message bubbles rise into place, a new unread number pops in, tabs / chips / menu items change colour smoothly, and in-page links scroll smoothly. All of it is CSS in `src/input.css` (no extra markup) and is off with `prefers-reduced-motion`. Nothing animates on page load except the home page's `.welcome`.
-- **Toasts:** bottom-centre on mobile, top-right on desktop; success / error variants; auto-hide after 4 s; announced to screen readers (`aria-live="polite"`).
-- **Empty states:** friendly icon + one sentence + the next action (e.g., "No requests yet — Create your first request").
-- **Loading:** skeleton placeholders for lists, not blank screens.
-- **Confirm dialog:** for reject, cancel, delete and close actions.
-
-### Layout
-
-- **Mobile-first.** Must work at 360px wide with no sideways scrolling. Breakpoints at 640px and 1024px.
-- Content max width 1100px, centred, 16px side padding on mobile.
-- Top bar: logo, the logged-in person's own name, the main links, language menu (section 9), theme control, Messages button with the unread count (individuals and organizations, section 10), profile menu with logout. On mobile, a bottom navigation bar with the 3–4 main sections for that role.
-- **Dashboards are split into sections** linked from the top bar (`DASHBOARD_SECTIONS` in js/auth.js) instead of one long page: an Overview first, then one section per job. The section is kept in the URL hash, so reloading and Back / Forward work; a badge shows what's waiting (sent with the `dashboard-counts` event). Admin: Overview · To review · Browse. Organization: Overview · Requests · Offers · Events. Donor: Overview · Find needs · My offers. Volunteer: Overview · Find events · My applications · My tasks. People who do both see each dashboard's sections on its own page, plus the Donating / Volunteering switch.
-- Dashboards start with 3–4 summary stat cards (e.g., "Open requests", "Items still needed", "Offers waiting").
-- Lists become card grids on desktop, single column on mobile.
-- Map pages: map fills the top of the screen, list of events below (mobile) or beside it (desktop).
-
-### Accessibility (WCAG 2.1 AA)
-
-- Text contrast at least 4.5:1. Every interactive element reachable and usable by keyboard, with a visible focus ring.
-- `<html lang="en">`, one `<h1>` per page, headings in order, real `<button>` and `<a>` elements.
-- Images and icons that carry meaning have text alternatives; decorative icons have `aria-hidden="true"`.
-- Respect `prefers-reduced-motion`: keep animations subtle (150–250 ms) and turn them off when requested.
-- Touch targets at least 44 × 44 px.
-- Every page starts with a **"Skip to main content"** link (`.skip-link`) to `<main id="main" tabindex="-1">`.
-- **Loading placeholders** are `role="status"` with hidden text (`<span class="sr-only">Loading your offers…</span>`), never `aria-label` on a plain `<div>`.
-- **In-page tabs** (Active / History, filters) are buttons with `aria-pressed`; `aria-current="page"` is only for links to other pages.
-- **Toasts:** success messages hide after 4 s (paused on hover or focus); **error messages stay until closed** (close button, 44 × 44 px).
-- **Focus never gets lost:** "Show more" moves focus to the first new item (`showMoreAndFocus()`); after an action removes a card (delete, cancel, close, approve, reject), focus moves to the section heading (`focusHeading()`).
-- **Announce changes people can't see:** History lists say "Showing 12 past offers" through `announce()` (a hidden live region).
-- Maps have `role="region"` and an `aria-label`; everything on a map is also in the list next to it.
-- Test pages with axe-core and with VoiceOver; text must reflow at 320 px with no sideways scrolling.
-
-### Tone of voice
-
-Short, kind, plain English. Explain what happens next ("Your offer was sent. The organization will confirm within 2 days."). Error messages say what went wrong and how to fix it. Never blame the user.
+Design: follow DESIGN.md.
 
 ---
 
@@ -368,7 +273,7 @@ Shown on approved events in `organization.html` and on `event.html`. Pending eve
 - **WhatsApp:** `https://wa.me/?text=<encoded message>` — opens WhatsApp with the message ready; the user picks a chat or group.
 - **Facebook:** `https://www.facebook.com/sharer/sharer.php?u=<encoded link>` (Facebook ignores pre-filled text; the preview comes from 5.2).
 - **Phone share menu:** if `navigator.share` exists, a "Share…" button opens the phone's own menu (WhatsApp, Instagram, Telegram, Messages…).
-- **Instagram:** Instagram has no web share link and captions don't have clickable links. Provide **"Download poster"** (a 1080×1350 PNG made in the browser with `<canvas>`: event title, date, place, organization name, logo, and the short link as text) and **"Copy caption"**.
+- **Instagram:** Instagram has no web share link and captions don't have clickable links. Provide **"Download poster"** (a 1080×1350 PNG made in the browser with `<canvas>`, laid out as in DESIGN.md 12, in the chosen language, with a QR code to the short link; the QR library `qrcode-generator@1.4.4` loads from cdnjs only when needed) and **"Copy caption"**.
 - **Copy link** button.
 - Message template (editable before sharing):
   ```
@@ -405,7 +310,7 @@ Visitors should understand the app, see real needs and try the AI **before** sig
 
 - Hero: one sentence on what KampongShare does + buttons **Browse needs**, **Sign up to donate**, **Volunteer**, **Register your organization** (`signup.html?role=organization` pre-selects the role).
 - **Impact numbers** from `supabase.rpc('public_stats').single()`: items delivered, completed donations, open requests, upcoming events, organizations. If a number is 0, show friendly text ("Be the first to give") instead.
-- **Most urgent needs:** up to 6 open requests sorted by `ai_score` (highest first, unscored last), as pinned notices with the urgency badge, organization, area, deadline and tear-off tabs.
+- **Most needed:** up to 6 open requests sorted by `ai_score` (highest first, unscored last), as pinned notices (the only tilted ones): category, title, organization, a progress bar, how much is still needed and when it ends, and one Offer button that opens the request details panel (urgency, "Why this score?", description, drop-off and each item's Offer form).
 - **Upcoming events:** small Leaflet map + next 3 events, linking to `event.html`.
 - **"What can you give?"** matching box (6.4).
 - "How it works" in 3 steps, and a footer link to `privacy.html`.
@@ -413,7 +318,7 @@ Visitors should understand the app, see real needs and try the AI **before** sig
 ### 6.3 Browse needs — `needs.html`
 
 - All open requests, with filters: category, area, urgency level, and a text search on title / item name. Filters live in Alpine state; remember them in the URL query (no personal data).
-- Each item has an **Offer** button. Logged-in donors offer directly. Visitors go to `login.html?next=/needs.html?item=<item id>`, and come back with that item's offer form open.
+- Each notice has one **Offer** button that opens the request details panel; each item in it has its own Offer form. Logged-in donors offer directly. Visitors go to `login.html?next=/needs.html?item=<item id>`, and come back with the panel open at that item's offer form.
 
 ### 6.4 Try matching without an account — Netlify Function `match-items`
 
@@ -462,7 +367,7 @@ Visitors should understand the app, see real needs and try the AI **before** sig
 `index.html`, `needs.html`, `event.html` and `org.html` adapt to who is looking. Logged-in users can always open them and are never redirected away; after login they still go to `?next=` or their dashboard.
 
 - `getViewer()` (js/auth.js) returns `null` for visitors, or `{ role, isDonor, isVolunteer, hasConsent, volunteerApproved, dashboardUrl, orgId }` from the `profiles` table (never `user_metadata`), with no personal details. Public pages mix in `publicViewer()` and show skeletons until `viewerReady`, so the visitor version never flashes.
-- **Top bar (desktop):** visitors see Home · Browse needs · Log in · Sign up; logged in: Home · My dashboard (or the Donating / Volunteering switch; admins and organizations see their dashboard sections instead) · theme · Account menu (profile, log out). Current page has `aria-current="page"`. Phones use the bottom navigation.
+- **Top bar (desktop, DESIGN.md 6.6):** the logo goes home. Visitors see Browse needs · Log in · Sign up · a settings menu (theme, language); logged in: Browse needs (not admins) · the dashboard's sections (or My dashboard) · Messages · the avatar menu (profile, Donating / Volunteering switch, theme, language, log out). Current page has `aria-current="page"`. Phones and tablets (below 1024px) use the bottom navigation.
 - **Home hero:** visitors see the sign-up buttons; logged-in users see "Go to my dashboard" plus Browse needs (donors), Find events (volunteers), Post a request (organizations, opens the form via `organization.html?new=request`) or Review queue with the number waiting (admins).
 - **Offer / Donate** (`donorView()`): visitors log in first (`?next=`); donors offer directly; individuals without donating get "Turn on donating in your profile" with a button; organizations and admins see no AI box, Offer or Donate buttons, just "This is what donors see."
 - **Volunteer** (`volunteerView()`): visitors log in first; volunteers apply directly (`event.html?id=…&apply=1` opens the form) or see their application status; individuals without volunteering get "Turn on volunteering"; pending accounts see the approval note; organizations and admins see "This is what volunteers see."
@@ -500,7 +405,7 @@ Admins **review and moderate**; they do not create content. Admins cannot create
 
 **Becoming admin:** sign up normally, then run the update at the bottom of the schema file. Nobody can sign up as admin.
 
-**Layout:** three sections, **Overview · To review · Browse**, linked from the top bar next to Home (they replace "My dashboard" for admins; on phones the bottom bar shows them plus Profile, and "To review" shows the number waiting). Sub-tabs inside a section use the tabs pattern (`role="tablist"` / `"tab"` / `"tabpanel"`, `aria-selected`, roving tabindex, ← → Home End). The place is kept in the URL hash, e.g. `#review/requests`, `#review/requests?item=<id>` (opens that item), `#browse/offers?view=history&q=…`, so reloading keeps it and back / forward move between tabs. Code: `js/admin-dashboard.js` (UI) and `js/admin-data.js` (data, reusing the existing database functions). Phones: main tabs stay at the top, sub-tabs scroll sideways, one column.
+**Layout:** three sections, **Overview · To review · Browse**, linked from the top bar (they replace "My dashboard" for admins; on phones the bottom bar shows them plus Profile, and "To review" shows the number waiting). Sub-tabs inside a section use the tabs pattern (`role="tablist"` / `"tab"` / `"tabpanel"`, `aria-selected`, roving tabindex, ← → Home End). The place is kept in the URL hash, e.g. `#review/requests`, `#review/requests?item=<id>` (opens that item), `#browse/offers?view=history&q=…`, so reloading keeps it and back / forward move between tabs. Code: `js/admin-dashboard.js` (UI) and `js/admin-data.js` (data, reusing the existing database functions). Phones: main tabs stay at the top, sub-tabs scroll sideways, one column.
 
 ### 7.1 Overview
 
@@ -549,7 +454,7 @@ The kinds and what the panel shows:
 - Shows loading, empty and error states.
 - Database errors are shown to the user in friendly words.
 - No secrets or personal data in frontend code, URLs or console logs.
-- Follows sections 2–7 and 9–12 of this file.
+- Follows DESIGN.md and sections 2 and 4–12 of this file.
 - Every new text uses a translation key in all three language files; `node scripts/check-i18n.js` passes.
 - No `// @ts-check` warnings in changed files.
 
@@ -564,8 +469,8 @@ The site speaks **English**, **简体中文** (Simplified Chinese, as used in Si
 - **In code:** `t("key", { name })` in JS, `x-text="$t('key')"` in Alpine, `data-i18n="key"` on static HTML (only on elements that hold just text), `data-i18n-rich` for text with `**bold**`, and `data-i18n-attr="aria-label:key; placeholder:key"` for attributes. A `{ one, other }` entry is a plural. Missing keys fall back to English (with a console warning only on localhost).
 - **Fixed values** (statuses, urgency, categories, roles, days, times, interests, skills) always go through `enumLabel(kind, value)` (or `enumOptions()` for pickers); area names through `areaLabel()` (Chinese uses the official place names; stored values never change).
 - **Database messages:** every `raise exception` message in `supabase/migrations/` has a pattern in `DB_ERRORS` (js/ui.js), e.g. `Only % % of "%" still needed` → `errors.db.onlyStillNeeded`; `friendlyError()` uses it. An unknown message shows "Something went wrong" plus the original English. **A new migration message needs a new entry and keys in all three files.**
-- **Dates and numbers** use `Intl` with `en-SG`, `zh-SG` or `ms-SG` (`formatDate`, `formatNumber`). The downloaded share poster stays English.
-- **Language menu** in the top bar of every page: the Lucide `globe` and the language's own name (phones: EN / 中文 / BM), a `menuitemradio` menu with each language in its own script and `lang` attribute, no flags, the button label "Language / 语言 / Bahasa — <current>". Saved in `localStorage` (`ks-lang`, try/catch); a first visit follows the browser if it's Chinese or Malay, otherwise English. Switching updates the page without a reload and sets `<html lang>` to `en`, `zh-Hans` or `ms`.
+- **Dates and numbers** use `Intl` with `en-SG`, `zh-SG` or `ms-SG` (`formatDate`, `formatNumber`). The downloaded share poster uses the language the person chose.
+- **Language choice** on every page, inside the avatar menu (logged in) or the settings menu (visitors, whose button also shows EN / 中文 / BM): a `menuitemradio` group with each language in its own script and `lang` attribute, no flags; the menu button's label always includes "Language / 语言 / Bahasa — <current>". Saved in `localStorage` (`ks-lang`, try/catch); a first visit follows the browser if it's Chinese or Malay, otherwise English. Switching updates the page without a reload and sets `<html lang>` to `en`, `zh-Hans` or `ms`.
 - **AI:** `match-items` and `chat-insights` get the chosen `lang`; summaries, reasons and template sentences come back in it, and typed chat questions are answered in the language they're typed in (6.8). Only the language code is added — no personal data (4.6).
 - **Server words** (chat fixed replies, templates, match reasons) live in `netlify/lib/messages.js`, with the same keys in all three languages.
 - **Lists that are built once** (review cards, Browse rows, tabs, filters): give their words as getters or translation keys (`labelledOptions()`, `enumOptions()`, `get label() { return t(…) }`), never as fixed strings, so a language switch redraws them without a reload. Lists of stored values (interests, skills, days) are shown with `enumList()`.
@@ -657,7 +562,7 @@ The rules live in `supabase/migrations/20261029040000_deadlines.sql`; the option
 
 The step times are recorded by the database (`supabase/migrations/20261030040000_status_times.sql`), never by the page: offers `accepted_at`, `rejected_at`, `delivered_at`, `cancelled_at`; applications `applied_at`, `approved_at`, `rejected_at`, `withdrawn_at`. Older records only have the times that were known; a missing time shows "Date not recorded". An organization can add an optional note when it rejects an offer (`donation_offers.reject_note`, max 300 characters, only together with pending → rejected — `20261030050000_offer_reject_note.sql`).
 
-**One shared tracker:** `buildTracker()` and the Alpine component `tracker` in `js/ui.js`, styled in `src/input.css` (`.tracker`, `.tracker-row` on cards, `.tracker-column` in the details panel). The steps come from `offerTracker()` (js/offers.js) and `applicationTracker()` (js/volunteering.js).
+**One shared tracker:** `buildTracker()` and the Alpine component `tracker` in `js/ui.js`, styled in `src/input.css` (`.tracker`, `.tracker-row` on cards, `.tracker-column` in the details panel; the look follows DESIGN.md 6.5). The steps come from `offerTracker()` (js/offers.js) and `applicationTracker()` (js/volunteering.js).
 
 - Done step: filled `primary` circle with a tick; current step: marigold (`accent`) circle with a clock, `ink`-coloured icon (`on-accent`), one gentle pulse when it first appears (none with reduced motion); future step: empty dashed circle. The lines between steps turn green as steps complete.
 - Under each step: its name and date (full date and time in the panel). One "what happens next" line under the current step (under the tracker on cards).

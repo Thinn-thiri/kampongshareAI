@@ -14,12 +14,13 @@
     <link rel="icon" href="/img/favicon.svg" type="image/svg+xml" />
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Atkinson+Hyperlegible:wght@400;700&family=Bricolage+Grotesque:opsz,wght@12..96,600..800&display=swap" />
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,600..700&family=Lexend:wght@400;700&display=swap" />
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="" />
+    <link rel="stylesheet" href="https://unpkg.com/@phosphor-icons/web@2.1.1/src/regular/style.css" />
+    <link rel="stylesheet" href="https://unpkg.com/@phosphor-icons/web@2.1.1/src/duotone/style.css" />
     <link rel="stylesheet" href="/css/style.css" />
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-    <script src="https://unpkg.com/lucide@latest"></script>
     <script src="/js/config.js"></script>
     <script src="/js/supabase.js"></script>
     <script src="/js/auth.js"></script>
@@ -32,6 +33,7 @@
     <script src="/js/requests.js"></script>
     <script src="/js/org-requests.js"></script>
     <script src="/js/offers.js"></script>
+    <script src="/js/request-panel.js"></script>
     <script src="/js/org-offers.js"></script>
     <script src="/js/events.js"></script>
     <script src="/js/org-events.js"></script>
@@ -47,103 +49,97 @@
   <body data-require="organization">
     <a href="#main" class="skip-link" data-i18n="nav.skip">Skip to main content</a>
     <header class="topbar" x-data="topBar">
-      <div class="container-page flex min-h-16 flex-wrap items-center gap-x-1 gap-y-2 py-2 sm:gap-x-3">
-        <a href="/" class="flex items-center gap-2 rounded-sm font-bold text-primary focus-visible:outline-2 focus-visible:outline-primary" aria-label="KampongShare home" data-i18n-attr="aria-label:nav.homeLink">
+      <div class="container-page flex min-h-16 items-center gap-2 py-2">
+        <a href="/" class="flex min-h-11 items-center gap-2 rounded-sm font-bold text-primary" aria-label="KampongShare home" data-i18n-attr="aria-label:nav.homeLink">
           <img src="/img/favicon.svg" alt="" class="size-8" />
-          <span class="hidden sm:inline">KampongShare</span>
+          <span class="hidden sm:inline" translate="no">KampongShare</span>
         </a>
-        <!-- the logged-in person's own name (only they see it) -->
-        <span class="max-w-16 truncate rounded-full bg-primary-soft px-2.5 py-1 text-xs font-semibold text-primary min-[400px]:max-w-24 sm:max-w-48"
-          x-show="profile?.full_name" x-cloak :title="profile?.full_name"><span class="sr-only" data-i18n="nav.loggedInAs">Logged in as</span> <span x-text="profile?.full_name"></span></span>
         <!-- pushes the links and buttons to the right -->
         <span class="flex-1" aria-hidden="true"></span>
-        <!-- Desktop links (phones use the bottom navigation) -->
-        <nav class="hidden items-center gap-1 sm:flex" aria-label="Site" data-i18n-attr="aria-label:nav.site" x-show="ready" x-cloak>
+        <!-- Desktop links (phones and tablets use the bottom bar) -->
+        <nav class="hidden items-center gap-1 lg:flex" aria-label="Site" data-i18n-attr="aria-label:nav.site" x-show="ready" x-cloak>
           <template x-for="link in topLinks" :key="link.href">
-            <a :href="link.href" class="top-link gap-2" :aria-current="isCurrent(link.href) ? 'page' : null">
+            <a :href="link.href" class="top-link" :aria-current="isCurrent(link.href) ? 'page' : null">
               <span x-text="$t(link.labelKey)"></span>
-              <span class="badge badge-warning" x-show="link.badge" x-text="link.badge" :aria-label="$t('nav.waiting', { count: link.badge })"></span>
+              <span class="tab-count" x-show="link.badge" x-text="link.badge" :aria-label="$t('nav.waiting', { count: link.badge })"></span>
             </a>
           </template>
         </nav>
-        <nav class="segmented order-last w-full sm:order-none sm:w-auto" aria-label="Switch between donating and volunteering" data-i18n-attr="aria-label:nav.switchRole" x-show="canSwitch" x-cloak>
-          <a href="/donor.html" class="segmented-link" :aria-current="here('/donor.html') ? 'page' : null" data-i18n="nav.donating">Donating</a>
-          <a href="/volunteer.html" class="segmented-link" :aria-current="here('/volunteer.html') ? 'page' : null" data-i18n="nav.volunteering">Volunteering</a>
-        </nav>
-        <!-- Language: English / 中文 / Bahasa Melayu (js/i18n.js) -->
-        <div class="relative" x-data="langMenu" @keydown.escape="close(true)" @click.outside="close(false)">
-          <button type="button" x-ref="langButton" class="btn btn-ghost icon-btn min-w-11 gap-1.5 px-2" :aria-label="buttonLabel" aria-label="Language / 语言 / Bahasa"
-            aria-haspopup="menu" :aria-expanded="open.toString()" aria-controls="lang-menu" @click="toggle()">
-            <i data-lucide="globe" class="size-5" aria-hidden="true"></i>
-            <span class="text-sm sm:hidden" :lang="current.htmlLang" x-text="current.short"></span>
-            <span class="hidden text-sm sm:inline" :lang="current.htmlLang" x-text="current.name"></span>
-          </button>
-          <div id="lang-menu" class="menu w-48" role="menu" aria-label="Language / 语言 / Bahasa" x-show="open" x-cloak @keydown.down.prevent="move(1)" @keydown.up.prevent="move(-1)">
-            <template x-for="option in options" :key="option.code">
-              <button type="button" class="menu-item gap-2" role="menuitemradio" :lang="option.htmlLang" :aria-checked="(lang === option.code).toString()" @click="pick(option.code)">
-                <span class="flex-1" x-text="option.name"></span>
-                <span class="text-primary" x-show="lang === option.code"><i data-lucide="check" class="size-4" aria-hidden="true"></i></span>
-              </button>
-            </template>
-          </div>
-        </div>
-        <!-- Theme: System / Light / Dark (js/theme.js) -->
-        <div class="relative" x-data="themeMenu" @keydown.escape="close(true)" @click.outside="close(false)">
-          <button type="button" x-ref="themeButton" class="btn btn-ghost icon-btn size-11 px-0" :aria-label="$t('theme.button', { name: label })" aria-label="Theme"
-            aria-haspopup="menu" :aria-expanded="open.toString()" aria-controls="theme-menu" @click="toggle()">
-            <span x-show="choice === 'system'"><i data-lucide="monitor" class="size-5" aria-hidden="true"></i></span>
-            <span x-show="choice === 'light'" x-cloak><i data-lucide="sun" class="size-5" aria-hidden="true"></i></span>
-            <span x-show="choice === 'dark'" x-cloak><i data-lucide="moon" class="size-5" aria-hidden="true"></i></span>
-          </button>
-          <div id="theme-menu" class="menu w-40" role="menu" aria-label="Theme" data-i18n-attr="aria-label:theme.menu" x-show="open" x-cloak @keydown.down.prevent="move(1)" @keydown.up.prevent="move(-1)">
-            <template x-for="option in options" :key="option.value">
-              <button type="button" class="menu-item gap-2" role="menuitemradio" :aria-checked="(choice === option.value).toString()" @click="pick(option.value)">
-                <span x-show="option.icon === 'monitor'"><i data-lucide="monitor" class="size-4" aria-hidden="true"></i></span>
-                <span x-show="option.icon === 'sun'"><i data-lucide="sun" class="size-4" aria-hidden="true"></i></span>
-                <span x-show="option.icon === 'moon'"><i data-lucide="moon" class="size-4" aria-hidden="true"></i></span>
-                <span class="flex-1" x-text="$t(`theme.${option.value}`)"></span>
-                <span class="text-primary" x-show="choice === option.value"><i data-lucide="check" class="size-4" aria-hidden="true"></i></span>
-              </button>
-            </template>
-          </div>
-        </div>
-        <nav class="flex items-center gap-1" aria-label="Account" data-i18n-attr="aria-label:nav.account" x-show="ready && !profile" x-cloak>
-          <a href="/login.html" class="btn btn-ghost hidden px-3 sm:inline-flex" data-i18n="nav.logIn">Log in</a>
-          <a href="/signup.html" class="btn btn-primary px-4" data-i18n="nav.signUp">Sign up</a>
-        </nav>
+        <!-- visitors: Log in · Sign up -->
+        <a href="/login.html" class="btn btn-quiet hidden sm:inline-flex" x-show="ready && !profile" x-cloak data-i18n="nav.logIn">Log in</a>
+        <a href="/signup.html" class="btn btn-primary px-4" x-show="ready && !profile" x-cloak data-i18n="nav.signUp">Sign up</a>
         <!-- Messages with the unread count (js/messaging.js): individuals and organizations -->
-        <a href="/messages.html" class="btn btn-ghost icon-btn relative size-11 px-0" x-show="showMessages" x-cloak
+        <a href="/messages.html" class="icon-btn relative" x-show="showMessages" x-cloak
           :aria-current="here('/messages.html') ? 'page' : null" aria-label="Messages"
           :aria-label="unread ? $t('nav.messagesUnread', { count: unread }) : $t('nav.messages')">
-          <i data-lucide="message-circle" class="size-5" aria-hidden="true"></i>
+          <i class="ph ph-chat-circle" aria-hidden="true"></i>
           <span class="nav-count" x-show="unread" x-cloak x-text="unread > 99 ? '99+' : unread" aria-hidden="true"></span>
         </a>
-        <div class="relative" x-show="profile" x-cloak @keydown.escape="if (open) { open = false; $refs.accountButton.focus() }" @click.outside="open = false">
-          <button type="button" x-ref="accountButton" class="btn btn-secondary min-w-11 px-2 sm:px-4" :aria-expanded="open.toString()" aria-controls="account-menu" @click="open = !open">
-            <!-- phones: an icon (the name is still read out), so the top bar fits on one row -->
-            <i data-lucide="user-round" class="size-5 sm:hidden" aria-hidden="true"></i>
-            <span class="sr-only sm:not-sr-only" data-i18n="nav.account">Account</span>
+        <!-- Avatar menu (logged in) or settings menu (visitors): theme, language, profile, switch, log out -->
+        <div class="relative" x-data="accountMenu" @keydown.escape="close(true)" @click.outside="close(false)">
+          <button type="button" x-ref="menuButton" class="icon-btn gap-1" :class="profile ? '' : 'w-auto px-3'" :aria-label="buttonLabel"
+            aria-label="Settings · Language / 语言 / Bahasa" aria-haspopup="menu" :aria-expanded="open.toString()" aria-controls="account-menu" @click="toggle()">
+            <span class="avatar" x-show="profile" x-cloak x-text="initial" aria-hidden="true"></span>
+            <i class="ph ph-gear-six" x-show="!profile" aria-hidden="true"></i>
+            <span class="text-sm font-bold" x-show="!profile" :lang="language.htmlLang" x-text="language.short" aria-hidden="true"></span>
           </button>
-          <div id="account-menu" class="menu" x-show="open" x-cloak>
-            <a :href="dashboard" href="/" class="menu-item sm:hidden" data-i18n="nav.myDashboard">My dashboard</a>
-            <a href="/profile.html" class="menu-item" data-i18n="nav.myProfile">My profile</a>
-            <button type="button" class="menu-item" @click="logout()" data-i18n="nav.logOut">Log out</button>
+          <div id="account-menu" class="menu w-64" role="menu" :aria-label="buttonLabel" x-show="open" x-cloak
+            @keydown.down.prevent="move(1)" @keydown.up.prevent="move(-1)" @keydown.home.prevent="moveTo(0)" @keydown.end.prevent="moveTo(-1)">
+            <template x-if="profile">
+              <div role="none">
+                <p class="menu-heading font-bold break-words text-ink" aria-hidden="true" x-text="profile.full_name"></p>
+                <div role="group" :aria-label="profile.full_name">
+                  <a :href="dashboard" class="menu-item" role="menuitem" x-show="!canSwitch"><i class="ph ph-squares-four" aria-hidden="true"></i><span data-i18n="nav.myDashboard">My dashboard</span></a>
+                  <a href="/donor.html" class="menu-item" role="menuitem" x-show="canSwitch" :aria-current="here('/donor.html') ? 'page' : null"><i class="ph ph-hand-heart" aria-hidden="true"></i><span data-i18n="nav.donating">Donating</span></a>
+                  <a href="/volunteer.html" class="menu-item" role="menuitem" x-show="canSwitch" :aria-current="here('/volunteer.html') ? 'page' : null"><i class="ph ph-users" aria-hidden="true"></i><span data-i18n="nav.volunteering">Volunteering</span></a>
+                  <a href="/profile.html" class="menu-item" role="menuitem" :aria-current="here('/profile.html') ? 'page' : null"><i class="ph ph-user" aria-hidden="true"></i><span data-i18n="nav.myProfile">My profile</span></a>
+                </div>
+                <div class="menu-separator" role="separator"></div>
+              </div>
+            </template>
+            <p class="menu-heading" aria-hidden="true" data-i18n="theme.menu">Theme</p>
+            <div role="group" aria-label="Theme" data-i18n-attr="aria-label:theme.menu">
+              <template x-for="option in themeOptions" :key="option.value">
+                <button type="button" class="menu-item" role="menuitemradio" :aria-checked="(theme === option.value).toString()" @click="pickTheme(option.value)">
+                  <i :class="option.icon" aria-hidden="true"></i>
+                  <span class="flex-1" x-text="$t(`theme.${option.value}`)"></span>
+                  <i class="ph ph-check text-primary" x-show="theme === option.value" aria-hidden="true"></i>
+                </button>
+              </template>
+            </div>
+            <div class="menu-separator" role="separator"></div>
+            <p class="menu-heading" aria-hidden="true">Language / 语言 / Bahasa</p>
+            <div role="group" aria-label="Language / 语言 / Bahasa">
+              <template x-for="option in languages" :key="option.code">
+                <button type="button" class="menu-item" role="menuitemradio" :lang="option.htmlLang" :aria-checked="(lang === option.code).toString()" @click="pickLang(option.code)">
+                  <i class="ph ph-globe" aria-hidden="true"></i>
+                  <span class="flex-1" x-text="option.name"></span>
+                  <i class="ph ph-check text-primary" x-show="lang === option.code" aria-hidden="true"></i>
+                </button>
+              </template>
+            </div>
+            <template x-if="profile">
+              <div role="none">
+                <div class="menu-separator" role="separator"></div>
+                <button type="button" class="menu-item" role="menuitem" @click="logout()"><i class="ph ph-sign-out" aria-hidden="true"></i><span data-i18n="nav.logOut">Log out</span></button>
+              </div>
+            </template>
           </div>
         </div>
       </div>
-        <nav class="bottom-nav" aria-label="Main" data-i18n-attr="aria-label:nav.main" x-show="ready" x-cloak>
-          <template x-for="link in bottomLinks" :key="link.href">
-            <a :href="link.href" class="bottom-nav-link" :aria-current="isCurrent(link.href) ? 'page' : null">
-              <i :data-lucide="link.icon" class="size-5" aria-hidden="true"></i>
-              <span x-text="$t(link.labelKey)"></span>
-            </a>
-          </template>
-        </nav>
+      <nav class="bottom-nav" aria-label="Main" data-i18n-attr="aria-label:nav.main" x-show="ready" x-cloak>
+        <template x-for="link in bottomLinks" :key="link.href">
+          <a :href="link.href" class="bottom-nav-link" :aria-current="isCurrent(link.href) ? 'page' : null">
+            <i :class="link.icon" aria-hidden="true"></i>
+            <span x-text="$t(link.labelKey)"></span>
+          </a>
+        </template>
+      </nav>
     </header>
 
     <main id="main" tabindex="-1" class="container-page space-y-8 py-8 focus:outline-none" x-data="orgDashboard">
       <div>
-        <h1 class="text-2xl font-bold sm:text-3xl" data-i18n="orgDash.title">Organization dashboard</h1>
+        <h1 class="title" data-i18n="orgDash.title">Organization dashboard</h1>
         <p class="mt-1 text-muted" x-show="org" x-text="org?.name"></p>
       </div>
 
@@ -163,12 +159,12 @@
 
       <!-- ===================== Overview ===================== -->
       <div class="space-y-8" x-show="!loading && !loadError && section === 'overview'" x-cloak>
-        <h2 class="text-2xl font-semibold" data-i18n="nav.overview">Overview</h2>
+        <h2 class="section-title" data-i18n="nav.overview">Overview</h2>
 
       <!-- Approval status (until approved; afterwards a badge in the details) -->
       <section class="card space-y-3" x-show="!loading && org && !approved" x-cloak aria-labelledby="status-heading">
         <div class="flex flex-wrap items-center gap-3">
-          <h3 id="status-heading" class="text-lg font-semibold" data-i18n="orgDash.approvalStatus">Approval status</h3>
+          <h3 id="status-heading" class="card-title" data-i18n="orgDash.approvalStatus">Approval status</h3>
           <span class="badge badge-warning" x-show="org?.approval === 'pending'" data-i18n="orgDash.waitingApproval">Waiting for admin approval</span>
           <span class="badge badge-success" x-show="org?.approval === 'approved'" data-i18n="orgDash.approved">Approved</span>
           <span class="badge badge-danger" x-show="org?.approval === 'rejected'" data-i18n="orgDash.rejected">Rejected</span>
@@ -180,7 +176,7 @@
         <template x-if="org?.approval === 'rejected'">
           <div class="space-y-2">
             <div class="rounded-md border border-danger bg-danger-soft p-3 text-sm text-danger">
-              <p class="font-semibold" data-i18n="orgDash.adminNote">Note from the admin</p>
+              <p class="font-bold" data-i18n="orgDash.adminNote">Note from the admin</p>
               <p class="mt-1 whitespace-pre-line" x-text="org?.admin_note || $t('orgDash.noReason')"></p>
             </div>
             <p class="text-sm text-muted" data-i18n="orgDash.updateThenContact">Please update your details below, then contact the admin to review your organization again.</p>
@@ -192,21 +188,21 @@
       <template x-if="!loading && approved && org">
         <div class="space-y-6" x-data="orgStats(org.id)" @requests-changed.window="load()" @offers-changed.window="load()" @events-changed.window="load()">
           <section class="card space-y-4" aria-labelledby="action-heading">
-            <h3 id="action-heading" class="text-lg font-semibold" data-i18n="orgDash.needsAction">Needs your action</h3>
+            <h3 id="action-heading" class="card-title" data-i18n="orgDash.needsAction">Needs your action</h3>
             <div class="space-y-2" x-show="!stats && !error" role="status"><span class="sr-only" data-i18n="common.loading">Loading…</span>
               <div class="skeleton h-5 w-2/3"></div><div class="skeleton h-5 w-1/2"></div>
             </div>
             <p class="flex items-center gap-2 text-muted" x-show="stats && actions().length === 0 && !pastDeadline.length && !endedEvents.length" x-cloak>
-              <i data-lucide="circle-check" class="size-5 text-success" aria-hidden="true"></i> <span data-i18n="orgDash.allCaughtUp">All caught up</span>
+              <i class="ph ph-check-circle size-5 text-primary" aria-hidden="true"></i> <span data-i18n="orgDash.allCaughtUp">All caught up</span>
             </p>
 
             <!-- Deadlines (REQUIREMENTS 11): open requests past their deadline, events that ended but aren't completed -->
             <ul class="space-y-3" x-show="stats && (pastDeadline.length || endedEvents.length)" x-cloak>
               <template x-for="request in pastDeadline" :key="request.id">
-                <li class="space-y-3 rounded-md border border-line bg-canvas p-3">
+                <li class="space-y-3 rounded-md bg-canvas p-3">
                   <div class="flex flex-wrap items-center gap-2">
                     <span :class="DEADLINE_BADGE.className" x-text="DEADLINE_BADGE.label"></span>
-                    <p class="font-semibold break-words" x-text="request.title"></p>
+                    <p class="font-bold break-words" x-text="request.title"></p>
                   </div>
                   <p class="text-sm text-muted" x-text="$t('common.neededBy', { date: formatDate(request.deadline) })"></p>
                   <div class="space-y-3" x-show="extendingId === request.id" x-cloak>
@@ -222,7 +218,7 @@
                         <span class="spinner" x-show="deadlineBusyId === request.id" x-cloak aria-hidden="true"></span>
                         <span data-i18n="deadlines.saveDeadline">Save deadline</span>
                       </button>
-                      <button type="button" class="btn btn-ghost" @click="extendingId = null" data-i18n="common.cancel">Cancel</button>
+                      <button type="button" class="btn btn-quiet" @click="extendingId = null" data-i18n="common.cancel">Cancel</button>
                     </div>
                   </div>
                   <div class="flex flex-wrap gap-3" x-show="extendingId !== request.id">
@@ -232,15 +228,15 @@
                 </li>
               </template>
               <template x-for="event in endedEvents" :key="event.id">
-                <li class="space-y-3 rounded-md border border-line bg-canvas p-3">
+                <li class="space-y-3 rounded-md bg-canvas p-3">
                   <div class="flex flex-wrap items-center gap-2">
                     <span :class="eventTimingBadge(event).className" x-text="eventTimingBadge(event).label"></span>
-                    <p class="font-semibold break-words" x-text="event.title"></p>
+                    <p class="font-bold break-words" x-text="event.title"></p>
                   </div>
                   <p class="text-sm text-muted" x-text="formatEventTime(event.starts_at, event.ends_at)"></p>
                   <div class="space-y-3" x-show="finishingId === event.id" x-cloak>
                     <div>
-                      <label :for="`finish-${event.id}`" class="label"><span data-i18n="orgDash.outcomeSummary">Outcome summary</span> <span class="text-danger" aria-hidden="true">*</span></label>
+                      <label :for="`finish-${event.id}`" class="label"><span data-i18n="orgDash.outcomeSummary">Outcome summary</span></label>
                       <textarea :id="`finish-${event.id}`" class="input input-ruled py-2" rows="3" maxlength="1000" x-model="finishOutcome"
                         placeholder="e.g. 35 volunteers packed 400 food bags for 120 families." data-i18n-attr="placeholder:orgDash.outcomePlaceholder"
                         :aria-invalid="finishError ? 'true' : null" :aria-describedby="`finish-err-${event.id}`"></textarea>
@@ -251,7 +247,7 @@
                         <span class="spinner" x-show="deadlineBusyId === event.id" x-cloak aria-hidden="true"></span>
                         <span data-i18n="orgDash.markCompleted">Mark completed</span>
                       </button>
-                      <button type="button" class="btn btn-ghost" @click="finishingId = null" data-i18n="common.cancel">Cancel</button>
+                      <button type="button" class="btn btn-quiet" @click="finishingId = null" data-i18n="common.cancel">Cancel</button>
                     </div>
                   </div>
                   <div class="flex flex-wrap gap-3" x-show="finishingId !== event.id">
@@ -267,8 +263,8 @@
               <template x-for="action in actions()" :key="action.text">
                 <li>
                   <a :href="action.href" class="-mx-2 flex items-center justify-between gap-3 rounded-md px-2 py-3 hover:bg-canvas focus-visible:outline-2 focus-visible:outline-primary">
-                    <span :class="action.info ? 'text-muted' : 'font-semibold'" x-text="action.text"></span>
-                    <i data-lucide="chevron-right" class="size-5 shrink-0 text-muted" aria-hidden="true"></i>
+                    <span :class="action.info ? 'text-muted' : 'font-bold'" x-text="action.text"></span>
+                    <i class="ph ph-caret-right size-5 shrink-0 text-muted" aria-hidden="true"></i>
                   </a>
                 </li>
               </template>
@@ -276,21 +272,21 @@
           </section>
 
           <section aria-label="Summary" data-i18n-attr="aria-label:orgDash.summary" class="grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-4">
-            <a href="#requests" class="card block p-4 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary sm:p-5">
-              <span class="block text-sm text-muted" data-i18n="orgDash.openRequests">Open requests</span>
-              <span class="mt-1 block text-2xl font-bold sm:text-3xl" x-text="stats ? stats.openRequests : '–'">–</span>
+            <a href="#requests" class="card block p-4 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary sm:p-6">
+              <span class="stat-label" data-i18n="orgDash.openRequests">Open requests</span>
+              <span class="stat-number" x-text="stats ? stats.openRequests : '–'">–</span>
             </a>
-            <a href="#requests" class="card block p-4 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary sm:p-5">
-              <span class="block text-sm text-muted" data-i18n="orgDash.itemsNeeded">Items still needed</span>
-              <span class="mt-1 block text-2xl font-bold sm:text-3xl" x-text="stats ? formatNumber(stats.itemsNeeded) : '–'">–</span>
+            <a href="#requests" class="card block p-4 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary sm:p-6">
+              <span class="stat-label" data-i18n="orgDash.itemsNeeded">Items still needed</span>
+              <span class="stat-number" x-text="stats ? formatNumber(stats.itemsNeeded) : '–'">–</span>
             </a>
-            <a href="#offers" class="card block p-4 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary sm:p-5">
-              <span class="block text-sm text-muted" data-i18n="orgDash.offersWaiting">Offers waiting</span>
-              <span class="mt-1 block text-2xl font-bold sm:text-3xl" x-text="stats ? stats.offersWaiting : '–'">–</span>
+            <a href="#offers" class="card block p-4 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary sm:p-6">
+              <span class="stat-label" data-i18n="orgDash.offersWaiting">Offers waiting</span>
+              <span class="stat-number" x-text="stats ? stats.offersWaiting : '–'">–</span>
             </a>
-            <a href="#events" class="card block p-4 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary sm:p-5">
-              <span class="block text-sm text-muted" data-i18n="orgDash.upcomingEvents">Upcoming events</span>
-              <span class="mt-1 block text-2xl font-bold sm:text-3xl" x-text="stats ? stats.upcomingEvents : '–'">–</span>
+            <a href="#events" class="card block p-4 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary sm:p-6">
+              <span class="stat-label" data-i18n="orgDash.upcomingEvents">Upcoming events</span>
+              <span class="stat-number" x-text="stats ? stats.upcomingEvents : '–'">–</span>
             </a>
           </section>
           <div class="flex flex-wrap items-center gap-3" x-show="error" x-cloak role="alert">
@@ -305,32 +301,32 @@
       <section class="card space-y-3" x-show="!loading && approved && !editingDetails" x-cloak aria-labelledby="details-heading">
         <div class="flex flex-wrap items-center justify-between gap-3">
           <div class="flex flex-wrap items-center gap-2">
-            <h3 id="details-heading" class="text-lg font-semibold" data-i18n="orgDash.detailsTitle">Organization details</h3>
+            <h3 id="details-heading" class="card-title" data-i18n="orgDash.detailsTitle">Organization details</h3>
             <span class="badge badge-success" data-i18n="orgDash.approved">Approved</span>
           </div>
           <button id="edit-details" type="button" class="btn btn-secondary" @click="editDetails()" data-i18n="orgDash.editDetails">Edit details</button>
         </div>
         <dl class="grid grid-cols-[max-content_1fr] gap-x-4 gap-y-2 text-sm">
-          <dt class="font-medium text-muted" data-i18n="field.name">Name</dt>
+          <dt class=" text-muted" data-i18n="field.name">Name</dt>
           <dd class="break-words" x-text="org?.name"></dd>
-          <dt class="font-medium text-muted" data-i18n="field.address">Address</dt>
+          <dt class=" text-muted" data-i18n="field.address">Address</dt>
           <dd class="break-words" x-text="org?.address || '—'"></dd>
-          <dt class="font-medium text-muted" data-i18n="field.phone">Phone</dt>
+          <dt class=" text-muted" data-i18n="field.phone">Phone</dt>
           <dd x-text="org?.phone || '—'"></dd>
         </dl>
-        <a class="btn btn-ghost -ml-3 px-3 text-sm" :href="org ? `/org.html?id=${org.id}` : '/'" data-i18n="orgDash.publicPage">See your public page</a>
+        <a class="btn btn-quiet -ml-3 px-3 text-sm" :href="org ? `/org.html?id=${org.id}` : '/'" data-i18n="orgDash.publicPage">See your public page</a>
       </section>
 
       <!-- Create / edit form -->
       <section class="card" x-show="!loading && !loadError && (!approved || editingDetails)" x-cloak aria-labelledby="form-heading">
-        <h3 id="form-heading" class="text-lg font-semibold" x-text="org ? $t('orgDash.detailsTitle') : $t('orgDash.tellUs')"></h3>
+        <h3 id="form-heading" class="card-title" x-text="org ? $t('orgDash.detailsTitle') : $t('orgDash.tellUs')"></h3>
         <p class="mt-1 text-sm text-muted" x-show="!org">
-          <span data-i18n="orgDash.orgFormIntro">An admin checks every organization before it can post requests or events. Fields marked</span> <span class="text-danger">*</span> <span data-i18n="common.areRequired">are required.</span>
+          <span data-i18n="orgDash.orgFormIntro">An admin checks every organization before it can post requests or events. Every field is needed unless it says (optional).</span>
         </p>
 
-        <form class="mt-5 space-y-5" novalidate @submit.prevent="save">
+        <form class="mt-6 space-y-6" novalidate @submit.prevent="save">
           <div>
-            <label for="org-name" class="label"><span data-i18n="orgDash.orgName">Organization name</span> <span class="text-danger" aria-hidden="true">*</span></label>
+            <label for="org-name" class="label"><span data-i18n="orgDash.orgName">Organization name</span></label>
             <input id="org-name" class="input read-only:bg-canvas read-only:text-muted" type="text" maxlength="100" required
               x-model="form.name" :readonly="approved" :aria-invalid="errors.name ? 'true' : null"
               :aria-describedby="approved ? 'help-org-name err-org-name' : 'err-org-name'" />
@@ -349,9 +345,9 @@
             <p id="err-org-description" class="field-error" x-show="errors.description" x-text="errors.description"></p>
           </div>
 
-          <div class="grid gap-5 sm:grid-cols-2">
+          <div class="grid gap-6 sm:grid-cols-2">
             <div>
-              <label for="org-address" class="label"><span data-i18n="field.address">Address</span> <span class="text-danger" aria-hidden="true">*</span></label>
+              <label for="org-address" class="label"><span data-i18n="field.address">Address</span></label>
               <input id="org-address" class="input" type="text" maxlength="200" autocomplete="street-address" required
                 x-model="form.address" :aria-invalid="errors.address ? 'true' : null"
                 aria-describedby="help-org-address err-org-address" />
@@ -359,7 +355,7 @@
               <p id="err-org-address" class="field-error" x-show="errors.address" x-text="errors.address"></p>
             </div>
             <div>
-              <label for="org-phone" class="label"><span data-i18n="field.phone">Phone</span> <span class="font-normal text-muted" data-i18n="common.optional">(optional)</span></label>
+              <label for="org-phone" class="label"><span data-i18n="field.phone">Phone</span> <span class="optional" data-i18n="common.optional">(optional)</span></label>
               <input id="org-phone" class="input" type="tel" inputmode="tel" autocomplete="tel-national"
                 x-model="form.phone" :aria-invalid="errors.phone ? 'true' : null" aria-describedby="err-org-phone" />
               <p id="err-org-phone" class="field-error" x-show="errors.phone" x-text="errors.phone"></p>
@@ -367,7 +363,7 @@
           </div>
 
           <fieldset aria-describedby="help-org-pin err-org-pin">
-            <legend class="label"><span data-i18n="orgDash.mapLocation">Location on the map</span> <span class="text-danger" aria-hidden="true">*</span></legend>
+            <legend class="label"><span data-i18n="orgDash.mapLocation">Location on the map</span></legend>
 
             <div class="mb-4 max-w-xs">
               <label for="org-postal" class="label" data-i18n="field.postalCode">Postal code</label>
@@ -382,8 +378,8 @@
               <p class="flex items-center gap-2 text-muted" x-show="lookupStatus === 'loading'">
                 <span class="spinner" aria-hidden="true"></span> <span data-i18n="orgDash.lookingUp">Looking up…</span>
               </p>
-              <div class="flex flex-wrap items-center gap-3 rounded-md bg-success-soft p-3 text-success" x-show="lookupStatus === 'found'">
-                <p class="min-w-0 break-words"><span class="font-semibold" data-i18n="orgDash.found">Found:</span> <span x-text="foundAddress"></span></p>
+              <div class="flex flex-wrap items-center gap-3 rounded-md bg-primary-soft p-3 text-primary" x-show="lookupStatus === 'found'">
+                <p class="min-w-0 break-words"><span class="font-bold" data-i18n="orgDash.found">Found:</span> <span x-text="foundAddress"></span></p>
                 <button type="button" class="btn btn-secondary min-h-9 px-3" x-show="canUseFoundAddress" @click="useFoundAddress()" data-i18n="orgDash.useAddress">Use this address</button>
               </div>
               <p class="rounded-md bg-warning-soft p-3 text-warning" x-show="lookupStatus === 'not_found'" data-i18n="orgDash.postalNotFound">
@@ -395,7 +391,7 @@
               Or click the map to drop the pin yourself. You can drag the pin to the exact spot.
               Using a keyboard? Move the map with the arrow keys, then press "Put pin at map centre".
             </p>
-            <div class="isolate overflow-hidden rounded-md border border-line">
+            <div class="isolate overflow-hidden rounded-md">
               <div id="org-map" class="h-72 w-full" role="region" aria-label="Map to choose your organization's location" data-i18n-attr="aria-label:orgDash.orgMap"></div>
             </div>
             <div class="mt-2 flex flex-wrap items-center gap-3">
@@ -407,23 +403,23 @@
           </fieldset>
 
           <div role="alert">
-            <p class="rounded-md bg-danger-soft p-3 text-sm font-medium text-danger" x-show="formError" x-text="formError"></p>
+            <p class="note-danger" x-show="formError" x-text="formError"></p>
           </div>
 
           <div class="flex flex-wrap gap-3">
             <button type="submit" class="btn btn-primary w-full sm:w-auto" :disabled="saving">
               <span class="spinner" x-show="saving" x-cloak aria-hidden="true"></span>
-              <span x-text="saving ? $t('common.saving') : org ? $t('common.saveChanges') : $t('orgDash.submitForApproval')">Submit for approval</span>
+              <span x-text="saving ? $t('common.saving') : org ? $t('common.saveChanges') : $t('orgDash.submitForApproval')">Send for approval</span>
             </button>
-            <button type="button" class="btn btn-ghost w-full sm:w-auto" x-show="approved" @click="cancelDetails()" :disabled="saving" data-i18n="common.cancel">Cancel</button>
+            <button type="button" class="btn btn-quiet w-full sm:w-auto" x-show="approved" @click="cancelDetails()" :disabled="saving" data-i18n="common.cancel">Cancel</button>
           </div>
         </form>
       </section>
       </div>
 
       <!-- Requests, Offers and Events need an approved organization -->
-      <div class="card flex flex-col items-center gap-3 py-10 text-center" x-show="!loading && !loadError && !approved && section !== 'overview'" x-cloak>
-        <i data-lucide="lock" class="size-10 text-primary" aria-hidden="true"></i>
+      <div class="empty" x-show="!loading && !loadError && !approved && section !== 'overview'" x-cloak>
+        <img src="/img/pinny-looking.svg" alt="" />
         <p class="max-w-md text-muted" data-i18n="orgDash.lockedText">You can post requests and events, and receive offers, once an admin approves your organization.</p>
         <a href="#overview" class="btn btn-secondary" data-i18n="orgDash.backToOverview">Back to Overview</a>
       </div>
@@ -431,23 +427,23 @@
       <template x-if="!loading && approved && org">
         <section class="space-y-4" x-show="section === 'requests'" x-data="orgRequests(org.id)" @requests-changed.window="load()" aria-labelledby="requests-heading">
           <div class="flex flex-wrap items-center justify-between gap-3">
-            <h2 id="requests-heading" class="text-2xl font-semibold" data-i18n="orgDash.requestsTitle">Donation requests</h2>
+            <h2 id="requests-heading" class="section-title" data-i18n="orgDash.requestsTitle">Donation requests</h2>
             <button type="button" class="btn btn-primary" x-show="!showForm" @click="newRequest()" data-i18n="orgDash.newRequest">New donation request</button>
           </div>
           <!-- New / edit form -->
-          <form id="request-form" class="card reveal max-w-2xl scroll-mt-24 space-y-4" novalidate x-show="showForm" x-cloak @submit.prevent="save">
+          <form id="request-form" class="card max-w-2xl scroll-mt-24 space-y-4" novalidate x-show="showForm" x-cloak @submit.prevent="save">
             <div>
-              <h3 class="text-lg font-semibold" x-text="editing ? $t('orgDash.editRequest') : $t('orgDash.newRequest')"></h3>
-              <p class="mt-1 text-sm text-muted" x-show="!editing"><span data-i18n="orgDash.requestFormIntro">An admin checks each request before donors can see it. Fields marked</span> <span class="text-danger">*</span> <span data-i18n="common.areRequired">are required.</span></p>
+              <h3 class="card-title" x-text="editing ? $t('orgDash.editRequest') : $t('orgDash.newRequest')"></h3>
+              <p class="mt-1 text-sm text-muted" x-show="!editing"><span data-i18n="orgDash.requestFormIntro">An admin checks each request before donors can see it. Every field is needed unless it says (optional).</span></p>
             </div>
 
-            <p class="rounded-md bg-info-soft p-3 text-sm text-info" x-show="locked">
+            <p class="note" x-show="locked">
               <span data-i18n="orgDash.approvedLimits">This request is approved, so you can only change item quantities, the deadline, urgency and drop-off instructions.</span>
               <strong data-i18n="orgDash.lockedHint">To change this, close the request and post a new one.</strong>
             </p>
 
             <div>
-              <label for="req-title" class="label"><span data-i18n="field.title">Title</span> <span class="text-danger" aria-hidden="true">*</span></label>
+              <label for="req-title" class="label"><span data-i18n="field.title">Title</span></label>
               <input id="req-title" placeholder="e.g. Rice and cooking oil for 40 families" data-i18n-attr="placeholder:orgDash.titlePlaceholder" class="input read-only:bg-canvas read-only:text-muted" type="text" maxlength="100" required
                 x-model="form.title" :readonly="locked" :aria-invalid="errors.title ? 'true' : null"
                 :aria-describedby="locked ? 'req-locked-note err-req-title' : 'err-req-title'" />
@@ -465,7 +461,7 @@
               <p id="err-req-description" class="field-error" x-show="errors.description" x-text="errors.description"></p>
             </div>
 
-            <div class="grid gap-4 sm:grid-cols-2">
+            <div class="space-y-6">
               <div>
                 <label for="req-urgency" class="label" data-i18n="field.urgency">Urgency</label>
                 <select id="req-urgency" class="input" x-model="form.urgency">
@@ -475,7 +471,7 @@
                 </select>
               </div>
               <div>
-                <label for="req-deadline" class="label"><span data-i18n="field.deadline">Deadline</span> <span class="font-normal text-muted" data-i18n="common.optional">(optional)</span></label>
+                <label for="req-deadline" class="label"><span data-i18n="field.deadline">Deadline</span> <span class="optional" data-i18n="common.optional">(optional)</span></label>
                 <input id="req-deadline" class="input" type="date" :min="editing ? null : today" x-model="form.deadline"
                   :aria-invalid="errors.deadline ? 'true' : null" aria-describedby="err-req-deadline" />
                 <p id="err-req-deadline" class="field-error" x-show="errors.deadline" x-text="errors.deadline"></p>
@@ -495,10 +491,10 @@
 
             <!-- Items -->
             <fieldset class="space-y-3">
-              <legend class="label"><span data-i18n="orgDash.itemsNeededTitle">Items needed</span> <span class="text-danger" aria-hidden="true">*</span></legend>
+              <legend class="label"><span data-i18n="orgDash.itemsNeededTitle">Items needed</span></legend>
               <p class="helper-text mt-0" data-i18n="orgDash.noMedicines">Medicines and medical items aren't accepted.</p>
               <template x-for="(row, index) in form.items" :key="row.key">
-                <div class="space-y-3 rounded-md border border-line bg-canvas p-3">
+                <div class="space-y-3 rounded-md bg-canvas p-3">
                   <div class="grid gap-3 sm:grid-cols-[1fr_11rem]">
                     <div>
                       <label :for="`item-name-${row.key}`" class="label" x-text="$t('orgDash.itemName', { number: index + 1 })"></label>
@@ -509,7 +505,7 @@
                     </div>
                     <div>
                       <label :for="`item-category-${row.key}`" class="label" data-i18n="field.category">Category</label>
-                      <select :id="`item-category-${row.key}`" class="input disabled:bg-surface disabled:text-muted" x-model="row.category" :disabled="locked">
+                      <select :id="`item-category-${row.key}`" class="input" x-model="row.category" :disabled="locked">
                         <template x-for="option in categories" :key="option.value">
                           <option :value="option.value" x-text="option.label" :selected="option.value === row.category"></option>
                         </template>
@@ -528,13 +524,13 @@
                       <label :for="`item-quantity-${row.key}`" class="label" data-i18n="orgDash.quantityNeeded">Quantity needed</label>
                       <div class="stepper">
                         <button type="button" class="stepper-btn" @click="stepNumber($el, -1)" aria-label="Decrease" data-i18n-attr="aria-label:common.decrease">
-                          <i data-lucide="minus" class="size-5" aria-hidden="true"></i>
+                          <i class="ph ph-minus size-5" aria-hidden="true"></i>
                         </button>
                         <input :id="`item-quantity-${row.key}`" class="input" type="number" inputmode="numeric" step="1" :min="Math.max(row.committed, 1)"
                           x-model.number="row.quantity" :aria-invalid="errors[`items.${row.key}.quantity`] ? 'true' : null"
                           :aria-describedby="`help-item-quantity-${row.key} err-item-quantity-${row.key}`" />
                         <button type="button" class="stepper-btn" @click="stepNumber($el, 1)" aria-label="Increase" data-i18n-attr="aria-label:common.increase">
-                          <i data-lucide="plus" class="size-5" aria-hidden="true"></i>
+                          <i class="ph ph-plus size-5" aria-hidden="true"></i>
                         </button>
                       </div>
                       <p :id="`help-item-quantity-${row.key}`" class="helper-text" x-show="row.committed > 0" x-text="$t('orgDash.atLeastPromised', { count: row.committed })"></p>
@@ -542,9 +538,9 @@
                     </div>
                   </div>
                   <div class="flex justify-end" x-show="!locked && form.items.length > 1">
-                    <button type="button" class="btn btn-ghost min-h-11 gap-1.5 px-3 text-sm" @click="removeItem(row.key)"
+                    <button type="button" class="btn btn-quiet min-h-11 gap-2 px-3 text-sm" @click="removeItem(row.key)"
                       :aria-label="row.name ? $t('orgDash.removeItemNamed', { number: index + 1, name: row.name }) : $t('orgDash.removeItem', { number: index + 1 })">
-                      <i data-lucide="trash-2" class="size-4" aria-hidden="true"></i>
+                      <i class="ph ph-trash size-4" aria-hidden="true"></i>
                       <span data-i18n="orgDash.remove">Remove</span>
                     </button>
                   </div>
@@ -556,7 +552,7 @@
             </fieldset>
 
             <div role="alert">
-              <p class="rounded-md bg-danger-soft p-3 text-sm font-medium text-danger" x-show="formError" x-text="formError"></p>
+              <p class="note-danger" x-show="formError" x-text="formError"></p>
             </div>
 
             <div class="flex flex-wrap gap-3">
@@ -564,7 +560,7 @@
                 <span class="spinner" x-show="saving" x-cloak aria-hidden="true"></span>
                 <span x-text="saving ? $t('common.saving') : editing ? $t('common.saveChanges') : $t('orgDash.sendForApproval')">Send for approval</span>
               </button>
-              <button type="button" class="btn btn-ghost" @click="cancelForm()" :disabled="saving" data-i18n="common.cancel">Cancel</button>
+              <button type="button" class="btn btn-quiet" @click="cancelForm()" :disabled="saving" data-i18n="common.cancel">Cancel</button>
             </div>
           </form>
 
@@ -576,89 +572,58 @@
 
           <!-- Active: loading / error / empty -->
           <div class="space-y-4" x-show="tab === 'active'">
-          <div class="grid gap-4 md:grid-cols-2" x-show="loading" role="status"><span class="sr-only" data-i18n="orgDash.loadingRequests">Loading your requests…</span>
+          <div class="grid gap-4 sm:grid-cols-2 lg:grid-cols-3" x-show="loading" role="status"><span class="sr-only" data-i18n="orgDash.loadingRequests">Loading your requests…</span>
             <div class="card space-y-3"><div class="skeleton h-5 w-24"></div><div class="skeleton h-6 w-3/4"></div><div class="skeleton h-2.5 w-full"></div></div>
             <div class="card space-y-3"><div class="skeleton h-5 w-24"></div><div class="skeleton h-6 w-2/3"></div><div class="skeleton h-2.5 w-full"></div></div>
           </div>
-          <div class="card text-center" x-show="!loading && loadError" x-cloak role="alert">
+          <div class="empty" x-show="!loading && loadError" x-cloak role="alert">
             <p class="text-danger" x-text="loadError"></p>
             <button type="button" class="btn btn-secondary mt-3" @click="load()" data-i18n="common.tryAgain">Try again</button>
           </div>
-          <div class="card flex flex-col items-center gap-3 py-10 text-center" x-show="!loading && !loadError && activeRequests.length === 0 && !showForm" x-cloak>
-            <i data-lucide="package-open" class="size-10 text-primary" aria-hidden="true"></i>
-            <p class="text-muted" x-text="requests.length ? $t('orgDash.noActiveRequests') : $t('orgDash.noRequests')">No requests yet.</p>
+          <div class="empty" x-show="!loading && !loadError && activeRequests.length === 0 && !showForm" x-cloak>
+            <img src="/img/pinny-looking.svg" alt="" />
+            <p x-text="requests.length ? $t('orgDash.noActiveRequests') : $t('orgDash.noRequests')">No requests yet.</p>
             <button type="button" class="btn btn-primary" @click="newRequest()" x-text="requests.length ? $t('orgDash.newRequest') : $t('orgDash.firstRequest')">Create your first request</button>
           </div>
 
           <!-- List -->
-          <div class="noticeboard grid md:grid-cols-2" x-show="!loading && !loadError">
+          <div class="notice-grid" x-show="!loading && !loadError && activeRequests.length">
             <template x-for="request in activeRequests" :key="request.id">
-              <article class="notice flex flex-col gap-4">
+              <article class="notice">
                 <div class="flex flex-wrap items-center gap-2">
                   <span :class="statusInfo(request.status, 'request').className" x-text="statusInfo(request.status, 'request').label"></span>
                   <span :class="DEADLINE_BADGE.className" x-show="request.status === 'open' && isPastDeadline(request)" x-text="DEADLINE_BADGE.label"></span>
-                  <span class="badge badge-neutral" x-text="$t('orgDash.urgencyLine', { level: urgencyLabel(request.urgency) })"></span>
                 </div>
-                <!-- Why this score? (REQUIREMENTS.md 3 / 4.6) -->
-                <template x-if="scoreDetails(request)">
-                  <div x-data="{ why: false }">
-                    <button type="button" class="btn btn-ghost -ml-3 px-3 text-sm" :aria-expanded="why.toString()" :aria-controls="`why-${request.id}`" @click="why = !why"
-                      x-text="why ? $t('requests.hideWhy') : $t('requests.whyScore')">Why this score?</button>
-                    <div :id="`why-${request.id}`" class="reveal mt-1 space-y-2 rounded-md bg-canvas p-3 text-sm" x-show="why" x-cloak>
-                      <span class="badge badge-ai" data-i18n="common.aiSuggested">AI-suggested</span>
-                      <p x-text="scoreDetails(request).explanation"></p>
-                      <ul class="space-y-1" x-show="scoreDetails(request).factors.length">
-                        <template x-for="factor in scoreDetails(request).factors" :key="factor.key">
-                          <li class="flex justify-between gap-3"><span x-text="factorLabel(factor)"></span><span class="shrink-0 font-medium" x-text="$t('requests.factorPoints', { points: factor.points, max: factor.max })"></span></li>
-                        </template>
-                      </ul>
-                      <p class="text-xs text-muted" data-i18n="requests.formulaNote">The number comes from a fixed formula. People always make the decisions.</p>
+                <h3 class="card-title" x-text="request.title"></h3>
+                <div class="need-bar" role="img" :aria-label="noticeNeed(request).label">
+                  <span class="need-bar-received" :style="`width:${noticeNeed(request).received}%`"></span>
+                  <span class="need-bar-promised" :style="`width:${noticeNeed(request).promised}%`"></span>
+                </div>
+                <div>
+                  <p class="tabular-nums" x-text="noticeNeed(request).text"></p>
+                  <p class="text-sm text-muted" x-text="noticeEnds(request)"></p>
+                </div>
+                <div class="mt-auto flex items-center gap-3">
+                  <button type="button" class="btn btn-primary" x-show="isEditable(request)" :disabled="closingId === request.id" @click="edit(request)"
+                    :aria-label="$t('orgDash.editRequestLabel', { title: request.title })" data-i18n="orgDash.editRequest">Edit request</button>
+                  <span class="spinner text-primary" x-show="closingId === request.id" x-cloak aria-hidden="true"></span>
+                  <div class="relative ml-auto" x-data="moreMenu" @keydown.escape="closeMenu(true)" @click.outside="closeMenu(false)">
+                    <button type="button" class="icon-btn" x-ref="moreButton" aria-haspopup="menu" :aria-expanded="menuOpen.toString()" @click="toggleMenu()"
+                      :aria-label="$t('common.moreFor', { title: request.title })">
+                      <i class="ph ph-dots-three" aria-hidden="true"></i>
+                    </button>
+                    <div class="menu" role="menu" x-show="menuOpen" x-cloak @keydown.down.prevent="moveMenu(1)" @keydown.up.prevent="moveMenu(-1)">
+                      <button type="button" class="menu-item" role="menuitem" @click="closeMenu(false); openRequest(request, $refs.moreButton)">
+                        <i class="ph ph-eye" aria-hidden="true"></i><span data-i18n="orgDash.seeAsDonors">See what donors see</span>
+                      </button>
+                      <button type="button" class="menu-item menu-item-danger" role="menuitem" x-show="isEditable(request) && request.status === 'open'" @click="closeMenu(false); close(request)">
+                        <i class="ph ph-archive" aria-hidden="true"></i><span data-i18n="orgDash.closeRequest">Close request</span>
+                      </button>
+                      <button type="button" class="menu-item menu-item-danger" role="menuitem" x-show="isEditable(request) && request.status === 'pending_approval'" @click="closeMenu(false); remove(request)">
+                        <i class="ph ph-trash" aria-hidden="true"></i><span data-i18n="common.delete">Delete</span>
+                      </button>
                     </div>
                   </div>
-                </template>
-                <div class="min-w-0">
-                  <h3 class="text-lg font-semibold break-words" x-text="request.title"></h3>
-                  <p class="mt-1 text-sm text-muted" x-text="request.deadline ? $t('common.neededBy', { date: formatDate(request.deadline) }) : $t('common.noDeadline')"></p>
-                  <p class="mt-2 text-sm whitespace-pre-line break-words" x-show="request.description" x-text="request.description"></p>
-                </div>
-
-                <div class="rounded-md border border-danger bg-danger-soft p-3 text-sm text-danger" x-show="request.status === 'rejected'">
-                  <p class="font-semibold" data-i18n="orgDash.adminNote">Note from the admin</p>
-                  <p class="mt-1 whitespace-pre-line" x-text="request.admin_note || $t('orgDash.noReason')"></p>
-                </div>
-
-                <ul class="space-y-3">
-                  <template x-for="item in request.request_items" :key="item.id">
-                    <li class="space-y-1">
-                      <p class="font-bold break-words" x-text="item.name"></p>
-                      <!-- still needed, as tear-off tabs: solid = received, striped = promised, empty = still needed -->
-                      <div class="tear-tabs" role="img" :aria-label="itemDetail(item)">
-                        <template x-for="(tab, index) in itemTabs(item)" :key="index">
-                          <span class="tear-tab" :class="{ received: 'tear-tab-received', promised: 'tear-tab-promised', needed: 'tear-tab-needed' }[tab]"></span>
-                        </template>
-                      </div>
-                      <p class="text-sm text-muted" x-text="$t('requests.progress', { committed: item.quantity_committed, needed: item.quantity_needed, unit: item.unit })"></p>
-                      <p class="helper-text mt-0" x-text="itemDetail(item)"></p>
-                    </li>
-                  </template>
-                </ul>
-
-                <div class="text-sm" x-show="request.dropoff_instructions">
-                  <p class="font-medium" data-i18n="field.dropoff">Drop-off</p>
-                  <p class="whitespace-pre-line break-words text-muted" x-text="request.dropoff_instructions"></p>
-                </div>
-
-                <div class="mt-auto flex flex-wrap gap-3 pt-1" x-show="isEditable(request)">
-                  <button type="button" class="btn btn-secondary" @click="edit(request)" data-i18n="common.edit">Edit</button>
-                  <!-- Approved requests are closed (kept in History); only unseen ones can be deleted -->
-                  <button type="button" class="btn btn-danger" x-show="request.status === 'open'" :disabled="closingId === request.id" @click="close(request)">
-                    <span class="spinner" x-show="closingId === request.id" x-cloak aria-hidden="true"></span>
-                    <span data-i18n="orgDash.closeRequest">Close request</span>
-                  </button>
-                  <button type="button" class="btn btn-danger" x-show="request.status === 'pending_approval'" :disabled="closingId === request.id" @click="remove(request)">
-                    <span class="spinner" x-show="closingId === request.id" x-cloak aria-hidden="true"></span>
-                    <span data-i18n="common.delete">Delete</span>
-                  </button>
                 </div>
               </article>
             </template>
@@ -670,22 +635,22 @@
             <div class="card space-y-3" x-show="history.loading && history.items.length === 0" role="status"><span class="sr-only" data-i18n="orgDash.loadingPastRequests">Loading past requests…</span>
               <div class="skeleton h-5 w-24"></div><div class="skeleton h-6 w-2/3"></div>
             </div>
-            <div class="card text-center" x-show="!history.loading && history.error" x-cloak role="alert">
+            <div class="empty" x-show="!history.loading && history.error" x-cloak role="alert">
               <p class="text-danger" x-text="history.error"></p>
               <button type="button" class="btn btn-secondary mt-3" @click="history.load()" data-i18n="common.tryAgain">Try again</button>
             </div>
-            <div class="card flex flex-col items-center gap-3 py-10 text-center"
+            <div class="empty"
               x-show="history.loaded && !history.loading && !history.error && history.items.length === 0" x-cloak>
-              <i data-lucide="history" class="size-10 text-primary" aria-hidden="true"></i>
-              <p class="text-muted" data-i18n="orgDash.noPastRequests">No past requests yet. Fulfilled, closed and rejected requests will appear here.</p>
+              <img src="/img/pinny-looking.svg" alt="" />
+              <p data-i18n="orgDash.noPastRequests">No past requests yet. Fulfilled, closed and rejected requests will appear here.</p>
             </div>
-            <ul class="grid gap-4 md:grid-cols-2" x-show="history.items.length > 0" x-ref="historyList">
+            <ul class="grid gap-4 sm:grid-cols-2 lg:grid-cols-3" x-show="history.items.length > 0" x-ref="historyList">
               <template x-for="request in history.items" :key="request.id">
                 <li class="card space-y-2">
                   <div class="flex flex-wrap items-start justify-between gap-3">
                     <div class="min-w-0">
-                      <h3 class="font-semibold break-words" x-text="request.title"></h3>
-                      <p class="text-xs text-muted" x-text="requestEndedText(request)"></p>
+                      <h3 class="card-title break-words" x-text="request.title"></h3>
+                      <p class="text-sm text-muted" x-text="requestEndedText(request)"></p>
                     </div>
                     <span :class="statusInfo(request.status, 'request').className" x-text="statusInfo(request.status, 'request').label"></span>
                   </div>
@@ -711,7 +676,7 @@
         <section class="space-y-4" x-show="section === 'offers'" x-data="orgOffers(org.id)" @offers-changed.window="load()" aria-labelledby="offers-heading">
           <div class="flex flex-wrap items-center justify-between gap-3">
             <div class="flex items-center gap-2">
-              <h2 id="offers-heading" class="text-2xl font-semibold" data-i18n="orgDash.offersTitle">Incoming offers</h2>
+              <h2 id="offers-heading" class="section-title" data-i18n="orgDash.offersTitle">Incoming offers</h2>
               <span class="badge badge-warning" x-show="pendingCount > 0" x-text="$t('orgDash.waitingCount', { count: pendingCount })"></span>
             </div>
             <div class="segmented w-full sm:w-auto" role="group" aria-label="Show offers" data-i18n-attr="aria-label:orgDash.showOffers">
@@ -723,18 +688,18 @@
           <div class="card space-y-3" x-show="loading" role="status"><span class="sr-only" data-i18n="orgDash.loadingOffers">Loading offers…</span>
             <div class="skeleton h-5 w-24"></div><div class="skeleton h-5 w-2/3"></div><div class="skeleton h-4 w-1/2"></div>
           </div>
-          <div class="card text-center" x-show="!loading && error" x-cloak role="alert">
+          <div class="empty" x-show="!loading && error" x-cloak role="alert">
             <p class="text-danger" x-text="error"></p>
             <button type="button" class="btn btn-secondary mt-3" @click="load()" data-i18n="common.tryAgain">Try again</button>
           </div>
-          <div class="card flex flex-col items-center gap-3 text-center py-10" x-show="!loading && !error && filter === 'active' && offers.length === 0" x-cloak>
-            <i data-lucide="inbox" class="size-10 text-primary" aria-hidden="true"></i>
-            <p class="text-muted" data-i18n="orgDash.noOffers">No offers yet. They'll appear here when donors respond to your requests.</p>
+          <div class="empty" x-show="!loading && !error && filter === 'active' && offers.length === 0" x-cloak>
+            <img src="/img/pinny-looking.svg" alt="" />
+            <p data-i18n="orgDash.noOffers">No offers yet. They'll appear here when donors respond to your requests.</p>
           </div>
-          <div class="card flex flex-col items-center gap-3 text-center py-10"
+          <div class="empty"
             x-show="!loading && !error && filter === 'history' && history.loaded && !history.loading && history.items.length === 0" x-cloak>
-            <i data-lucide="history" class="size-10 text-primary" aria-hidden="true"></i>
-            <p class="text-muted" data-i18n="orgDash.noPastOffers">No past offers yet. Rejected and cancelled offers will appear here.</p>
+            <img src="/img/pinny-looking.svg" alt="" />
+            <p data-i18n="orgDash.noPastOffers">No past offers yet. Rejected and cancelled offers will appear here.</p>
           </div>
 
           <!-- The board: New · Accepted · Delivered, each card has the button that moves it on (REQUIREMENTS.md 12) -->
@@ -748,19 +713,19 @@
                 </button>
               </template>
             </div>
-            <div class="grid gap-4 md:grid-cols-3">
+            <div class="grid gap-4 sm:grid-cols-3">
               <template x-for="column in columns" :key="column.value">
-                <section :id="`board-col-${column.value}`" class="min-w-0 space-y-3 rounded-lg border border-line bg-canvas p-3"
+                <section :id="`board-col-${column.value}`" class="min-w-0 space-y-3 rounded-lg bg-canvas p-3"
                   :class="boardTab === column.value ? '' : 'max-md:hidden'" :aria-labelledby="`board-${column.value}-heading`">
-                  <h3 :id="`board-${column.value}-heading`" tabindex="-1" class="flex items-center justify-between gap-2 text-lg font-semibold">
+                  <h3 :id="`board-${column.value}-heading`" tabindex="-1" class="card-title flex items-center justify-between gap-2">
                     <span x-text="column.label"></span>
-                    <span class="badge badge-neutral" x-text="$t('orgDash.boardCount', { count: columnCount(column.value) })"></span>
+                    <span class="tab-count" x-text="$t('orgDash.boardCount', { count: columnCount(column.value) })"></span>
                   </h3>
                   <p class="text-sm text-muted" x-show="columnCount(column.value) === 0" x-text="$t(`orgDash.boardEmpty.${column.value}`)"></p>
                   <ul class="space-y-3">
                     <template x-for="offer in columnOffers(column.value)" :key="offer.id">
                       <li class="card space-y-2 p-4">
-                        <button type="button" class="link text-left font-semibold break-words" @click="openTimeline(offer, $event)" aria-haspopup="dialog"
+                        <button type="button" class="link text-left font-bold break-words" @click="openTimeline(offer, $event)" aria-haspopup="dialog"
                           :aria-label="$t('tracker.seeTimelineFor', { item: what(offer) })" x-text="what(offer)"></button>
                         <p class="text-sm text-muted break-words" x-text="$t('orgDash.forRequest', { title: offer.item.request.title })"></p>
                         <p class="text-sm break-words">
@@ -769,18 +734,18 @@
                             ? $t('orgDash.deliveredOn', { date: formatDate(offer.delivered_at ?? offer.updated_at) })
                             : $t('orgDash.offeredAgo', { when: timeAgo(offer.created_at) }))"></span>
                         </p>
-                        <p class="flex items-start gap-1.5 text-sm text-success" x-show="offer.item.category === 'food' && offer.food_safety_confirmed">
-                          <i data-lucide="circle-check" class="mt-0.5 size-4 shrink-0" aria-hidden="true"></i>
+                        <p class="flex items-start gap-2 text-sm text-primary" x-show="offer.item.category === 'food' && offer.food_safety_confirmed">
+                          <i class="ph ph-check-circle mt-1 size-4 shrink-0" aria-hidden="true"></i>
                           <span data-i18n="orgDash.foodConfirmed">Donor confirmed the food is sealed, unopened and not expired.</span>
                         </p>
                         <div class="flex flex-wrap gap-2 pt-1" x-show="offer.status === 'pending'">
                           <button type="button" class="btn btn-primary min-h-11 px-3" :disabled="busyId === offer.id" @click="act(offer, 'accepted')"
                             :aria-label="$t('orgDash.acceptWhat', { what: what(offer) })">
                             <span class="spinner" x-show="busyId === offer.id" x-cloak aria-hidden="true"></span>
-                            <span data-i18n="orgDash.accept">Accept</span>
+                            <span data-i18n="orgDash.accept">Accept offer</span>
                           </button>
                           <button type="button" class="btn btn-danger min-h-11 px-3" :disabled="busyId === offer.id" @click="act(offer, 'rejected')"
-                            :aria-label="$t('orgDash.rejectWhat', { what: what(offer) })" data-i18n="common.reject">Reject</button>
+                            :aria-label="$t('orgDash.rejectWhat', { what: what(offer) })" data-i18n="orgDash.rejectOffer">Reject offer</button>
                         </div>
                         <div class="pt-1" x-show="offer.status === 'accepted'">
                           <button type="button" class="btn btn-primary min-h-11 px-3" :disabled="busyId === offer.id" @click="act(offer, 'delivered')"
@@ -800,12 +765,12 @@
           </div>
 
           <!-- History: rejected and cancelled offers, with their timeline -->
-          <ul class="grid gap-4 md:grid-cols-2" x-show="!loading && !error && filter === 'history'" x-ref="historyList">
+          <ul class="grid gap-4 sm:grid-cols-2 lg:grid-cols-3" x-show="!loading && !error && filter === 'history'" x-ref="historyList">
             <template x-for="offer in history.items" :key="offer.id">
               <li class="card flex flex-col gap-3">
                 <div class="flex flex-wrap items-start justify-between gap-3">
                   <div class="min-w-0">
-                    <p class="font-semibold break-words" x-text="what(offer)"></p>
+                    <p class="font-bold break-words" x-text="what(offer)"></p>
                     <p class="text-sm text-muted break-words" x-text="$t('orgDash.forRequest', { title: offer.item.request.title })"></p>
                     <p class="text-sm break-words" x-text="offer.donor ? (offer.donor.full_name || $t('admin.nameNotGiven')) : $t('admin.deletedAccount')"></p>
                   </div>
@@ -828,16 +793,16 @@
 
           <!-- One offer's full timeline, as the donor sees it, plus the donor's details -->
           <dialog id="org-offer-panel" class="side-panel" aria-labelledby="org-offer-panel-title" @close="onSidePanelEvent($event)" @click="onSidePanelEvent($event)">
-            <div class="sticky top-0 z-10 flex items-center justify-between gap-3 border-b border-line bg-surface p-4">
-              <h3 id="org-offer-panel-title" class="text-lg font-semibold" tabindex="-1" data-panel-title data-i18n="tracker.offerTimelineOrg">Offer timeline</h3>
-              <button type="button" class="btn btn-ghost size-11 shrink-0 px-0" @click="closeSidePanel('org-offer-panel')" aria-label="Close timeline" data-i18n-attr="aria-label:tracker.closeTimeline">
-                <i data-lucide="x" class="size-5" aria-hidden="true"></i>
+            <div class="sticky top-0 z-10 flex items-center justify-between gap-3 bg-surface p-4 shadow-sm">
+              <h3 id="org-offer-panel-title" class="card-title" tabindex="-1" data-panel-title data-i18n="tracker.offerTimelineOrg">Offer timeline</h3>
+              <button type="button" class="icon-btn" @click="closeSidePanel('org-offer-panel')" aria-label="Close timeline" data-i18n-attr="aria-label:tracker.closeTimeline">
+                <i class="ph ph-x size-5" aria-hidden="true"></i>
               </button>
             </div>
             <template x-if="panelOffer">
-              <div class="space-y-5 p-4">
+              <div class="space-y-6 p-4">
                 <div class="space-y-1">
-                  <p class="font-semibold break-words" x-text="what(panelOffer)"></p>
+                  <p class="font-bold break-words" x-text="what(panelOffer)"></p>
                   <p class="text-sm text-muted break-words" x-text="$t('orgDash.forRequest', { title: panelOffer.item.request.title })"></p>
                 </div>
                 <dl class="grid grid-cols-[max-content_1fr] gap-x-3 gap-y-1 text-sm">
@@ -847,16 +812,16 @@
                   <dt class="text-muted" x-show="panelOffer.status === 'pending' || panelOffer.status === 'accepted'" data-i18n="field.phone">Phone</dt>
                   <dd x-show="panelOffer.status === 'pending' || panelOffer.status === 'accepted'">
                     <template x-if="panelOffer.donor?.phone">
-                      <a :href="`tel:${panelOffer.donor.phone}`" class="font-medium text-primary underline" x-text="panelOffer.donor.phone"></a>
+                      <a :href="`tel:${panelOffer.donor.phone}`" class=" text-primary underline" x-text="panelOffer.donor.phone"></a>
                     </template>
                     <span class="text-muted" x-show="!panelOffer.donor?.phone" data-i18n="common.notGiven">Not given</span>
                   </dd>
                 </dl>
-                <p class="text-xs text-muted" data-i18n="orgDash.donorDetailsNote">The donor's details are only shown to you, to arrange drop-off.</p>
+                <p class="text-sm text-muted" data-i18n="orgDash.donorDetailsNote">The donor's details are only shown to you, to arrange drop-off.</p>
                 <div x-data="tracker(() => trackerFor(panelOffer), 'column')"></div>
                 <button type="button" class="btn btn-secondary" x-show="panelOffer.donor_id" :disabled="messaging" @click="messageDonor(panelOffer)"
                   :aria-label="$t('messages.messageDonorNamed', { name: panelOffer.donor?.full_name || $t('orgDash.theDonor') })">
-                  <i data-lucide="message-circle" class="size-4" aria-hidden="true"></i>
+                  <i class="ph ph-chat-circle size-4" aria-hidden="true"></i>
                   <span data-i18n="messages.messageDonor">Message donor</span>
                 </button>
               </div>
@@ -869,23 +834,23 @@
       <template x-if="!loading && approved && org">
         <section class="space-y-4" x-show="section === 'events'" x-data="orgEvents(org.id, org.latitude, org.longitude)" @events-changed.window="load()" @requests-changed.window="load()" aria-labelledby="events-heading">
           <div class="flex flex-wrap items-center justify-between gap-3">
-            <h2 id="events-heading" class="text-2xl font-semibold" data-i18n="orgDash.eventsTitle">Events</h2>
+            <h2 id="events-heading" class="section-title" data-i18n="orgDash.eventsTitle">Events</h2>
             <button type="button" class="btn btn-primary" x-show="!showForm" @click="newEvent()" data-i18n="orgDash.newEvent">New event</button>
           </div>
           <!-- New / edit form -->
-          <form id="event-form" class="card reveal max-w-2xl scroll-mt-24 space-y-4" novalidate x-show="showForm" x-cloak @submit.prevent="save">
+          <form id="event-form" class="card max-w-2xl scroll-mt-24 space-y-4" novalidate x-show="showForm" x-cloak @submit.prevent="save">
             <div>
-              <h3 class="text-lg font-semibold" x-text="editing ? $t('orgDash.editEvent') : $t('orgDash.newEvent')"></h3>
-              <p class="mt-1 text-sm text-muted" x-show="!editing"><span data-i18n="orgDash.eventFormIntro">An admin checks each event before it appears on the map. Fields marked</span> <span class="text-danger">*</span> <span data-i18n="common.areRequired">are required.</span></p>
+              <h3 class="card-title" x-text="editing ? $t('orgDash.editEvent') : $t('orgDash.newEvent')"></h3>
+              <p class="mt-1 text-sm text-muted" x-show="!editing"><span data-i18n="orgDash.eventFormIntro">An admin checks each event before it appears on the map. Every field is needed unless it says (optional).</span></p>
             </div>
 
-            <p class="rounded-md border border-warning bg-warning-soft p-3 text-sm text-warning" x-show="editingApproved" role="note" data-i18n="orgDash.eventReapproval">
+            <p class="rounded-md bg-warning-soft p-3 text-sm text-warning" x-show="editingApproved" role="note" data-i18n="orgDash.eventReapproval">
               Changing the title, description, place, time or linked donation request sends this event back to the admin for approval.
               It won't be on the map until it's approved again.
             </p>
 
             <div>
-              <label for="ev-title" class="label"><span data-i18n="field.title">Title</span> <span class="text-danger" aria-hidden="true">*</span></label>
+              <label for="ev-title" class="label"><span data-i18n="field.title">Title</span></label>
               <input id="ev-title" placeholder="e.g. Saturday food packing" data-i18n-attr="placeholder:orgDash.eventTitlePlaceholder" class="input" type="text" maxlength="100" required x-model="form.title"
                 :aria-invalid="errors.title ? 'true' : null" aria-describedby="err-ev-title" />
               <p id="err-ev-title" class="field-error" x-show="errors.title" x-text="errors.title"></p>
@@ -899,24 +864,24 @@
               <p id="err-ev-description" class="field-error" x-show="errors.description" x-text="errors.description"></p>
             </div>
 
-            <div class="grid gap-4 sm:grid-cols-2">
+            <div class="space-y-6">
               <div>
-                <label for="ev-starts" class="label"><span data-i18n="orgDash.starts">Starts</span> <span class="text-danger" aria-hidden="true">*</span></label>
+                <label for="ev-starts" class="label"><span data-i18n="orgDash.starts">Starts</span></label>
                 <input id="ev-starts" class="input" type="datetime-local" required x-model="form.startsAt"
                   :aria-invalid="errors.startsAt ? 'true' : null" aria-describedby="err-ev-starts" />
                 <p id="err-ev-starts" class="field-error" x-show="errors.startsAt" x-text="errors.startsAt"></p>
               </div>
               <div>
-                <label for="ev-volunteers" class="label"><span data-i18n="field.volunteersNeeded">Volunteers needed</span> <span class="text-danger" aria-hidden="true">*</span></label>
+                <label for="ev-volunteers" class="label"><span data-i18n="field.volunteersNeeded">Volunteers needed</span></label>
                 <div class="stepper">
                   <button type="button" class="stepper-btn" @click="stepNumber($el, -1)" aria-label="Decrease" data-i18n-attr="aria-label:common.decrease">
-                    <i data-lucide="minus" class="size-5" aria-hidden="true"></i>
+                    <i class="ph ph-minus size-5" aria-hidden="true"></i>
                   </button>
                   <input id="ev-volunteers" class="input" type="number" inputmode="numeric" min="1" max="1000" step="1" required
                     x-model.number="form.volunteersNeeded" :aria-invalid="errors.volunteersNeeded ? 'true' : null"
                     aria-describedby="help-ev-volunteers err-ev-volunteers" />
                   <button type="button" class="stepper-btn" @click="stepNumber($el, 1)" aria-label="Increase" data-i18n-attr="aria-label:common.increase">
-                    <i data-lucide="plus" class="size-5" aria-hidden="true"></i>
+                    <i class="ph ph-plus size-5" aria-hidden="true"></i>
                   </button>
                 </div>
                 <p id="help-ev-volunteers" class="helper-text" data-i18n="orgDash.volunteersHelp">When this many are approved, the event shows "Event full".</p>
@@ -926,7 +891,7 @@
 
             <!-- Place -->
             <fieldset class="space-y-3" aria-describedby="help-ev-pin err-ev-pin">
-              <legend class="label"><span data-i18n="field.place">Place</span> <span class="text-danger" aria-hidden="true">*</span></legend>
+              <legend class="label"><span data-i18n="field.place">Place</span></legend>
               <div class="grid gap-4 sm:grid-cols-[1fr_10rem]">
                 <div>
                   <label for="ev-place" class="label" data-i18n="orgDash.placeName">Place name</label>
@@ -946,8 +911,8 @@
 
               <div id="ev-lookup" class="text-sm" aria-live="polite">
                 <p class="flex items-center gap-2 text-muted" x-show="lookupStatus === 'loading'"><span class="spinner" aria-hidden="true"></span> <span data-i18n="orgDash.lookingUp">Looking up…</span></p>
-                <div class="flex flex-wrap items-center gap-3 rounded-md bg-success-soft p-3 text-success" x-show="lookupStatus === 'found'">
-                  <p class="min-w-0 break-words"><span class="font-semibold" data-i18n="orgDash.found">Found:</span> <span x-text="foundAddress"></span></p>
+                <div class="flex flex-wrap items-center gap-3 rounded-md bg-primary-soft p-3 text-primary" x-show="lookupStatus === 'found'">
+                  <p class="min-w-0 break-words"><span class="font-bold" data-i18n="orgDash.found">Found:</span> <span x-text="foundAddress"></span></p>
                   <button type="button" class="btn btn-secondary min-h-9 px-3" x-show="canUseFoundAddress" @click="useFoundAddress()" data-i18n="orgDash.useAddress">Use this address</button>
                 </div>
                 <p class="rounded-md bg-warning-soft p-3 text-warning" x-show="lookupStatus === 'not_found'" data-i18n="orgDash.postalNotFound">
@@ -956,7 +921,7 @@
               </div>
 
               <p id="help-ev-pin" class="helper-text mt-0" data-i18n="orgDash.eventPinHelp">Click the map or drag the pin to the exact spot. Keyboard: move the map with the arrow keys, then "Put pin at map centre".</p>
-              <div class="isolate overflow-hidden rounded-md border border-line">
+              <div class="isolate overflow-hidden rounded-md">
                 <div id="ev-map" class="h-48 w-full" role="region" aria-label="Map to choose where the event is" data-i18n-attr="aria-label:orgDash.eventMap"></div>
               </div>
               <div class="flex flex-wrap items-center gap-3">
@@ -968,19 +933,19 @@
 
             <!-- Optional extras, folded away so the form stays short -->
             <div>
-              <button type="button" class="btn btn-ghost -ml-3 gap-1.5 px-3" :aria-expanded="moreOptions.toString()" aria-controls="ev-more" @click="moreOptions = !moreOptions">
-                <i data-lucide="chevron-down" class="size-4 transition-transform duration-150" :class="moreOptions ? 'rotate-180' : ''" aria-hidden="true"></i>
+              <button type="button" class="btn btn-quiet -ml-3 gap-2 px-3" :aria-expanded="moreOptions.toString()" aria-controls="ev-more" @click="moreOptions = !moreOptions">
+                <i class="ph ph-caret-down size-4 transition-transform duration-150" :class="moreOptions ? 'rotate-180' : ''" aria-hidden="true"></i>
                 <span data-i18n="orgDash.moreOptions">More options: end time, linked request</span>
               </button>
-              <div id="ev-more" class="reveal mt-2 grid gap-4 sm:grid-cols-2" x-show="moreOptions" x-cloak>
+              <div id="ev-more" class="mt-2 space-y-6" x-show="moreOptions" x-cloak>
                   <div>
-                    <label for="ev-ends" class="label"><span data-i18n="orgDash.ends">Ends</span> <span class="font-normal text-muted" data-i18n="common.optional">(optional)</span></label>
+                    <label for="ev-ends" class="label"><span data-i18n="orgDash.ends">Ends</span> <span class="optional" data-i18n="common.optional">(optional)</span></label>
                     <input id="ev-ends" class="input" type="datetime-local" x-model="form.endsAt" :min="form.startsAt || null"
                       :aria-invalid="errors.endsAt ? 'true' : null" aria-describedby="err-ev-ends" />
                     <p id="err-ev-ends" class="field-error" x-show="errors.endsAt" x-text="errors.endsAt"></p>
                   </div>
                   <div>
-                    <label for="ev-request" class="label"><span data-i18n="orgDash.linkedDonationRequest">Linked donation request</span> <span class="font-normal text-muted" data-i18n="common.optional">(optional)</span></label>
+                    <label for="ev-request" class="label"><span data-i18n="orgDash.linkedDonationRequest">Linked donation request</span> <span class="optional" data-i18n="common.optional">(optional)</span></label>
                     <select id="ev-request" class="input" x-model="form.donationRequestId" aria-describedby="help-ev-request">
                       <option value="" data-i18n="common.none">None</option>
                       <template x-for="request in linkableRequests" :key="request.id">
@@ -988,8 +953,8 @@
                       </template>
                     </select>
                     <p id="help-ev-request" class="helper-text" data-i18n="orgDash.linkedHelp">The event's "Donate" button will open this request.</p>
-                    <p class="mt-2 flex gap-2 rounded-md bg-warning-soft p-3 text-sm text-warning" x-show="linkDeadlineWarning" x-cloak role="status">
-                      <i data-lucide="info" class="mt-0.5 size-4 shrink-0" aria-hidden="true"></i>
+                    <p class="mt-2 flex gap-2 note-warning" x-show="linkDeadlineWarning" x-cloak role="status">
+                      <i class="ph ph-info mt-1 size-4 shrink-0" aria-hidden="true"></i>
                       <span data-i18n="deadlines.linkWarning">This request's deadline is after the event. Donors can still give after the event day.</span>
                     </p>
                   </div>
@@ -997,14 +962,14 @@
             </div>
 
             <div role="alert">
-              <p class="rounded-md bg-danger-soft p-3 text-sm font-medium text-danger" x-show="formError" x-text="formError"></p>
+              <p class="note-danger" x-show="formError" x-text="formError"></p>
             </div>
             <div class="flex flex-wrap gap-3">
               <button type="submit" class="btn btn-primary" :disabled="saving">
                 <span class="spinner" x-show="saving" x-cloak aria-hidden="true"></span>
                 <span x-text="saving ? $t('common.saving') : editing ? $t('common.saveChanges') : $t('orgDash.sendForApproval')">Send for approval</span>
               </button>
-              <button type="button" class="btn btn-ghost" @click="cancelForm()" :disabled="saving" data-i18n="common.cancel">Cancel</button>
+              <button type="button" class="btn btn-quiet" @click="cancelForm()" :disabled="saving" data-i18n="common.cancel">Cancel</button>
             </div>
           </form>
 
@@ -1018,23 +983,23 @@
           <div class="card space-y-3" x-show="tab === 'active' ? loading : history.loading && history.items.length === 0" role="status"><span class="sr-only" data-i18n="orgDash.loadingEvents">Loading events…</span>
             <div class="skeleton h-5 w-24"></div><div class="skeleton h-6 w-2/3"></div><div class="skeleton h-4 w-1/2"></div>
           </div>
-          <div class="card text-center" x-show="tab === 'active' ? !loading && loadError : !history.loading && history.error" x-cloak role="alert">
+          <div class="empty" x-show="tab === 'active' ? !loading && loadError : !history.loading && history.error" x-cloak role="alert">
             <p class="text-danger" x-text="tab === 'active' ? loadError : history.error"></p>
             <button type="button" class="btn btn-secondary mt-3" @click="tab === 'active' ? load() : history.load()" data-i18n="common.tryAgain">Try again</button>
           </div>
-          <div class="card flex flex-col items-center gap-3 py-10 text-center" x-show="tab === 'active' && !loading && !loadError && activeEvents.length === 0 && !showForm" x-cloak>
-            <i data-lucide="calendar" class="size-10 text-primary" aria-hidden="true"></i>
-            <p class="text-muted" x-text="events.length ? $t('orgDash.noUpcomingEvents') : $t('orgDash.noEvents')">No events yet.</p>
+          <div class="empty" x-show="tab === 'active' && !loading && !loadError && activeEvents.length === 0 && !showForm" x-cloak>
+            <img src="/img/pinny-looking.svg" alt="" />
+            <p x-text="events.length ? $t('orgDash.noUpcomingEvents') : $t('orgDash.noEvents')">No events yet.</p>
             <button type="button" class="btn btn-primary" @click="newEvent()" x-text="events.length ? $t('orgDash.newEvent') : $t('orgDash.firstEvent')">Create your first event</button>
           </div>
-          <div class="card flex flex-col items-center gap-3 py-10 text-center"
+          <div class="empty"
             x-show="tab === 'history' && history.loaded && !history.loading && !history.error && history.items.length === 0" x-cloak>
-            <i data-lucide="history" class="size-10 text-primary" aria-hidden="true"></i>
-            <p class="text-muted" data-i18n="orgDash.noPastEvents">No past events yet. Completed and cancelled events will appear here.</p>
+            <img src="/img/pinny-looking.svg" alt="" />
+            <p data-i18n="orgDash.noPastEvents">No past events yet. Completed and cancelled events will appear here.</p>
           </div>
 
           <!-- List: the same card for Upcoming and Past & cancelled (past events are read-only) -->
-          <ul class="grid gap-4 md:grid-cols-2" x-show="tab === 'active' ? !loading && !loadError : history.items.length > 0" x-ref="historyList">
+          <ul class="grid gap-4 sm:grid-cols-2 lg:grid-cols-3" x-show="tab === 'active' ? !loading && !loadError : history.items.length > 0" x-ref="historyList">
             <template x-for="event in (tab === 'active' ? activeEvents : history.items)" :key="event.id">
               <li class="card flex flex-col gap-3">
                 <div class="flex flex-wrap items-center gap-2">
@@ -1042,13 +1007,13 @@
                   <span :class="eventTimingBadge(event).className" x-text="eventTimingBadge(event).label"></span>
                 </div>
                 <div class="min-w-0">
-                  <h3 class="text-lg font-semibold break-words" x-text="event.title"></h3>
+                  <h3 class="card-title break-words" x-text="event.title"></h3>
                   <p class="text-sm text-muted" x-text="formatEventTime(event.starts_at, event.ends_at)"></p>
                   <p class="text-sm text-muted break-words" x-text="event.location_name"></p>
-                  <p class="text-xs text-muted" x-show="!isActiveEventStatus(event)" x-text="eventEndedText(event)"></p>
+                  <p class="text-sm text-muted" x-show="!isActiveEventStatus(event)" x-text="eventEndedText(event)"></p>
                 </div>
-                <div class="rounded-md bg-warning-soft p-3 text-sm text-warning" x-show="event.status === 'cancelled'">
-                  <p class="font-semibold" data-i18n="enum.eventStatus.cancelled">Cancelled</p>
+                <div class="note-warning" x-show="event.status === 'cancelled'">
+                  <p class="font-bold" data-i18n="enum.eventStatus.cancelled">Cancelled</p>
                   <p class="mt-1 whitespace-pre-line break-words text-ink" x-text="event.cancel_reason || $t('orgDash.noReason')"></p>
                 </div>
                 <dl class="grid grid-cols-[max-content_1fr] gap-x-3 gap-y-1 text-sm">
@@ -1059,20 +1024,20 @@
                 </dl>
 
                 <div class="rounded-md border border-danger bg-danger-soft p-3 text-sm text-danger" x-show="event.approval === 'rejected'">
-                  <p class="font-semibold" data-i18n="orgDash.adminNote">Note from the admin</p>
+                  <p class="font-bold" data-i18n="orgDash.adminNote">Note from the admin</p>
                   <p class="mt-1 whitespace-pre-line" x-text="event.admin_note || $t('orgDash.noReason')"></p>
                   <p class="mt-2" data-i18n="orgDash.editAgain">Edit the event to send it for approval again.</p>
                 </div>
-                <div class="rounded-md bg-success-soft p-3 text-sm text-success" x-show="event.status === 'completed' && editingOutcomeId !== event.id">
-                  <p class="font-semibold" data-i18n="orgDash.outcome">Outcome</p>
+                <div class="note-success" x-show="event.status === 'completed' && editingOutcomeId !== event.id">
+                  <p class="font-bold" data-i18n="orgDash.outcome">Outcome</p>
                   <p class="mt-1 whitespace-pre-line break-words text-ink" x-text="event.outcome_summary || $t('orgDash.noSummary')"></p>
-                  <button type="button" class="btn btn-ghost -ml-3 mt-1 px-3" @click="startEditOutcome(event)" data-i18n="orgDash.editOutcome">Edit outcome</button>
+                  <button type="button" class="btn btn-quiet -ml-3 mt-1 px-3" @click="startEditOutcome(event)" data-i18n="orgDash.editOutcome">Edit outcome</button>
                 </div>
 
                 <!-- Edit the outcome of a completed event (everything else stays read-only) -->
-                <div class="space-y-3 rounded-md border border-line bg-canvas p-4" x-show="editingOutcomeId === event.id" x-cloak>
+                <div class="space-y-3 rounded-md bg-canvas p-4" x-show="editingOutcomeId === event.id" x-cloak>
                   <div>
-                    <label :for="`edit-outcome-${event.id}`" class="label"><span data-i18n="orgDash.outcomeSummary">Outcome summary</span> <span class="text-danger" aria-hidden="true">*</span></label>
+                    <label :for="`edit-outcome-${event.id}`" class="label"><span data-i18n="orgDash.outcomeSummary">Outcome summary</span></label>
                     <textarea :id="`edit-outcome-${event.id}`" class="input input-ruled py-2" rows="3" maxlength="1000" x-model="outcome"
                       :aria-invalid="outcomeError ? 'true' : null" :aria-describedby="`edit-outcome-err-${event.id}`"></textarea>
                     <p :id="`edit-outcome-err-${event.id}`" class="field-error" x-show="outcomeError" x-text="outcomeError"></p>
@@ -1082,14 +1047,14 @@
                       <span class="spinner" x-show="busyId === event.id" x-cloak aria-hidden="true"></span>
                       <span data-i18n="orgDash.saveOutcome">Save outcome</span>
                     </button>
-                    <button type="button" class="btn btn-ghost" @click="editingOutcomeId = null" data-i18n="common.cancel">Cancel</button>
+                    <button type="button" class="btn btn-quiet" @click="editingOutcomeId = null" data-i18n="common.cancel">Cancel</button>
                   </div>
                 </div>
 
                 <!-- Outcome form -->
-                <div class="space-y-3 rounded-md border border-line bg-canvas p-4" x-show="completingId === event.id" x-cloak>
+                <div class="space-y-3 rounded-md bg-canvas p-4" x-show="completingId === event.id" x-cloak>
                   <div>
-                    <label :for="`outcome-${event.id}`" class="label"><span data-i18n="orgDash.outcomeSummary">Outcome summary</span> <span class="text-danger" aria-hidden="true">*</span></label>
+                    <label :for="`outcome-${event.id}`" class="label"><span data-i18n="orgDash.outcomeSummary">Outcome summary</span></label>
                     <textarea :id="`outcome-${event.id}`" class="input input-ruled py-2" rows="3" maxlength="1000" x-model="outcome"
                       placeholder="e.g. 35 volunteers packed 400 food bags for 120 families." data-i18n-attr="placeholder:orgDash.outcomePlaceholder"
                       :aria-invalid="outcomeError ? 'true' : null" :aria-describedby="`outcome-err-${event.id}`"></textarea>
@@ -1100,33 +1065,47 @@
                       <span class="spinner" x-show="busyId === event.id" x-cloak aria-hidden="true"></span>
                       <span data-i18n="orgDash.markCompleted">Mark completed</span>
                     </button>
-                    <button type="button" class="btn btn-ghost" @click="cancelComplete()" data-i18n="common.cancel">Cancel</button>
+                    <button type="button" class="btn btn-quiet" @click="cancelComplete()" data-i18n="common.cancel">Cancel</button>
                   </div>
                 </div>
 
-                <div class="mt-auto flex flex-wrap gap-3 pt-1" x-show="completingId !== event.id">
-                  <button type="button" class="btn btn-secondary" x-show="event.status !== 'completed' && event.status !== 'cancelled'" @click="edit(event)" data-i18n="common.edit">Edit</button>
-                  <a class="btn btn-ghost" x-show="event.approval === 'approved'" :href="`/event.html?id=${event.id}`" data-i18n="orgDash.viewPublicPage">View public page</a>
+                <div class="mt-auto flex items-center gap-3 pt-1" x-show="completingId !== event.id">
                   <button type="button" class="btn btn-primary" x-show="canComplete(event)" @click="startComplete(event)" data-i18n="orgDash.markCompleted">Mark completed</button>
-                  <!-- Nobody applied yet → Delete; otherwise Cancel event (volunteers see the reason) -->
-                  <button type="button" class="btn btn-danger" x-show="isActiveEventStatus(event) && hasApplications[event.id]"
-                    :disabled="busyId === event.id" @click="cancel(event)">
-                    <span class="spinner" x-show="busyId === event.id" x-cloak aria-hidden="true"></span>
-                    <span data-i18n="orgDash.cancelConfirm">Cancel event</span>
-                  </button>
-                  <button type="button" class="btn btn-danger" x-show="isActiveEventStatus(event) && !hasApplications[event.id]"
-                    :disabled="busyId === event.id" @click="remove(event)">
-                    <span class="spinner" x-show="busyId === event.id" x-cloak aria-hidden="true"></span>
-                    <span data-i18n="common.delete">Delete</span>
-                  </button>
+                  <button type="button" class="btn btn-primary" x-show="!canComplete(event) && event.status !== 'completed' && event.status !== 'cancelled'" @click="edit(event)"
+                    :aria-label="$t('orgDash.editEventLabel', { title: event.title })" data-i18n="orgDash.editEvent">Edit event</button>
+                  <span class="spinner text-primary" x-show="busyId === event.id" x-cloak aria-hidden="true"></span>
+                  <!-- the rest in the More menu: nobody applied yet → Delete; otherwise Cancel event (volunteers see the reason) -->
+                  <div class="relative ml-auto" x-data="moreMenu" @keydown.escape="closeMenu(true)" @click.outside="closeMenu(false)"
+                    x-show="event.approval === 'approved' || isActiveEventStatus(event)">
+                    <button type="button" class="icon-btn" x-ref="moreButton" aria-haspopup="menu" :aria-expanded="menuOpen.toString()" @click="toggleMenu()"
+                      :aria-label="$t('common.moreFor', { title: event.title })">
+                      <i class="ph ph-dots-three" aria-hidden="true"></i>
+                    </button>
+                    <div class="menu" role="menu" x-show="menuOpen" x-cloak @keydown.down.prevent="moveMenu(1)" @keydown.up.prevent="moveMenu(-1)">
+                      <button type="button" class="menu-item" role="menuitem" x-show="canComplete(event)" @click="closeMenu(false); edit(event)">
+                        <i class="ph ph-pencil-simple" aria-hidden="true"></i><span data-i18n="orgDash.editEvent">Edit event</span>
+                      </button>
+                      <a class="menu-item" role="menuitem" x-show="event.approval === 'approved'" :href="`/event.html?id=${event.id}`">
+                        <i class="ph ph-eye" aria-hidden="true"></i><span data-i18n="orgDash.viewPublicPage">View public page</span>
+                      </a>
+                      <button type="button" class="menu-item menu-item-danger" role="menuitem" x-show="isActiveEventStatus(event) && hasApplications[event.id]"
+                        :disabled="busyId === event.id" @click="closeMenu(false); cancel(event)">
+                        <i class="ph ph-prohibit" aria-hidden="true"></i><span data-i18n="orgDash.cancelConfirm">Cancel event</span>
+                      </button>
+                      <button type="button" class="menu-item menu-item-danger" role="menuitem" x-show="isActiveEventStatus(event) && !hasApplications[event.id]"
+                        :disabled="busyId === event.id" @click="closeMenu(false); remove(event)">
+                        <i class="ph ph-trash" aria-hidden="true"></i><span data-i18n="common.delete">Delete</span>
+                      </button>
+                    </div>
+                  </div>
                 </div>
 
                 <!-- Share (REQUIREMENTS.md 5.3): approved events only -->
-                <div class="border-t border-line pt-3" x-data="{ sharing: false }" x-show="event.status !== 'completed' && event.status !== 'cancelled'">
+                <div class="pt-1" x-data="{ sharing: false }" x-show="event.status !== 'completed' && event.status !== 'cancelled'">
                   <p class="text-sm text-muted" x-show="event.approval !== 'approved'" data-i18n="orgDash.shareWaiting">Waiting for admin approval — you can share it once it's approved.</p>
                   <template x-if="event.approval === 'approved'">
                     <div>
-                      <button type="button" class="btn btn-ghost -ml-3 px-3" :aria-expanded="sharing.toString()" :aria-controls="`share-${event.id}`" @click="sharing = !sharing"
+                      <button type="button" class="btn btn-quiet -ml-3 px-3" :aria-expanded="sharing.toString()" :aria-controls="`share-${event.id}`" @click="sharing = !sharing"
                         x-text="sharing ? $t('orgDash.hideSharing') : $t('orgDash.share')">Share</button>
                       <template x-if="sharing">
                         <div :id="`share-${event.id}`" class="mt-3 space-y-4" x-data="sharePanel(event, org?.name || 'KampongShare', true)">
@@ -1145,7 +1124,7 @@
                               <span data-i18n="share.poster">Download poster</span>
                             </button>
                           </div>
-                          <div class="space-y-2 rounded-md border border-line bg-canvas p-3">
+                          <div class="space-y-2 rounded-md bg-canvas p-3">
                             <div class="flex flex-wrap items-center justify-between gap-2">
                               <label :for="`share-caption-${event.id}`" class="label mb-0" data-i18n="orgDash.instagramCaption">Instagram caption</label>
                               <span class="badge badge-ai" x-show="captionIsAi" data-i18n="common.aiSuggested">AI-suggested</span>
@@ -1167,14 +1146,14 @@
                 </div>
 
                 <!-- Volunteers for this event -->
-                <div class="border-t border-line pt-3" x-data="eventVolunteers(event)" x-show="event.approval === 'approved' || event.status === 'completed'">
-                  <button type="button" class="btn btn-ghost -ml-3 px-3" :aria-expanded="open.toString()" :aria-controls="`volunteers-${event.id}`" @click="toggle()">
+                <div class="pt-1" x-data="eventVolunteers(event)" x-show="event.approval === 'approved' || event.status === 'completed'">
+                  <button type="button" class="btn btn-quiet -ml-3 px-3" :aria-expanded="open.toString()" :aria-controls="`volunteers-${event.id}`" @click="toggle()">
                     <span x-text="open ? $t('orgDash.hideVolunteers') : $t('orgDash.volunteers')"></span>
                     <span class="badge badge-warning" x-show="loaded && pendingCount > 0" x-text="$t('orgDash.waitingCount', { count: pendingCount })"></span>
                   </button>
 
                   <div :id="`volunteers-${event.id}`" class="mt-3 space-y-3" x-show="open" x-cloak>
-                    <p class="text-sm font-medium" :class="isFull ? 'text-danger' : 'text-muted'" x-show="loaded" x-text="summary"></p>
+                    <p class="text-sm" :class="isFull ? 'text-danger' : 'text-muted'" x-show="loaded" x-text="summary"></p>
                     <div class="space-y-2" x-show="loading" role="status"><span class="sr-only" data-i18n="orgDash.loadingVolunteers">Loading volunteers…</span>
                       <div class="skeleton h-5 w-2/3"></div><div class="skeleton h-4 w-1/2"></div>
                     </div>
@@ -1183,16 +1162,16 @@
 
                     <ul class="space-y-3" x-show="!loading && !error">
                       <template x-for="application in shown" :key="application.id">
-                        <li class="space-y-2 rounded-md border border-line bg-canvas p-3 text-sm">
+                        <li class="space-y-2 rounded-md bg-canvas p-3 text-sm">
                           <div class="flex flex-wrap items-center justify-between gap-2">
-                            <p class="font-semibold break-words" x-text="application.volunteer?.full_name || $t('admin.nameNotGiven')"></p>
+                            <p class="font-bold break-words" x-text="application.volunteer?.full_name || $t('admin.nameNotGiven')"></p>
                             <span :class="badges[application.status].className" x-text="badges[application.status].label"></span>
                           </div>
                           <dl class="grid grid-cols-[max-content_1fr] gap-x-3 gap-y-1">
                             <dt class="text-muted" data-i18n="field.phone">Phone</dt>
                             <dd>
                               <template x-if="application.volunteer?.phone">
-                                <a :href="`tel:${application.volunteer.phone}`" class="font-medium text-primary underline" x-text="application.volunteer.phone"></a>
+                                <a :href="`tel:${application.volunteer.phone}`" class=" text-primary underline" x-text="application.volunteer.phone"></a>
                               </template>
                               <span class="text-muted" x-show="!application.volunteer?.phone" data-i18n="common.notGiven">Not given</span>
                             </dd>
@@ -1205,8 +1184,8 @@
                             <dt class="text-muted" data-i18n="orgDash.applied">Applied</dt>
                             <dd x-text="formatDate(application.created_at)"></dd>
                           </dl>
-                          <p class="rounded-md bg-surface p-2 whitespace-pre-line break-words" x-show="application.message" x-text="application.message"></p>
-                          <div class="rounded-md bg-surface p-3" x-data="tracker(() => trackerFor(application))"></div>
+                          <p class="rounded-md border-[1.5px] border-edge bg-surface p-2 whitespace-pre-line break-words" x-show="application.message" x-text="application.message"></p>
+                          <div class="rounded-md border-[1.5px] border-edge bg-surface p-3" x-data="tracker(() => trackerFor(application))"></div>
 
                           <div class="flex flex-wrap gap-2">
                             <template x-if="application.status === 'pending'">
@@ -1224,7 +1203,7 @@
                             </template>
                             <button type="button" class="btn btn-secondary" :disabled="messaging" @click="messageVolunteer(application)"
                               :aria-label="$t('messages.messageVolunteerNamed', { name: application.volunteer?.full_name || $t('orgDash.thisVolunteer') })">
-                              <i data-lucide="message-circle" class="size-4" aria-hidden="true"></i>
+                              <i class="ph ph-chat-circle size-4" aria-hidden="true"></i>
                               <span data-i18n="messages.messageVolunteer">Message volunteer</span>
                             </button>
                           </div>
@@ -1232,9 +1211,9 @@
                           <!-- Tasks for this volunteer -->
                           <ul class="space-y-1" x-show="tasksOf(application.volunteer_id).length">
                             <template x-for="task in tasksOf(application.volunteer_id)" :key="task.id">
-                              <li class="flex flex-wrap items-center justify-between gap-2 rounded-md bg-surface p-2">
+                              <li class="flex flex-wrap items-center justify-between gap-2 rounded-md border-[1.5px] border-edge bg-surface p-2">
                                 <span class="min-w-0 break-words">
-                                  <span class="font-medium" x-text="task.title"></span>
+                                  <span class="" x-text="task.title"></span>
                                   <span class="text-muted" x-show="task.due_at" x-text="task.due_at ? $t('orgDash.dueLine', { date: formatDate(task.due_at, true) }) : ''"></span>
                                 </span>
                                 <span :class="taskBadge(task.status).className" x-text="taskBadge(task.status).label"></span>
@@ -1243,22 +1222,22 @@
                           </ul>
 
                           <!-- Assign task form -->
-                          <form class="space-y-3 rounded-md border border-line bg-surface p-3" novalidate x-show="taskFor === application.volunteer_id" x-cloak
+                          <form class="space-y-3 rounded-md border-[1.5px] border-edge bg-surface p-3" novalidate x-show="taskFor === application.volunteer_id" x-cloak
                             @submit.prevent="saveTask(application.volunteer_id)">
                             <div>
-                              <label :for="`task-title-${event.id}-${application.volunteer_id}`" class="label"><span data-i18n="orgDash.task">Task</span> <span class="text-danger" aria-hidden="true">*</span></label>
+                              <label :for="`task-title-${event.id}-${application.volunteer_id}`" class="label"><span data-i18n="orgDash.task">Task</span></label>
                               <input :id="`task-title-${event.id}-${application.volunteer_id}`" class="input" type="text" maxlength="100"
                                 placeholder="e.g. Pack food bags at station 2" data-i18n-attr="placeholder:orgDash.taskPlaceholder" x-model="taskForm.title" :aria-invalid="taskErrors.title ? 'true' : null"
                                 :aria-describedby="`task-title-err-${event.id}-${application.volunteer_id}`" />
                               <p :id="`task-title-err-${event.id}-${application.volunteer_id}`" class="field-error" x-show="taskErrors.title" x-text="taskErrors.title"></p>
                             </div>
                             <div>
-                              <label :for="`task-desc-${event.id}-${application.volunteer_id}`" class="label"><span data-i18n="orgDash.taskDetails">Details</span> <span class="font-normal text-muted" data-i18n="common.optional">(optional)</span></label>
+                              <label :for="`task-desc-${event.id}-${application.volunteer_id}`" class="label"><span data-i18n="orgDash.taskDetails">Details</span> <span class="optional" data-i18n="common.optional">(optional)</span></label>
                               <textarea :id="`task-desc-${event.id}-${application.volunteer_id}`" class="input input-ruled py-2" rows="2" maxlength="500" x-model="taskForm.description"></textarea>
                               <p class="field-error" x-show="taskErrors.description" x-text="taskErrors.description"></p>
                             </div>
                             <div>
-                              <label :for="`task-due-${event.id}-${application.volunteer_id}`" class="label"><span data-i18n="orgDash.due">Due</span> <span class="font-normal text-muted" data-i18n="common.optional">(optional)</span></label>
+                              <label :for="`task-due-${event.id}-${application.volunteer_id}`" class="label"><span data-i18n="orgDash.due">Due</span> <span class="optional" data-i18n="common.optional">(optional)</span></label>
                               <input :id="`task-due-${event.id}-${application.volunteer_id}`" class="input" type="datetime-local" x-model="taskForm.dueAt" />
                             </div>
                             <p class="rounded-md bg-danger-soft p-2 text-danger" x-show="taskError" x-text="taskError" role="alert"></p>
@@ -1267,13 +1246,13 @@
                                 <span class="spinner" x-show="savingTask" x-cloak aria-hidden="true"></span>
                                 <span data-i18n="orgDash.assignTask">Assign task</span>
                               </button>
-                              <button type="button" class="btn btn-ghost" @click="taskFor = null" data-i18n="common.cancel">Cancel</button>
+                              <button type="button" class="btn btn-quiet" @click="taskFor = null" data-i18n="common.cancel">Cancel</button>
                             </div>
                           </form>
                         </li>
                       </template>
                     </ul>
-                    <button type="button" class="btn btn-ghost -ml-3 px-3" x-show="loaded && !loading" @click="load()" data-i18n="orgDash.refresh">Refresh</button>
+                    <button type="button" class="btn btn-quiet -ml-3 px-3" x-show="loaded && !loading" @click="load()" data-i18n="orgDash.refresh">Refresh</button>
                   </div>
                 </div>
               </li>

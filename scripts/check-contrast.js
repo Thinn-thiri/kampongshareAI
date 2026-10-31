@@ -10,30 +10,27 @@ import { readFileSync } from "node:fs";
 const PAIRS = [
   ["ink", "canvas"],
   ["ink", "surface"],
+  ["ink", "canvas-hover"],
   ["muted", "canvas"],
   ["muted", "surface"],
+  ["muted", "canvas-hover"],
   ["primary", "canvas"],
   ["primary", "surface"],
+  ["primary", "primary-soft"],
   ["on-primary", "primary"],
   ["on-primary", "primary-hover"],
   ["on-danger", "danger"],
-  ["success", "success-soft"],
   ["warning", "warning-soft"],
   ["danger", "danger-soft"],
   ["info", "info-soft"],
-  ["primary", "primary-soft"],
-  // the noticeboard: text straight on the cork is always ink (notices themselves are paper)
+  // the cork: only ink text sits directly on it (the search tint and icon-hover circle)
   ["ink", "board"],
-  // links on hover: the marigold highlighter stroke behind the text
-  ["primary", "highlight"],
-  ["ink", "highlight"],
-  ["on-primary", "primary-hover"],
   ["danger", "canvas"],
   ["danger", "surface"],
   ["warning", "canvas"],
   ["info", "canvas"],
-  ["success", "canvas"],
   ["ink", "danger-soft"],
+  ["on-accent", "accent"],
 ];
 
 /** [colour, background] pairs that only need 3:1: borders and the focus ring (WCAG 1.4.11). */
@@ -44,7 +41,6 @@ const NON_TEXT = [
   ["primary", "canvas"],
   ["primary", "board"],
   ["danger", "danger-soft"],
-  ["on-accent", "accent"],
 ];
 
 const MIN_RATIO = 4.5;

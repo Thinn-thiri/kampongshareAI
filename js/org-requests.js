@@ -50,6 +50,7 @@ document.addEventListener("alpine:init", () => {
   Alpine.data("orgRequests", (/** @type {string} */ orgId) => ({
     categories: ITEM_CATEGORIES,
     urgencies: URGENCY_OPTIONS,
+    ...noticeHelpers(),
     today: todayIso(),
 
     /** @type {DonationRequest[]} */
@@ -240,26 +241,5 @@ document.addEventListener("alpine:init", () => {
     },
 
     isEditable: isEditableRequest,
-
-    /**
-     * @param {RequestItem} item
-     * @returns {string}
-     */
-    itemDetail(item) {
-      return t("orgDash.itemSummary", {
-        needed: item.quantity_needed,
-        promised: item.quantity_committed,
-        received: item.quantity_received,
-        remaining: item.quantity_remaining,
-      });
-    },
-
-    /**
-     * @param {string} value
-     * @returns {string}
-     */
-    urgencyLabel(value) {
-      return URGENCY_OPTIONS.find((option) => option.value === value)?.label ?? value;
-    },
   }));
 });

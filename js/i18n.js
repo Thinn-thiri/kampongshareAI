@@ -279,54 +279,5 @@ document.addEventListener("alpine:init", () => {
   const Alpine = /** @type {any} */ (window).Alpine;
   Alpine.store("i18n", { lang: currentLang });
   Alpine.magic("t", () => t);
-
-  // The language switcher in the top bar: a menu of the three languages (same pattern as themeMenu).
-  Alpine.data("langMenu", () => ({
-    open: false,
-    options: LANGUAGES,
-
-    get lang() {
-      return Alpine.store("i18n").lang;
-    },
-
-    get current() {
-      return languageInfo(this.lang);
-    },
-
-    /** Always in all three languages, plus the visible name (WCAG 2.5.3 label in name). */
-    get buttonLabel() {
-      return `Language / 语言 / Bahasa — ${this.current.name}`;
-    },
-
-    toggle() {
-      this.open = !this.open;
-      // focus the checked item so arrow keys work straight away
-      if (this.open) setTimeout(() => this.items()[LANGUAGES.findIndex((l) => l.code === this.lang)]?.focus(), 0);
-    },
-
-    /** @param {Lang} lang */
-    pick(lang) {
-      setLang(lang);
-      this.close(true);
-    },
-
-    /** @param {boolean} refocus return focus to the button (Escape or after picking) */
-    close(refocus) {
-      if (!this.open) return;
-      this.open = false;
-      if (refocus) /** @type {any} */ (this).$refs.langButton.focus();
-    },
-
-    /** @returns {HTMLElement[]} */
-    items() {
-      return [.../** @type {any} */ (this).$root.querySelectorAll('[role="menuitemradio"]')];
-    },
-
-    /** Up / Down move between the languages. @param {number} step */
-    move(step) {
-      const items = this.items();
-      const at = items.indexOf(/** @type {HTMLElement} */ (document.activeElement));
-      items[(at + step + items.length) % items.length]?.focus();
-    },
-  }));
 });
+

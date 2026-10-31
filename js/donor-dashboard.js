@@ -51,15 +51,7 @@ document.addEventListener("alpine:init", () => {
     /** @type {string | null} the delivered offer Pinny thanks (only the first time, REQUIREMENTS.md 12) */
     pinnyOfferId: null,
     offerTracker,
-
-    /** @type {string | null} the item whose offer form is open */
-    offerItemId: null,
-    /** @type {OfferForm} */
-    offerForm: { quantity: "", message: "", foodSafetyConfirmed: false },
-    /** @type {OfferErrors} */
-    offerErrors: {},
-    offerError: "",
-    sending: false,
+    ...noticeHelpers(),
 
     /** Filters from event.html's Donate button: ?request=<id> or ?org=<id> */
     filterRequestId: new URLSearchParams(location.search).get("request"),
@@ -149,6 +141,8 @@ document.addEventListener("alpine:init", () => {
       this.history = historyPager((from, to) => listMyOfferHistory(donorId, from, to), () => t("donor.pastOffers"));
       /** @type {any} */ (this).$watch("history.items", () => this.thankWithPinny());
       await Promise.all([this.loadRequests(), this.loadOffers()]);
+      // an offer sent from the details panel
+      window.addEventListener("offer-sent", () => Promise.all([this.loadRequests(), this.loadOffers()]));
     },
 
     /** Consent and 18+ are needed before the database accepts offers (REQUIREMENTS.md 4.2). */
@@ -202,22 +196,11 @@ document.addEventListener("alpine:init", () => {
       return this.offers.find((offer) => offer.request_item_id === item.id && isActiveOffer(offer));
     },
 
-    /** @param {RequestItem} item */
-    openOffer(item) {
-      this.offerItemId = item.id;
-      this.offerForm = { quantity: "", message: "", foodSafetyConfirmed: false };
-      this.offerErrors = {};
-      this.offerError = "";
-      setTimeout(() => document.getElementById(`offer-qty-${item.id}`)?.focus(), 0);
-    },
-
     /**
-     * "Offer" pressed on an AI-suggested match: open that item's offer form below.
+     * "Offer" pressed on an AI-suggested match: open that request's panel with the item's offer form.
      * @param {string} itemId
      */
     async offerFromMatch(itemId) {
-      if (this.filterRequestId || this.filterOrgId) this.clearFilter();
-      if (this.section !== "find") location.hash = "#find"; // the offer form lives in Find needs
       let item = this.requests.flatMap((r) => r.request_items).find((i) => i.id === itemId);
       if (!item) {
         await this.loadRequests();
@@ -231,35 +214,8 @@ document.addEventListener("alpine:init", () => {
         toast(t("donor.alreadyOffered"), "error");
         return;
       }
-      this.openOffer(item);
-      setTimeout(() => document.getElementById(`offer-qty-${itemId}`)?.scrollIntoView({ behavior: "smooth", block: "center" }), 50);
-    },
-
-    closeOffer() {
-      this.offerItemId = null;
-    },
-
-    /** @param {RequestItem} item */
-    async sendOffer(item) {
-      this.offerError = "";
-      this.offerErrors = validateOffer(this.offerForm, item);
-      const firstError = Object.keys(this.offerErrors)[0];
-      if (firstError) {
-        const ids = { quantity: "offer-qty", message: "offer-msg", foodSafety: "offer-food" };
-        document.getElementById(`${ids[/** @type {keyof typeof ids} */ (firstError)]}-${item.id}`)?.focus();
-        return;
-      }
-      this.sending = true;
-      try {
-        await makeOffer(item.id, this.offerForm);
-        toast(t("donor.offerSent"));
-        this.offerItemId = null;
-        await Promise.all([this.loadRequests(), this.loadOffers()]);
-      } catch (error) {
-        this.offerError = friendlyError(error);
-      } finally {
-        this.sending = false;
-      }
+      const request = this.requests.find((r) => r.request_items.some((i) => i.id === itemId));
+      if (request) openRequestPanel(request, document.activeElement, itemId);
     },
 
     /** @param {DonationOffer} offer */
@@ -300,13 +256,5 @@ document.addEventListener("alpine:init", () => {
     offerDisplay,
     offerEndedText,
     isActiveOffer,
-
-    /**
-     * @param {string} value
-     * @returns {string}
-     */
-    urgencyLabel(value) {
-      return URGENCY_OPTIONS.find((option) => option.value === value)?.label ?? value;
-    },
   }));
 });

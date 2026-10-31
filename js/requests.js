@@ -161,29 +161,6 @@ function urgencyWordOf(request) {
   return /** @type {Urgency} */ (urgencyLevel(request.ai_score).level);
 }
 
-/** Most tear-off tabs on a notice; above this each tab stands for a share of the total. */
-const MAX_TEAR_TABS = 10;
-
-/**
- * "Still needed" as tear-off tabs on a pinned notice: one per unit when 10 or fewer are needed,
- * otherwise 10 tabs of 10% each. received = solid, promised = striped, needed = empty. While anything
- * is still needed at least one tab stays empty; when everything is covered none is.
- * Shown with role="img" and itemBarLabel() as its label.
- * @param {RequestItem} item
- * @returns {('received' | 'promised' | 'needed')[]}
- */
-function itemTabs(item) {
-  const needed = Math.max(item.quantity_needed, 1);
-  const count = Math.min(needed, MAX_TEAR_TABS);
-  const share = (/** @type {number} */ value) => Math.round((Math.max(0, Math.min(value, needed)) / needed) * count);
-  let received = share(item.quantity_received);
-  let covered = Math.max(share(item.quantity_committed), received);
-  if (item.quantity_remaining > 0 && covered === count) covered = count - 1;
-  if (item.quantity_remaining <= 0) covered = count;
-  received = Math.min(received, covered);
-  return Array.from({ length: count }, (_, i) => (i < received ? "received" : i < covered ? "promised" : "needed"));
-}
-
 /**
  * Screen-reader text for an item's progress bar.
  * @param {RequestItem} item

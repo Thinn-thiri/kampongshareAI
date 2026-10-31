@@ -21,9 +21,7 @@ document.addEventListener("alpine:init", () => {
     /** @type {number | null} admins only: everything waiting for review */
     adminWaiting: null,
 
-    requestUrgency,
-    itemTabs,
-    itemBarLabel,
+    ...noticeHelpers(),
 
     async init() {
       const viewerLoaded = this.loadViewer().then(async () => {

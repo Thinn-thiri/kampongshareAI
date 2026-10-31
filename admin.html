@@ -14,12 +14,13 @@
     <link rel="icon" href="/img/favicon.svg" type="image/svg+xml" />
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Atkinson+Hyperlegible:wght@400;700&family=Bricolage+Grotesque:opsz,wght@12..96,600..800&display=swap" />
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,600..700&family=Lexend:wght@400;700&display=swap" />
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="" />
+    <link rel="stylesheet" href="https://unpkg.com/@phosphor-icons/web@2.1.1/src/regular/style.css" />
+    <link rel="stylesheet" href="https://unpkg.com/@phosphor-icons/web@2.1.1/src/duotone/style.css" />
     <link rel="stylesheet" href="/css/style.css" />
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-    <script src="https://unpkg.com/lucide@latest"></script>
     <script src="/js/config.js"></script>
     <script src="/js/supabase.js"></script>
     <script src="/js/auth.js"></script>
@@ -41,133 +42,127 @@
   <body data-require="admin">
     <a href="#main" class="skip-link" data-i18n="nav.skip">Skip to main content</a>
     <header class="topbar" x-data="topBar">
-      <div class="container-page flex min-h-16 flex-wrap items-center gap-x-1 gap-y-2 py-2 sm:gap-x-3">
-        <a href="/" class="flex items-center gap-2 rounded-sm font-bold text-primary focus-visible:outline-2 focus-visible:outline-primary" aria-label="KampongShare home" data-i18n-attr="aria-label:nav.homeLink">
+      <div class="container-page flex min-h-16 items-center gap-2 py-2">
+        <a href="/" class="flex min-h-11 items-center gap-2 rounded-sm font-bold text-primary" aria-label="KampongShare home" data-i18n-attr="aria-label:nav.homeLink">
           <img src="/img/favicon.svg" alt="" class="size-8" />
-          <span class="hidden sm:inline">KampongShare</span>
+          <span class="hidden sm:inline" translate="no">KampongShare</span>
         </a>
-        <!-- the logged-in person's own name (only they see it) -->
-        <span class="max-w-16 truncate rounded-full bg-primary-soft px-2.5 py-1 text-xs font-semibold text-primary min-[400px]:max-w-24 sm:max-w-48"
-          x-show="profile?.full_name" x-cloak :title="profile?.full_name"><span class="sr-only" data-i18n="nav.loggedInAs">Logged in as</span> <span x-text="profile?.full_name"></span></span>
         <!-- pushes the links and buttons to the right -->
         <span class="flex-1" aria-hidden="true"></span>
-        <!-- Desktop links (phones use the bottom navigation) -->
-        <nav class="hidden items-center gap-1 sm:flex" aria-label="Site" data-i18n-attr="aria-label:nav.site" x-show="ready" x-cloak>
+        <!-- Desktop links (phones and tablets use the bottom bar) -->
+        <nav class="hidden items-center gap-1 lg:flex" aria-label="Site" data-i18n-attr="aria-label:nav.site" x-show="ready" x-cloak>
           <template x-for="link in topLinks" :key="link.href">
-            <a :href="link.href" class="top-link gap-2" :aria-current="isCurrent(link.href) ? 'page' : null">
+            <a :href="link.href" class="top-link" :aria-current="isCurrent(link.href) ? 'page' : null">
               <span x-text="$t(link.labelKey)"></span>
-              <span class="badge badge-warning" x-show="link.badge" x-text="link.badge" :aria-label="$t('nav.waiting', { count: link.badge })"></span>
+              <span class="tab-count" x-show="link.badge" x-text="link.badge" :aria-label="$t('nav.waiting', { count: link.badge })"></span>
             </a>
           </template>
         </nav>
-        <nav class="segmented order-last w-full sm:order-none sm:w-auto" aria-label="Switch between donating and volunteering" data-i18n-attr="aria-label:nav.switchRole" x-show="canSwitch" x-cloak>
-          <a href="/donor.html" class="segmented-link" :aria-current="here('/donor.html') ? 'page' : null" data-i18n="nav.donating">Donating</a>
-          <a href="/volunteer.html" class="segmented-link" :aria-current="here('/volunteer.html') ? 'page' : null" data-i18n="nav.volunteering">Volunteering</a>
-        </nav>
-        <!-- Language: English / 中文 / Bahasa Melayu (js/i18n.js) -->
-        <div class="relative" x-data="langMenu" @keydown.escape="close(true)" @click.outside="close(false)">
-          <button type="button" x-ref="langButton" class="btn btn-ghost icon-btn min-w-11 gap-1.5 px-2" :aria-label="buttonLabel" aria-label="Language / 语言 / Bahasa"
-            aria-haspopup="menu" :aria-expanded="open.toString()" aria-controls="lang-menu" @click="toggle()">
-            <i data-lucide="globe" class="size-5" aria-hidden="true"></i>
-            <span class="text-sm sm:hidden" :lang="current.htmlLang" x-text="current.short"></span>
-            <span class="hidden text-sm sm:inline" :lang="current.htmlLang" x-text="current.name"></span>
-          </button>
-          <div id="lang-menu" class="menu w-48" role="menu" aria-label="Language / 语言 / Bahasa" x-show="open" x-cloak @keydown.down.prevent="move(1)" @keydown.up.prevent="move(-1)">
-            <template x-for="option in options" :key="option.code">
-              <button type="button" class="menu-item gap-2" role="menuitemradio" :lang="option.htmlLang" :aria-checked="(lang === option.code).toString()" @click="pick(option.code)">
-                <span class="flex-1" x-text="option.name"></span>
-                <span class="text-primary" x-show="lang === option.code"><i data-lucide="check" class="size-4" aria-hidden="true"></i></span>
-              </button>
-            </template>
-          </div>
-        </div>
-        <!-- Theme: System / Light / Dark (js/theme.js) -->
-        <div class="relative" x-data="themeMenu" @keydown.escape="close(true)" @click.outside="close(false)">
-          <button type="button" x-ref="themeButton" class="btn btn-ghost icon-btn size-11 px-0" :aria-label="$t('theme.button', { name: label })" aria-label="Theme"
-            aria-haspopup="menu" :aria-expanded="open.toString()" aria-controls="theme-menu" @click="toggle()">
-            <span x-show="choice === 'system'"><i data-lucide="monitor" class="size-5" aria-hidden="true"></i></span>
-            <span x-show="choice === 'light'" x-cloak><i data-lucide="sun" class="size-5" aria-hidden="true"></i></span>
-            <span x-show="choice === 'dark'" x-cloak><i data-lucide="moon" class="size-5" aria-hidden="true"></i></span>
-          </button>
-          <div id="theme-menu" class="menu w-40" role="menu" aria-label="Theme" data-i18n-attr="aria-label:theme.menu" x-show="open" x-cloak @keydown.down.prevent="move(1)" @keydown.up.prevent="move(-1)">
-            <template x-for="option in options" :key="option.value">
-              <button type="button" class="menu-item gap-2" role="menuitemradio" :aria-checked="(choice === option.value).toString()" @click="pick(option.value)">
-                <span x-show="option.icon === 'monitor'"><i data-lucide="monitor" class="size-4" aria-hidden="true"></i></span>
-                <span x-show="option.icon === 'sun'"><i data-lucide="sun" class="size-4" aria-hidden="true"></i></span>
-                <span x-show="option.icon === 'moon'"><i data-lucide="moon" class="size-4" aria-hidden="true"></i></span>
-                <span class="flex-1" x-text="$t(`theme.${option.value}`)"></span>
-                <span class="text-primary" x-show="choice === option.value"><i data-lucide="check" class="size-4" aria-hidden="true"></i></span>
-              </button>
-            </template>
-          </div>
-        </div>
-        <nav class="flex items-center gap-1" aria-label="Account" data-i18n-attr="aria-label:nav.account" x-show="ready && !profile" x-cloak>
-          <a href="/login.html" class="btn btn-ghost hidden px-3 sm:inline-flex" data-i18n="nav.logIn">Log in</a>
-          <a href="/signup.html" class="btn btn-primary px-4" data-i18n="nav.signUp">Sign up</a>
-        </nav>
+        <!-- visitors: Log in · Sign up -->
+        <a href="/login.html" class="btn btn-quiet hidden sm:inline-flex" x-show="ready && !profile" x-cloak data-i18n="nav.logIn">Log in</a>
+        <a href="/signup.html" class="btn btn-primary px-4" x-show="ready && !profile" x-cloak data-i18n="nav.signUp">Sign up</a>
         <!-- Messages with the unread count (js/messaging.js): individuals and organizations -->
-        <a href="/messages.html" class="btn btn-ghost icon-btn relative size-11 px-0" x-show="showMessages" x-cloak
+        <a href="/messages.html" class="icon-btn relative" x-show="showMessages" x-cloak
           :aria-current="here('/messages.html') ? 'page' : null" aria-label="Messages"
           :aria-label="unread ? $t('nav.messagesUnread', { count: unread }) : $t('nav.messages')">
-          <i data-lucide="message-circle" class="size-5" aria-hidden="true"></i>
+          <i class="ph ph-chat-circle" aria-hidden="true"></i>
           <span class="nav-count" x-show="unread" x-cloak x-text="unread > 99 ? '99+' : unread" aria-hidden="true"></span>
         </a>
-        <div class="relative" x-show="profile" x-cloak @keydown.escape="if (open) { open = false; $refs.accountButton.focus() }" @click.outside="open = false">
-          <button type="button" x-ref="accountButton" class="btn btn-secondary min-w-11 px-2 sm:px-4" :aria-expanded="open.toString()" aria-controls="account-menu" @click="open = !open">
-            <!-- phones: an icon (the name is still read out), so the top bar fits on one row -->
-            <i data-lucide="user-round" class="size-5 sm:hidden" aria-hidden="true"></i>
-            <span class="sr-only sm:not-sr-only" data-i18n="nav.account">Account</span>
+        <!-- Avatar menu (logged in) or settings menu (visitors): theme, language, profile, switch, log out -->
+        <div class="relative" x-data="accountMenu" @keydown.escape="close(true)" @click.outside="close(false)">
+          <button type="button" x-ref="menuButton" class="icon-btn gap-1" :class="profile ? '' : 'w-auto px-3'" :aria-label="buttonLabel"
+            aria-label="Settings · Language / 语言 / Bahasa" aria-haspopup="menu" :aria-expanded="open.toString()" aria-controls="account-menu" @click="toggle()">
+            <span class="avatar" x-show="profile" x-cloak x-text="initial" aria-hidden="true"></span>
+            <i class="ph ph-gear-six" x-show="!profile" aria-hidden="true"></i>
+            <span class="text-sm font-bold" x-show="!profile" :lang="language.htmlLang" x-text="language.short" aria-hidden="true"></span>
           </button>
-          <div id="account-menu" class="menu" x-show="open" x-cloak>
-            <a :href="dashboard" href="/" class="menu-item sm:hidden" data-i18n="nav.myDashboard">My dashboard</a>
-            <a href="/profile.html" class="menu-item" data-i18n="nav.myProfile">My profile</a>
-            <button type="button" class="menu-item" @click="logout()" data-i18n="nav.logOut">Log out</button>
+          <div id="account-menu" class="menu w-64" role="menu" :aria-label="buttonLabel" x-show="open" x-cloak
+            @keydown.down.prevent="move(1)" @keydown.up.prevent="move(-1)" @keydown.home.prevent="moveTo(0)" @keydown.end.prevent="moveTo(-1)">
+            <template x-if="profile">
+              <div role="none">
+                <p class="menu-heading font-bold break-words text-ink" aria-hidden="true" x-text="profile.full_name"></p>
+                <div role="group" :aria-label="profile.full_name">
+                  <a :href="dashboard" class="menu-item" role="menuitem" x-show="!canSwitch"><i class="ph ph-squares-four" aria-hidden="true"></i><span data-i18n="nav.myDashboard">My dashboard</span></a>
+                  <a href="/donor.html" class="menu-item" role="menuitem" x-show="canSwitch" :aria-current="here('/donor.html') ? 'page' : null"><i class="ph ph-hand-heart" aria-hidden="true"></i><span data-i18n="nav.donating">Donating</span></a>
+                  <a href="/volunteer.html" class="menu-item" role="menuitem" x-show="canSwitch" :aria-current="here('/volunteer.html') ? 'page' : null"><i class="ph ph-users" aria-hidden="true"></i><span data-i18n="nav.volunteering">Volunteering</span></a>
+                  <a href="/profile.html" class="menu-item" role="menuitem" :aria-current="here('/profile.html') ? 'page' : null"><i class="ph ph-user" aria-hidden="true"></i><span data-i18n="nav.myProfile">My profile</span></a>
+                </div>
+                <div class="menu-separator" role="separator"></div>
+              </div>
+            </template>
+            <p class="menu-heading" aria-hidden="true" data-i18n="theme.menu">Theme</p>
+            <div role="group" aria-label="Theme" data-i18n-attr="aria-label:theme.menu">
+              <template x-for="option in themeOptions" :key="option.value">
+                <button type="button" class="menu-item" role="menuitemradio" :aria-checked="(theme === option.value).toString()" @click="pickTheme(option.value)">
+                  <i :class="option.icon" aria-hidden="true"></i>
+                  <span class="flex-1" x-text="$t(`theme.${option.value}`)"></span>
+                  <i class="ph ph-check text-primary" x-show="theme === option.value" aria-hidden="true"></i>
+                </button>
+              </template>
+            </div>
+            <div class="menu-separator" role="separator"></div>
+            <p class="menu-heading" aria-hidden="true">Language / 语言 / Bahasa</p>
+            <div role="group" aria-label="Language / 语言 / Bahasa">
+              <template x-for="option in languages" :key="option.code">
+                <button type="button" class="menu-item" role="menuitemradio" :lang="option.htmlLang" :aria-checked="(lang === option.code).toString()" @click="pickLang(option.code)">
+                  <i class="ph ph-globe" aria-hidden="true"></i>
+                  <span class="flex-1" x-text="option.name"></span>
+                  <i class="ph ph-check text-primary" x-show="lang === option.code" aria-hidden="true"></i>
+                </button>
+              </template>
+            </div>
+            <template x-if="profile">
+              <div role="none">
+                <div class="menu-separator" role="separator"></div>
+                <button type="button" class="menu-item" role="menuitem" @click="logout()"><i class="ph ph-sign-out" aria-hidden="true"></i><span data-i18n="nav.logOut">Log out</span></button>
+              </div>
+            </template>
           </div>
         </div>
       </div>
-        <nav class="bottom-nav" aria-label="Main" data-i18n-attr="aria-label:nav.main" x-show="ready" x-cloak>
-          <template x-for="link in bottomLinks" :key="link.href">
-            <a :href="link.href" class="bottom-nav-link" :aria-current="isCurrent(link.href) ? 'page' : null">
-              <i :data-lucide="link.icon" class="size-5" aria-hidden="true"></i>
-              <span x-text="$t(link.labelKey)"></span>
-            </a>
-          </template>
-        </nav>
+      <nav class="bottom-nav" aria-label="Main" data-i18n-attr="aria-label:nav.main" x-show="ready" x-cloak>
+        <template x-for="link in bottomLinks" :key="link.href">
+          <a :href="link.href" class="bottom-nav-link" :aria-current="isCurrent(link.href) ? 'page' : null">
+            <i :class="link.icon" aria-hidden="true"></i>
+            <span x-text="$t(link.labelKey)"></span>
+          </a>
+        </template>
+      </nav>
     </header>
 
     <main id="main" tabindex="-1" class="container-page space-y-6 py-8 focus:outline-none" x-data="adminDashboard">
       <div>
-        <h1 class="text-2xl font-bold sm:text-3xl" data-i18n="admin.title">Admin dashboard</h1>
-        <p class="mt-1 text-muted" data-i18n="admin.intro">Review what's waiting, and keep an eye on what's happening. Use Overview, To review and Browse in the top bar.</p>
+        <h1 class="title" data-i18n="admin.title">Admin dashboard</h1>
+        <p class="mt-1 text-muted" data-i18n="admin.intro">Review what's waiting, and keep an eye on what's happening.</p>
       </div>
 
       <!-- ===================== Overview ===================== -->
       <section id="panel-overview" aria-labelledby="overview-heading" class="space-y-8" x-show="tab === 'overview'">
-        <h2 id="overview-heading" class="text-2xl font-semibold" data-i18n="nav.overview">Overview</h2>
+        <h2 id="overview-heading" class="section-title" data-i18n="nav.overview">Overview</h2>
         <!-- Waiting for review -->
         <div class="space-y-3">
-          <h3 class="text-xl font-semibold" data-i18n="admin.waitingForReview">Waiting for review</h3>
+          <h3 class="section-title" data-i18n="admin.waitingForReview">Waiting for review</h3>
           <div class="grid grid-cols-2 gap-3 lg:grid-cols-5">
             <template x-for="kind in reviewKinds" :key="kind.value">
               <a :href="`#review/${kind.value}`" class="card block p-4 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary">
-                <span class="block text-sm text-muted" x-text="kind.label"></span>
+                <span class="stat-label" x-text="kind.label"></span>
                 <template x-if="reviewLoading">
                   <span class="skeleton mt-2 block h-8 w-12" aria-hidden="true"></span>
                 </template>
                 <template x-if="!reviewLoading">
-                  <span class="mt-1 block text-3xl font-bold" x-text="reviewCount(kind.value)"></span>
+                  <span class="stat-number" x-text="reviewCount(kind.value)"></span>
                 </template>
                 <span class="sr-only" data-i18n="admin.openList">waiting — open the list</span>
               </a>
             </template>
             <!-- reported messages (in Browse, not part of the review total) -->
             <a href="#browse/reports" class="card block p-4 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary">
-              <span class="block text-sm text-muted" data-i18n="admin.reportedMessages">Reported messages</span>
+              <span class="stat-label" data-i18n="admin.reportedMessages">Reported messages</span>
               <template x-if="openReports === null">
                 <span class="skeleton mt-2 block h-8 w-12" aria-hidden="true"></span>
               </template>
               <template x-if="openReports !== null">
-                <span class="mt-1 block text-3xl font-bold" x-text="openReports"></span>
+                <span class="stat-number" x-text="openReports"></span>
               </template>
               <span class="sr-only" data-i18n="admin.openReportsList">open reports — open the list</span>
             </a>
@@ -180,25 +175,25 @@
 
         <!-- Deadlines (REQUIREMENTS 11): open requests past their deadline, events that ended but aren't completed -->
         <div class="space-y-3">
-          <h3 class="text-xl font-semibold" data-i18n="deadlines.adminHeading">Past their date</h3>
+          <h3 class="section-title" data-i18n="deadlines.adminHeading">Past their date</h3>
           <div class="grid grid-cols-2 gap-3 lg:grid-cols-5">
             <a href="#browse/requests?view=active&filter=past_deadline" class="card block p-4 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary">
-              <span class="block text-sm text-muted" data-i18n="deadlines.deadlinePassed">Deadline passed</span>
+              <span class="stat-label" data-i18n="deadlines.deadlinePassed">Deadline passed</span>
               <template x-if="deadlineCounts === null">
                 <span class="skeleton mt-2 block h-8 w-12" aria-hidden="true"></span>
               </template>
               <template x-if="deadlineCounts !== null">
-                <span class="mt-1 block text-3xl font-bold" x-text="deadlineCounts.pastDeadline"></span>
+                <span class="stat-number" x-text="deadlineCounts.pastDeadline"></span>
               </template>
               <span class="sr-only" data-i18n="deadlines.pastDeadlineList">open requests — open the list</span>
             </a>
             <a href="#browse/events?view=active&filter=ended" class="card block p-4 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary">
-              <span class="block text-sm text-muted" data-i18n="deadlines.endedNotCompleted">Ended, not completed</span>
+              <span class="stat-label" data-i18n="deadlines.endedNotCompleted">Ended, not completed</span>
               <template x-if="deadlineCounts === null">
                 <span class="skeleton mt-2 block h-8 w-12" aria-hidden="true"></span>
               </template>
               <template x-if="deadlineCounts !== null">
-                <span class="mt-1 block text-3xl font-bold" x-text="deadlineCounts.endedEvents"></span>
+                <span class="stat-number" x-text="deadlineCounts.endedEvents"></span>
               </template>
               <span class="sr-only" data-i18n="deadlines.endedList">events — open the list</span>
             </a>
@@ -208,23 +203,23 @@
         <div class="grid gap-6 lg:grid-cols-2">
           <!-- Waiting longest -->
           <div class="card space-y-3">
-            <h3 class="text-lg font-semibold" data-i18n="admin.waitingLongest">Waiting longest</h3>
+            <h3 class="card-title" data-i18n="admin.waitingLongest">Waiting longest</h3>
             <div class="space-y-2" x-show="reviewLoading" role="status"><span class="sr-only" data-i18n="common.loading">Loading…</span>
               <div class="skeleton h-5 w-2/3"></div><div class="skeleton h-5 w-1/2"></div>
             </div>
             <p class="flex items-center gap-2 text-muted" x-show="!reviewLoading && !reviewError && waitingLongest.length === 0" x-cloak>
-              <i data-lucide="circle-check" class="size-5 text-success" aria-hidden="true"></i> <span data-i18n="admin.allCaughtUp">All caught up</span>
+              <i class="ph ph-check-circle size-5 text-primary" aria-hidden="true"></i> <span data-i18n="admin.allCaughtUp">All caught up</span>
             </p>
             <ul class="divide-y divide-line" x-show="!reviewLoading && waitingLongest.length">
               <template x-for="item in waitingLongest" :key="item.key">
                 <li>
                   <a :href="`#review/${item.kind}?item=${item.id}`" class="-mx-2 flex flex-wrap items-center justify-between gap-2 rounded-md px-2 py-3 hover:bg-canvas focus-visible:outline-2 focus-visible:outline-primary">
                     <span class="min-w-0">
-                      <span class="badge badge-neutral" x-text="item.typeLabel"></span>
-                      <span class="ml-1 font-semibold break-words" x-text="item.title"></span>
+                      <span class="badge badge-plain" x-text="item.typeLabel"></span>
+                      <span class="ml-1 font-bold break-words" x-text="item.title"></span>
                       <span class="block text-sm text-muted" x-text="item.sender"></span>
                     </span>
-                    <span class="text-sm font-medium text-warning" x-text="waitingText(item.createdAt)"></span>
+                    <span class="text-sm text-warning" x-text="waitingText(item.createdAt)"></span>
                   </a>
                 </li>
               </template>
@@ -233,7 +228,7 @@
 
           <!-- Recently closed or cancelled -->
           <div class="card space-y-3">
-            <h3 class="text-lg font-semibold" data-i18n="admin.recentTitle">Recently closed or cancelled</h3>
+            <h3 class="card-title" data-i18n="admin.recentTitle">Recently closed or cancelled</h3>
             <p class="text-sm text-muted" data-i18n="admin.recentText">The last 7 days.</p>
             <div class="space-y-2" x-show="recentLoading" role="status"><span class="sr-only" data-i18n="common.loading">Loading…</span>
               <div class="skeleton h-5 w-2/3"></div><div class="skeleton h-5 w-1/2"></div>
@@ -246,7 +241,7 @@
             <ul class="divide-y divide-line" x-show="!recentLoading && recent.length">
               <template x-for="row in recent" :key="`${row.type}-${row.id}`">
                 <li class="py-3">
-                  <p class="text-sm font-semibold break-words"><span class="text-muted" x-text="$t('admin.typeLine', { type: row.type })"></span><span x-text="row.title"></span></p>
+                  <p class="text-sm font-bold break-words"><span class="text-muted" x-text="$t('admin.typeLine', { type: row.type })"></span><span x-text="row.title"></span></p>
                   <p class="text-sm text-muted break-words" x-text="[row.detail, row.whenText].filter(Boolean).join(' · ')"></p>
                   <p class="text-sm break-words" x-show="row.reason" x-text="$t('admin.reasonLine', { reason: row.reason })"></p>
                 </li>
@@ -257,16 +252,16 @@
 
         <!-- Impact numbers (public_stats) -->
         <div class="space-y-3">
-          <h3 class="text-xl font-semibold" data-i18n="admin.impactTitle">Impact so far</h3>
+          <h3 class="section-title" data-i18n="admin.impactTitle">Impact so far</h3>
           <div class="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">
             <template x-for="card in statCards" :key="card.key">
               <div class="card p-4">
-                <p class="text-sm text-muted" x-text="card.label"></p>
+                <p class="stat-label" x-text="card.label"></p>
                 <template x-if="!stats">
                   <div class="skeleton mt-2 h-8 w-16" aria-hidden="true"></div>
                 </template>
                 <template x-if="stats">
-                  <p class="mt-1 text-2xl font-bold" x-text="formatNumber(stats[card.key])"></p>
+                  <p class="stat-number" x-text="formatNumber(stats[card.key])"></p>
                 </template>
               </div>
             </template>
@@ -277,7 +272,7 @@
 
       <!-- ===================== To review ===================== -->
       <section id="panel-review" aria-labelledby="review-heading" class="space-y-4" x-show="tab === 'review'" x-cloak>
-        <h2 id="review-heading" class="text-2xl font-semibold" data-i18n="nav.toReview">To review</h2>
+        <h2 id="review-heading" class="section-title" data-i18n="nav.toReview">To review</h2>
         <div class="tablist" role="tablist" aria-label="What to review" data-i18n-attr="aria-label:admin.whatToReview" @keydown="onTabKey($event)">
           <template x-for="kind in reviewKinds" :key="kind.value">
             <button type="button" class="tab" role="tab" :id="`subtab-review-${kind.value}`" aria-controls="review-list"
@@ -290,30 +285,30 @@
         </div>
 
         <div id="review-list" role="tabpanel" :aria-labelledby="`subtab-review-${reviewKind}`" class="space-y-4">
-          <div class="grid gap-4 md:grid-cols-2" x-show="reviewLoading" role="status"><span class="sr-only" data-i18n="admin.loadingWaiting">Loading what's waiting…</span>
+          <div class="grid gap-4 sm:grid-cols-2" x-show="reviewLoading" role="status"><span class="sr-only" data-i18n="admin.loadingWaiting">Loading what's waiting…</span>
             <div class="card space-y-3"><div class="skeleton h-5 w-24"></div><div class="skeleton h-6 w-2/3"></div><div class="skeleton h-4 w-1/2"></div></div>
             <div class="card space-y-3"><div class="skeleton h-5 w-24"></div><div class="skeleton h-6 w-1/2"></div><div class="skeleton h-4 w-2/3"></div></div>
           </div>
-          <div class="card text-center" x-show="!reviewLoading && reviewError" x-cloak role="alert">
+          <div class="empty" x-show="!reviewLoading && reviewError" x-cloak role="alert">
             <p class="text-danger" x-text="reviewError"></p>
             <button type="button" class="btn btn-secondary mt-3" @click="loadReview()" data-i18n="common.tryAgain">Try again</button>
           </div>
-          <div class="card flex flex-col items-center gap-3 py-10 text-center" x-show="!reviewLoading && !reviewError && review[reviewKind].length === 0" x-cloak>
-            <i data-lucide="circle-check" class="size-10 text-success" aria-hidden="true"></i>
-            <p class="font-semibold" data-i18n="admin.allCaughtUp">All caught up</p>
+          <div class="empty" x-show="!reviewLoading && !reviewError && review[reviewKind].length === 0" x-cloak>
+            <img src="/img/pinny-looking.svg" alt="" />
+            <p class="font-bold" data-i18n="admin.allCaughtUp">All caught up</p>
             <p class="text-sm text-muted" data-i18n="admin.nothingWaiting">Nothing is waiting here right now.</p>
           </div>
 
           <!-- One shared review card for every kind -->
-          <div class="grid gap-4 md:grid-cols-2" x-show="!reviewLoading && !reviewError">
+          <div class="grid gap-4 sm:grid-cols-2 lg:grid-cols-3" x-show="!reviewLoading && !reviewError">
             <template x-for="item in review[reviewKind]" :key="item.key">
               <article class="card flex flex-col gap-3">
                 <div class="flex flex-wrap items-center gap-2">
-                  <span class="badge badge-neutral" x-text="item.typeLabel"></span>
-                  <span class="text-sm font-medium text-warning" x-text="waitingText(item.createdAt)"></span>
+                  <span class="badge badge-plain" x-text="item.typeLabel"></span>
+                  <span class="text-sm text-warning" x-text="waitingText(item.createdAt)"></span>
                 </div>
                 <div class="min-w-0">
-                  <h3 class="text-lg font-semibold break-words" x-text="item.title"></h3>
+                  <h3 class="card-title break-words" x-text="item.title"></h3>
                   <p class="text-sm text-muted break-words" x-text="item.sender"></p>
                 </div>
                 <dl class="grid grid-cols-[max-content_1fr] gap-x-3 gap-y-1 text-sm">
@@ -325,7 +320,7 @@
                   </template>
                 </dl>
                 <div class="mt-auto flex flex-wrap gap-2 pt-1">
-                  <button type="button" class="btn btn-ghost px-3" :id="`view-${item.key}`" @click="openPanel(item, $el)"
+                  <button type="button" class="btn btn-quiet px-3" :id="`view-${item.key}`" @click="openPanel(item, $el)"
                     :aria-label="$t('admin.viewDetailsOf', { title: item.title })" data-i18n="admin.viewDetails">View details</button>
                   <button type="button" class="btn btn-danger" :disabled="busyId === item.id" @click="reject(item)" :aria-label="$t('admin.rejectItem', { title: item.title })" data-i18n="common.reject">Reject</button>
                   <button type="button" class="btn btn-primary" :disabled="busyId === item.id" @click="approve(item)" :aria-label="$t('admin.approveItem', { title: item.title })">
@@ -341,7 +336,7 @@
 
       <!-- ===================== Browse ===================== -->
       <section id="panel-browse" aria-labelledby="browse-heading" class="space-y-4" x-show="tab === 'browse'" x-cloak>
-        <h2 id="browse-heading" tabindex="-1" class="text-2xl font-semibold" data-i18n="nav.browse">Browse</h2>
+        <h2 id="browse-heading" tabindex="-1" class="section-title" data-i18n="nav.browse">Browse</h2>
         <div class="tablist" role="tablist" aria-label="What to browse" data-i18n-attr="aria-label:admin.whatToBrowse" @keydown="onTabKey($event)">
           <template x-for="kind in browseKinds" :key="kind.value">
             <button type="button" class="tab" role="tab" :id="`subtab-browse-${kind.value}`" aria-controls="browse-list"
@@ -351,11 +346,11 @@
         </div>
 
         <div id="browse-list" role="tabpanel" :aria-labelledby="`subtab-browse-${browseKind}`" class="space-y-4">
-          <p class="flex items-start gap-2 rounded-md bg-info-soft p-3 text-sm text-info" x-show="browseKind === 'reports'" x-cloak>
-            <i data-lucide="lock" class="mt-0.5 size-4 shrink-0" aria-hidden="true"></i>
+          <p class="flex items-start gap-2 note" x-show="browseKind === 'reports'" x-cloak>
+            <i class="ph ph-lock-simple mt-1 size-4 shrink-0" aria-hidden="true"></i>
             <span data-i18n="admin.reportsNote">You can only read messages that someone reported. The rest of each conversation stays private between the two people in it.</span>
           </p>
-          <div class="flex flex-wrap items-center justify-between gap-3 rounded-md border border-warning bg-warning-soft p-3 text-sm text-warning" x-show="browseFilter" x-cloak role="status">
+          <div class="flex flex-wrap items-center justify-between gap-3 rounded-md bg-warning-soft p-3 text-sm text-warning" x-show="browseFilter" x-cloak role="status">
             <p x-text="browseFilter === 'past_deadline' ? $t('deadlines.showingPastDeadline') : $t('deadlines.showingEnded')"></p>
             <button type="button" class="btn btn-secondary min-h-11 px-3" @click="clearBrowseFilter()" data-i18n="deadlines.clearFilter">Show all</button>
           </div>
@@ -368,7 +363,7 @@
             <div class="w-full lg:w-72">
               <label for="browse-search" class="label" data-i18n="admin.search">Search by name or title</label>
               <div class="search-field">
-                <i data-lucide="search" aria-hidden="true"></i>
+                <i class="ph ph-magnifying-glass" aria-hidden="true"></i>
                 <input id="browse-search" class="input" type="search" maxlength="100" autocomplete="off" x-model="browseSearch" @input="onSearchInput()" />
               </div>
             </div>
@@ -377,13 +372,13 @@
           <div class="card space-y-3" x-show="browse.loading && browse.items.length === 0" role="status"><span class="sr-only" data-i18n="common.loading">Loading…</span>
             <div class="skeleton h-5 w-2/3"></div><div class="skeleton h-5 w-1/2"></div><div class="skeleton h-5 w-3/4"></div>
           </div>
-          <div class="card text-center" x-show="!browse.loading && browse.error" x-cloak role="alert">
+          <div class="empty" x-show="!browse.loading && browse.error" x-cloak role="alert">
             <p class="text-danger" x-text="browse.error"></p>
             <button type="button" class="btn btn-secondary mt-3" @click="browse.load()" data-i18n="common.tryAgain">Try again</button>
           </div>
-          <div class="card flex flex-col items-center gap-3 py-10 text-center" x-show="browse.loaded && !browse.loading && !browse.error && browse.items.length === 0" x-cloak>
-            <i data-lucide="search" class="size-10 text-primary" aria-hidden="true"></i>
-            <p class="text-muted" x-text="browseSearch.trim() ? $t('admin.noSearchMatch') : $t('admin.nothingYet')"></p>
+          <div class="empty" x-show="browse.loaded && !browse.loading && !browse.error && browse.items.length === 0" x-cloak>
+            <img src="/img/pinny-looking.svg" alt="" />
+            <p x-text="browseSearch.trim() ? $t('admin.noSearchMatch') : $t('admin.nothingYet')"></p>
           </div>
 
           <!-- Phones: cards -->
@@ -392,25 +387,25 @@
               <li class="card space-y-2">
                 <div class="flex flex-wrap items-start justify-between gap-2">
                   <div class="min-w-0">
-                    <span class="block text-xs font-medium text-muted" x-show="row.statusKind === 'report'" data-i18n="admin.originalMessage">Original message</span>
-                    <p class="font-semibold break-words" x-text="row.title" :lang="row.statusKind === 'report' ? reportLang(row) : null"></p>
+                    <span class="block text-sm text-muted" x-show="row.statusKind === 'report'" data-i18n="admin.originalMessage">Original message</span>
+                    <p class="font-bold break-words" x-text="row.title" :lang="row.statusKind === 'report' ? reportLang(row) : null"></p>
                     <template x-if="row.statusKind === 'report'">
                       <div class="mt-1 space-y-1 text-sm font-normal">
                         <template x-if="reportTranslation(row)?.status === 'translated'">
                           <div>
-                            <span class="flex flex-wrap items-center gap-2 text-xs font-medium text-muted"><span x-text="translationLabel()"></span> <span class="badge badge-ai" data-i18n="common.aiSuggested">AI-suggested</span></span>
+                            <span class="flex flex-wrap items-center gap-2 text-sm text-muted"><span x-text="translationLabel()"></span> <span class="badge badge-ai" data-i18n="common.aiSuggested">AI-suggested</span></span>
                             <span class="block break-words text-ink" x-text="reportTranslation(row).text" :lang="htmlLangOf(getLang())"></span>
                           </div>
                         </template>
-                        <p class="text-xs text-muted" x-show="reportTranslation(row)?.status === 'pending'" data-i18n="messages.translating">Translating…</p>
-                        <p class="text-xs text-muted" x-show="reportTranslation(row)?.status === 'unavailable'" data-i18n="messages.translationUnavailable">Translation unavailable</p>
+                        <p class="text-sm text-muted" x-show="reportTranslation(row)?.status === 'pending'" data-i18n="messages.translating">Translating…</p>
+                        <p class="text-sm text-muted" x-show="reportTranslation(row)?.status === 'unavailable'" data-i18n="messages.translationUnavailable">Translation unavailable</p>
                       </div>
                     </template>
                   </div>
                   <span :class="statusInfo(row.status, row.statusKind).className" x-text="statusInfo(row.status, row.statusKind).label"></span>
                 </div>
                 <p class="text-sm text-muted break-words" x-show="row.detail" x-text="row.detail"></p>
-                <p class="text-xs text-muted" x-text="row.whenText"></p>
+                <p class="text-sm text-muted" x-text="row.whenText"></p>
                 <p class="text-sm break-words" x-show="row.reason" x-text="row.reason"></p>
                 <div class="flex flex-wrap gap-2" x-show="rowActions(row).length">
                   <template x-for="action in rowActions(row)" :key="action">
@@ -428,29 +423,29 @@
               <caption class="sr-only" x-text="$t('admin.tableCaption', { kind: browseKinds.find((k) => k.value === browseKind)?.label ?? '' })"></caption>
               <thead class="border-b border-line text-muted">
                 <tr>
-                  <th scope="col" class="px-4 py-3 font-medium" data-i18n="admin.colName">Name</th>
-                  <th scope="col" class="px-4 py-3 font-medium" data-i18n="admin.colDetails">Details</th>
-                  <th scope="col" class="px-4 py-3 font-medium" data-i18n="admin.colStatus">Status</th>
-                  <th scope="col" class="px-4 py-3 font-medium" data-i18n="admin.colDate">Date</th>
-                  <th scope="col" class="px-4 py-3 font-medium"><span class="sr-only" data-i18n="admin.colActions">Actions</span></th>
+                  <th scope="col" class="px-4 py-3" data-i18n="admin.colName">Name</th>
+                  <th scope="col" class="px-4 py-3" data-i18n="admin.colDetails">Details</th>
+                  <th scope="col" class="px-4 py-3" data-i18n="admin.colStatus">Status</th>
+                  <th scope="col" class="px-4 py-3" data-i18n="admin.colDate">Date</th>
+                  <th scope="col" class="px-4 py-3"><span class="sr-only" data-i18n="admin.colActions">Actions</span></th>
                 </tr>
               </thead>
               <tbody x-ref="browseRows">
                 <template x-for="row in browse.items" :key="row.id">
                   <tr class="border-b border-line align-top last:border-0">
                     <td class="px-4 py-3 break-words">
-                      <span class="block text-xs font-medium text-muted" x-show="row.statusKind === 'report'" data-i18n="admin.originalMessage">Original message</span>
-                      <span class="font-semibold" x-text="row.title" :lang="row.statusKind === 'report' ? reportLang(row) : null"></span>
+                      <span class="block text-sm text-muted" x-show="row.statusKind === 'report'" data-i18n="admin.originalMessage">Original message</span>
+                      <span class="font-bold" x-text="row.title" :lang="row.statusKind === 'report' ? reportLang(row) : null"></span>
                       <template x-if="row.statusKind === 'report'">
                         <div class="mt-1 space-y-1 text-sm font-normal">
                           <template x-if="reportTranslation(row)?.status === 'translated'">
                             <div>
-                              <span class="flex flex-wrap items-center gap-2 text-xs font-medium text-muted"><span x-text="translationLabel()"></span> <span class="badge badge-ai" data-i18n="common.aiSuggested">AI-suggested</span></span>
+                              <span class="flex flex-wrap items-center gap-2 text-sm text-muted"><span x-text="translationLabel()"></span> <span class="badge badge-ai" data-i18n="common.aiSuggested">AI-suggested</span></span>
                               <span class="block break-words text-ink" x-text="reportTranslation(row).text" :lang="htmlLangOf(getLang())"></span>
                             </div>
                           </template>
-                          <p class="text-xs text-muted" x-show="reportTranslation(row)?.status === 'pending'" data-i18n="messages.translating">Translating…</p>
-                          <p class="text-xs text-muted" x-show="reportTranslation(row)?.status === 'unavailable'" data-i18n="messages.translationUnavailable">Translation unavailable</p>
+                          <p class="text-sm text-muted" x-show="reportTranslation(row)?.status === 'pending'" data-i18n="messages.translating">Translating…</p>
+                          <p class="text-sm text-muted" x-show="reportTranslation(row)?.status === 'unavailable'" data-i18n="messages.translationUnavailable">Translation unavailable</p>
                         </div>
                       </template>
                     </td>
@@ -487,11 +482,11 @@
       <!-- ===================== Details panel (side sheet; full screen on phones) ===================== -->
       <dialog id="details-panel" class="side-panel" aria-labelledby="panel-title" @close="onPanelClosed()" @click="onPanelClick($event)">
         <div class="flex min-h-full flex-col">
-          <div class="sticky top-0 z-10 flex items-center justify-between gap-3 border-b border-line bg-surface p-4">
-            <h2 id="panel-title" tabindex="-1" class="min-w-0 text-lg font-semibold break-words focus:outline-none"
+          <div class="sticky top-0 z-10 flex items-center justify-between gap-3 bg-surface p-4 shadow-sm">
+            <h2 id="panel-title" tabindex="-1" class="card-title min-w-0 break-words focus:outline-none"
               x-text="panelItem ? panelItem.title : editRow ? $t('admin.editRequest') : $t('admin.details')"></h2>
-            <button type="button" class="btn btn-ghost size-11 shrink-0 px-0" aria-label="Close details" data-i18n-attr="aria-label:admin.closeDetails" @click="closePanel()">
-              <i data-lucide="x" class="size-5" aria-hidden="true"></i>
+            <button type="button" class="icon-btn" aria-label="Close details" data-i18n-attr="aria-label:admin.closeDetails" @click="closePanel()">
+              <i class="ph ph-x size-5" aria-hidden="true"></i>
             </button>
           </div>
 
@@ -500,8 +495,8 @@
             <div class="flex flex-1 flex-col">
               <div class="flex-1 space-y-4 p-4">
                 <div class="flex flex-wrap items-center gap-2">
-                  <span class="badge badge-neutral" x-text="panelItem.typeLabel"></span>
-                  <span class="text-sm font-medium text-warning" x-text="waitingText(panelItem.createdAt)"></span>
+                  <span class="badge badge-plain" x-text="panelItem.typeLabel"></span>
+                  <span class="text-sm text-warning" x-text="waitingText(panelItem.createdAt)"></span>
                 </div>
                 <p class="text-sm text-muted" x-text="`${panelItem.sender} · ${formatDate(panelItem.createdAt)}`"></p>
 
@@ -510,18 +505,18 @@
                   <div class="space-y-4">
                     <p class="whitespace-pre-line break-words" x-show="panelItem.raw.description" x-text="panelItem.raw.description"></p>
                     <dl class="grid grid-cols-[max-content_1fr] gap-x-4 gap-y-2 text-sm">
-                      <dt class="font-medium text-muted" data-i18n="field.address">Address</dt>
+                      <dt class=" text-muted" data-i18n="field.address">Address</dt>
                       <dd class="break-words" x-text="panelItem.raw.address || '—'"></dd>
-                      <dt class="font-medium text-muted" data-i18n="field.postalCode">Postal code</dt>
+                      <dt class=" text-muted" data-i18n="field.postalCode">Postal code</dt>
                       <dd x-text="panelItem.raw.postal_code || '—'"></dd>
-                      <dt class="font-medium text-muted" data-i18n="field.organizationPhone">Organization phone</dt>
+                      <dt class=" text-muted" data-i18n="field.organizationPhone">Organization phone</dt>
                       <dd x-text="panelItem.raw.phone || '—'"></dd>
-                      <dt class="font-medium text-muted"><span data-i18n="field.owner">Owner</span> <span class="font-normal" data-i18n="admin.forReviewOnly">(for review only)</span></dt>
+                      <dt class=" text-muted"><span data-i18n="field.owner">Owner</span> <span class="font-normal" data-i18n="admin.forReviewOnly">(for review only)</span></dt>
                       <dd class="break-words" x-text="panelItem.raw.owner ? `${panelItem.raw.owner.full_name || $t('admin.noName')}${panelItem.raw.owner.phone ? ' · ' + panelItem.raw.owner.phone : ''}` : '—'"></dd>
                     </dl>
-                    <div id="panel-map" class="isolate h-56 overflow-hidden rounded-md border border-line" x-show="panelItem.raw.latitude != null"
+                    <div id="panel-map" class="isolate h-56 overflow-hidden rounded-md" x-show="panelItem.raw.latitude != null"
                       role="region" aria-label="Map pin for the organization's location" data-i18n-attr="aria-label:admin.orgMap"></div>
-                    <p class="rounded-md bg-canvas p-3 text-sm text-muted" x-show="panelItem.raw.latitude == null" data-i18n="admin.noPin">No map pin was added.</p>
+                    <p class="note" x-show="panelItem.raw.latitude == null" data-i18n="admin.noPin">No map pin was added.</p>
                   </div>
                 </template>
 
@@ -530,20 +525,20 @@
                   <div class="space-y-4">
                     <p class="whitespace-pre-line break-words" x-show="panelItem.raw.description" x-text="panelItem.raw.description"></p>
                     <dl class="grid grid-cols-[max-content_1fr] gap-x-4 gap-y-2 text-sm">
-                      <dt class="font-medium text-muted" data-i18n="field.urgency">Urgency</dt>
+                      <dt class=" text-muted" data-i18n="field.urgency">Urgency</dt>
                       <dd x-text="urgencyName(panelItem.raw.urgency)"></dd>
-                      <dt class="font-medium text-muted" data-i18n="field.deadline">Deadline</dt>
+                      <dt class=" text-muted" data-i18n="field.deadline">Deadline</dt>
                       <dd x-text="panelItem.raw.deadline ? formatDate(panelItem.raw.deadline) : $t('common.none')"></dd>
-                      <dt class="font-medium text-muted" data-i18n="field.dropoff">Drop-off</dt>
+                      <dt class=" text-muted" data-i18n="field.dropoff">Drop-off</dt>
                       <dd class="whitespace-pre-line break-words" x-text="panelItem.raw.dropoff_instructions || '—'"></dd>
                     </dl>
                     <table class="w-full text-left text-sm">
                       <caption class="sr-only" data-i18n="admin.itemsRequested">Items requested</caption>
                       <thead class="border-b border-line text-muted">
                         <tr>
-                          <th scope="col" class="py-2 pr-3 font-medium" data-i18n="field.item">Item</th>
-                          <th scope="col" class="py-2 pr-3 font-medium" data-i18n="field.category">Category</th>
-                          <th scope="col" class="py-2 text-right font-medium" data-i18n="field.quantity">Quantity</th>
+                          <th scope="col" class="py-2 pr-3" data-i18n="field.item">Item</th>
+                          <th scope="col" class="py-2 pr-3" data-i18n="field.category">Category</th>
+                          <th scope="col" class="py-2 text-right" data-i18n="field.quantity">Quantity</th>
                         </tr>
                       </thead>
                       <tbody>
@@ -564,16 +559,16 @@
                   <div class="space-y-4">
                     <p class="whitespace-pre-line break-words" x-show="panelItem.raw.description" x-text="panelItem.raw.description"></p>
                     <dl class="grid grid-cols-[max-content_1fr] gap-x-4 gap-y-2 text-sm">
-                      <dt class="font-medium text-muted" data-i18n="field.when">When</dt>
+                      <dt class=" text-muted" data-i18n="field.when">When</dt>
                       <dd x-text="formatEventTime(panelItem.raw.starts_at, panelItem.raw.ends_at)"></dd>
-                      <dt class="font-medium text-muted" data-i18n="field.place">Place</dt>
+                      <dt class=" text-muted" data-i18n="field.place">Place</dt>
                       <dd class="break-words" x-text="panelItem.raw.location_name || '—'"></dd>
-                      <dt class="font-medium text-muted" data-i18n="field.volunteersNeeded">Volunteers needed</dt>
+                      <dt class=" text-muted" data-i18n="field.volunteersNeeded">Volunteers needed</dt>
                       <dd x-text="panelItem.raw.volunteers_needed || $t('admin.noLimit')"></dd>
-                      <dt class="font-medium text-muted" data-i18n="field.linkedRequest">Linked request</dt>
+                      <dt class=" text-muted" data-i18n="field.linkedRequest">Linked request</dt>
                       <dd class="break-words" x-text="panelItem.raw.request?.title || $t('common.none')"></dd>
                     </dl>
-                    <div id="panel-map" class="isolate h-56 overflow-hidden rounded-md border border-line" role="region" aria-label="Map pin for the event's place" data-i18n-attr="aria-label:admin.eventMap"></div>
+                    <div id="panel-map" class="isolate h-56 overflow-hidden rounded-md" role="region" aria-label="Map pin for the event's place" data-i18n-attr="aria-label:admin.eventMap"></div>
                   </div>
                 </template>
 
@@ -581,19 +576,19 @@
                 <template x-if="panelItem.subkind === 'account'">
                   <div class="space-y-4">
                     <dl class="grid grid-cols-[max-content_1fr] gap-x-4 gap-y-2 text-sm">
-                      <dt class="font-medium text-muted"><span data-i18n="field.phone">Phone</span> <span class="font-normal" data-i18n="admin.forReviewOnly">(for review only)</span></dt>
+                      <dt class=" text-muted"><span data-i18n="field.phone">Phone</span> <span class="font-normal" data-i18n="admin.forReviewOnly">(for review only)</span></dt>
                       <dd x-text="panelItem.raw.phone || $t('common.notGiven')"></dd>
-                      <dt class="font-medium text-muted" data-i18n="field.area">Area</dt>
+                      <dt class=" text-muted" data-i18n="field.area">Area</dt>
                       <dd x-text="panelItem.raw.area ? areaLabel(panelItem.raw.area) : $t('common.notGiven')"></dd>
-                      <dt class="font-medium text-muted" data-i18n="field.available">Available</dt>
+                      <dt class=" text-muted" data-i18n="field.available">Available</dt>
                       <dd x-text="formatAvailability(panelItem.raw.available_days, panelItem.raw.available_times)"></dd>
-                      <dt class="font-medium text-muted" data-i18n="field.interests">Interests</dt>
+                      <dt class=" text-muted" data-i18n="field.interests">Interests</dt>
                       <dd class="break-words" x-text="enumList('interest', panelItem.raw.interests) || $t('common.notGiven')"></dd>
-                      <dt class="font-medium text-muted" data-i18n="field.skills">Skills</dt>
+                      <dt class=" text-muted" data-i18n="field.skills">Skills</dt>
                       <dd class="break-words" x-text="enumList('skill', panelItem.raw.skills) || $t('common.notGiven')"></dd>
                     </dl>
                     <p class="rounded-md bg-canvas p-3 text-sm" x-show="panelItem.raw.volunteer_note">
-                      <span class="font-medium" data-i18n="admin.earlierNote">Earlier note:</span> <span x-text="panelItem.raw.volunteer_note"></span>
+                      <span class="" data-i18n="admin.earlierNote">Earlier note:</span> <span x-text="panelItem.raw.volunteer_note"></span>
                     </p>
                   </div>
                 </template>
@@ -614,7 +609,7 @@
             <form class="flex-1 space-y-4 p-4" novalidate @submit.prevent="saveRequestEdit()">
               <p class="text-sm text-muted" x-text="editRow.detail"></p>
               <div>
-                <label for="admin-req-title" class="label"><span data-i18n="field.title">Title</span> <span class="text-danger" aria-hidden="true">*</span></label>
+                <label for="admin-req-title" class="label"><span data-i18n="field.title">Title</span></label>
                 <input id="admin-req-title" class="input" type="text" maxlength="100" required x-model="reqForm.title"
                   :aria-invalid="reqFormErrors.title ? 'true' : null" aria-describedby="admin-req-title-err" />
                 <p id="admin-req-title-err" class="field-error" x-show="reqFormErrors.title" x-text="reqFormErrors.title"></p>
@@ -641,7 +636,7 @@
               </div>
               <p class="helper-text mt-0" data-i18n="admin.itemsLocked">Items can't be changed here. Saving recalculates the urgency score.</p>
               <div class="flex flex-wrap justify-end gap-2">
-                <button type="button" class="btn btn-ghost" @click="closePanel()" data-i18n="common.cancel">Cancel</button>
+                <button type="button" class="btn btn-quiet" @click="closePanel()" data-i18n="common.cancel">Cancel</button>
                 <button type="submit" class="btn btn-primary" :disabled="savingReq">
                   <span class="spinner" x-show="savingReq" x-cloak aria-hidden="true"></span>
                   <span data-i18n="common.saveChanges">Save changes</span>

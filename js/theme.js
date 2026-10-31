@@ -8,13 +8,13 @@
 
 const THEME_KEY = "ks-theme";
 
-/** The three choices for the theme menu (Lucide icon names). */
+/** The three choices in the account / settings menu (Phosphor icon classes). */
 // the labels shown are theme.system / theme.light / theme.dark in js/i18n/*.js
 // i18n-ignore-start
 const THEME_OPTIONS = /** @type {{ value: ThemeChoice, label: string, icon: string }[]} */ ([
-  { value: "system", label: "System", icon: "monitor" },
-  { value: "light", label: "Light", icon: "sun" },
-  { value: "dark", label: "Dark", icon: "moon" },
+  { value: "system", label: "System", icon: "ph ph-monitor" },
+  { value: "light", label: "Light", icon: "ph ph-sun" },
+  { value: "dark", label: "Dark", icon: "ph ph-moon" },
 ]);
 // i18n-ignore-end
 
@@ -70,53 +70,3 @@ window.addEventListener("theme-changed", (event) => {
   currentThemeChoice = /** @type {CustomEvent<ThemeChoice>} */ (event).detail;
 });
 
-document.addEventListener("alpine:init", () => {
-  const Alpine = /** @type {any} */ (window).Alpine;
-  Alpine.data("themeMenu", () => ({
-    open: false,
-    /** @type {ThemeChoice} */
-    choice: currentThemeChoice,
-    options: THEME_OPTIONS,
-
-    init() {
-      window.addEventListener("theme-changed", (event) => {
-        this.choice = /** @type {CustomEvent<ThemeChoice>} */ (event).detail;
-      });
-    },
-
-    get label() {
-      return t(`theme.${this.choice}`);
-    },
-
-    toggle() {
-      this.open = !this.open;
-      // focus the checked item so arrow keys work straight away
-      if (this.open) setTimeout(() => this.items()[THEME_OPTIONS.findIndex((o) => o.value === this.choice)]?.focus(), 0);
-    },
-
-    /** @param {ThemeChoice} choice */
-    pick(choice) {
-      setTheme(choice);
-      this.close(true);
-    },
-
-    /** @param {boolean} refocus return focus to the theme button (Escape or after picking) */
-    close(refocus) {
-      if (!this.open) return;
-      this.open = false;
-      if (refocus) /** @type {any} */ (this).$refs.themeButton.focus();
-    },
-
-    /** @returns {HTMLElement[]} */
-    items() {
-      return [.../** @type {any} */ (this).$root.querySelectorAll('[role="menuitemradio"]')];
-    },
-
-    /** Up / Down move between the three choices. @param {number} step */
-    move(step) {
-      const items = this.items();
-      const at = items.indexOf(/** @type {HTMLElement} */ (document.activeElement));
-      items[(at + step + items.length) % items.length]?.focus();
-    },
-  }));
-});

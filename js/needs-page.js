@@ -14,9 +14,7 @@ document.addEventListener("alpine:init", () => {
     categories: ITEM_CATEGORIES.filter((c) => c.value !== "other"),
     urgencies: URGENCY_OPTIONS,
     areas: SG_AREAS,
-    requestUrgency,
-    itemTabs,
-    itemBarLabel,
+    ...noticeHelpers(),
 
     /** @type {DonationRequest[]} */
     ...publicViewer(),
@@ -27,19 +25,9 @@ document.addEventListener("alpine:init", () => {
 
     /** @type {Profile | null} */
     profile: null,
-    /** @type {DonationOffer[]} */
-    myOffers: [],
 
     filters: { q: "", category: "", area: "", urgency: "" },
 
-    /** @type {string | null} the item whose offer form is open */
-    offerItemId: null,
-    /** @type {OfferForm} */
-    offerForm: { quantity: "", message: "", foodSafetyConfirmed: false },
-    /** @type {OfferErrors} */
-    offerErrors: {},
-    offerError: "",
-    sending: false,
     /** @type {string | null} item highlighted from ?item= */
     focusItemId: null,
     /** @type {DonationRequest | null} the linked request, when its deadline has passed */
@@ -55,13 +43,14 @@ document.addEventListener("alpine:init", () => {
         const [requests, profile] = await Promise.all([listOpenRequests(), getProfile().catch(() => null), this.loadViewer()]);
         this.requests = requests;
         this.profile = profile;
-        if (profile?.is_donor) this.myOffers = await listMyOffers(profile.id);
       } catch (error) {
         this.error = friendlyError(error);
       } finally {
         this.loading = false;
       }
       if (this.focusItemId) this.focusItem(this.focusItemId);
+      // an offer sent from the details panel: the numbers on the notices change
+      window.addEventListener("offer-sent", () => this.reload());
     },
 
     async reload() {
@@ -69,7 +58,6 @@ document.addEventListener("alpine:init", () => {
       this.error = "";
       try {
         this.requests = await listOpenRequests();
-        if (this.profile?.is_donor) this.myOffers = await listMyOffers(this.profile.id);
       } catch (error) {
         this.error = friendlyError(error);
       } finally {
@@ -119,23 +107,7 @@ document.addEventListener("alpine:init", () => {
     },
 
     /**
-     * @param {string} itemId
-     * @returns {string}
-     */
-    loginHref(itemId) {
-      return `/login.html?next=${encodeURIComponent(`/needs.html?item=${itemId}`)}`;
-    },
-
-    /**
-     * @param {RequestItem} item
-     * @returns {DonationOffer | undefined}
-     */
-    activeOfferFor(item) {
-      return this.myOffers.find((offer) => offer.request_item_id === item.id && isActiveOffer(offer));
-    },
-
-    /**
-     * Back from login (or from an Offer link elsewhere): show that item and open its form.
+     * Back from login (or from an Offer link elsewhere): open that request's panel at the item, with its form open.
      * @param {string} itemId
      */
     async focusItem(itemId) {
@@ -152,44 +124,8 @@ document.addEventListener("alpine:init", () => {
         }
         return;
       }
-      if (this.mode === "donor" && item.quantity_remaining > 0 && !this.activeOfferFor(item)) this.openOffer(item);
-      setTimeout(() => document.getElementById(`item-${itemId}`)?.scrollIntoView({ behavior: "smooth", block: "center" }), 50);
-    },
-
-    /** @param {RequestItem} item */
-    openOffer(item) {
-      this.offerItemId = item.id;
-      this.offerForm = { quantity: "", message: "", foodSafetyConfirmed: false };
-      this.offerErrors = {};
-      this.offerError = "";
-      setTimeout(() => document.getElementById(`offer-qty-${item.id}`)?.focus({ preventScroll: true }), 60);
-    },
-
-    closeOffer() {
-      this.offerItemId = null;
-    },
-
-    /** @param {RequestItem} item */
-    async sendOffer(item) {
-      this.offerError = "";
-      this.offerErrors = validateOffer(this.offerForm, item);
-      const firstError = Object.keys(this.offerErrors)[0];
-      if (firstError) {
-        const ids = { quantity: "offer-qty", message: "offer-msg", foodSafety: "offer-food" };
-        document.getElementById(`${ids[/** @type {keyof typeof ids} */ (firstError)]}-${item.id}`)?.focus();
-        return;
-      }
-      this.sending = true;
-      try {
-        await makeOffer(item.id, this.offerForm);
-        toast(t("needs.offerSent"));
-        this.offerItemId = null;
-        await this.reload();
-      } catch (error) {
-        this.offerError = friendlyError(error);
-      } finally {
-        this.sending = false;
-      }
+      const request = this.requests.find((r) => r.request_items.some((i) => i.id === itemId));
+      if (request) openRequestPanel(request, null, itemId);
     },
 
     async turnOnDonating() {
@@ -197,7 +133,6 @@ document.addEventListener("alpine:init", () => {
       try {
         this.viewer = await turnOnRole("donor");
         this.profile = await getProfile();
-        if (this.profile) this.myOffers = await listMyOffers(this.profile.id);
         toast(t("viewer.donatingOn"));
       } catch (error) {
         toast(friendlyError(error), "error");

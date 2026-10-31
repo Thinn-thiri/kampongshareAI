@@ -4,7 +4,7 @@
 // Shared links only contain the event id: https://<site>/e/<id>
 
 /**
- * @typedef {{ id: string, title: string, starts_at: string, ends_at?: string | null, location_name?: string | null }} ShareableEvent
+ * @typedef {{ id: string, title: string, starts_at: string, ends_at?: string | null, location_name?: string | null, volunteers_needed?: number | null }} ShareableEvent
  */
 
 /**
@@ -77,14 +77,30 @@ async function copyText(text) {
  * Poster colours: downloads and prints are always light, whatever theme the page is in.
  * Same values as the light theme in src/input.css.
  */
+// The poster is an image people download, so it uses the fixed light palette (DESIGN.md 12).
 const POSTER_COLORS = {
+  paper: "#fffdf7",
   primary: "#1e6b47",
-  soft: "#e7d3b8", // cork board behind the notice
   ink: "#2b211b",
   muted: "#6b5d52",
-  accent: "#f2b705", // marigold: the pin only, never text
-  paper: "#ffffff",
+  accent: "#f2b705", // marigold: the one pin only, never text
 };
+
+/** The QR code library, loaded only when someone downloads a poster. */
+const QR_SCRIPT = "https://cdnjs.cloudflare.com/ajax/libs/qrcode-generator/1.4.4/qrcode.min.js";
+
+/** @returns {Promise<any>} the qrcode() function */
+function loadQrCode() {
+  const existing = /** @type {any} */ (window).qrcode;
+  if (existing) return Promise.resolve(existing);
+  return new Promise((resolve, reject) => {
+    const script = document.createElement("script");
+    script.src = QR_SCRIPT;
+    script.onload = () => resolve(/** @type {any} */ (window).qrcode);
+    script.onerror = () => reject(new Error("QR code library didn't load")); // i18n-ignore (shown through friendlyError)
+    document.head.append(script);
+  });
+}
 
 /**
  * Splits text into lines that fit the given width.
@@ -118,8 +134,9 @@ function wrapLines(ctx, text, maxWidth, maxLines) {
 }
 
 /**
- * Makes a 1080×1350 poster PNG for Instagram and downloads it (REQUIREMENTS.md 5.3).
- * Instagram captions can't hold clickable links, so the short link is printed on the poster.
+ * Makes a 1080×1350 poster PNG for Instagram and downloads it (DESIGN.md 12): paper background, one marigold
+ * pin, the title, when and where, one line of what's needed, a QR code to the event's share link (Instagram
+ * links aren't clickable) and the organization. In the language the person is using.
  * @param {ShareableEvent} event
  * @param {string} orgName
  * @returns {Promise<void>}
@@ -127,128 +144,116 @@ function wrapLines(ctx, text, maxWidth, maxLines) {
 async function downloadPoster(event, orgName) {
   const W = 1080;
   const H = 1350;
+  const M = 96; // generous margins, left-aligned
   const canvas = document.createElement("canvas");
   canvas.width = W;
   canvas.height = H;
   const ctx = /** @type {CanvasRenderingContext2D} */ (canvas.getContext("2d"));
-  // i18n-ignore-start — the poster is a downloaded image and always uses English
-  // the site's fonts: Bricolage Grotesque for headings, Atkinson Hyperlegible for the rest
-  const display = '"Bricolage Grotesque", system-ui, sans-serif';
-  const font = '"Atkinson Hyperlegible", system-ui, sans-serif';
-  try {
-    await Promise.all([document.fonts.load(`800 64px ${display}`), document.fonts.load(`700 40px ${font}`), document.fonts.load(`400 40px ${font}`)]);
-  } catch {
-    // system font fallback is fine
-  }
-  const { primary, soft, ink, muted, accent, paper } = POSTER_COLORS;
+  // i18n-ignore-start (font names and canvas font strings)
+  const display = '"Fraunces", "PingFang SC", "Microsoft YaHei", "Noto Sans SC", serif';
+  const font = '"Lexend", "PingFang SC", "Microsoft YaHei", "Noto Sans SC", sans-serif';
+  // i18n-ignore-end
+  const [qrcode] = await Promise.all([
+    loadQrCode(),
+    Promise.all([document.fonts.load(`700 96px ${display}`), document.fonts.load(`700 44px ${font}`), document.fonts.load(`400 44px ${font}`)]).catch(() => null),
+  ]);
+  const { paper, primary, ink, muted, accent } = POSTER_COLORS;
+  const link = shareLink(event.id);
 
-  // Background and header band
-  ctx.fillStyle = soft;
+  ctx.fillStyle = paper;
   ctx.fillRect(0, 0, W, H);
-  ctx.fillStyle = primary;
-  ctx.fillRect(0, 0, W, 260);
 
-  // Logo: white rounded square with "K"
-  ctx.fillStyle = paper;
-  ctx.beginPath();
-  ctx.roundRect(80, 80, 100, 100, 24);
-  ctx.fill();
-  ctx.fillStyle = primary;
-  ctx.font = `800 64px ${display}`;
-  ctx.textAlign = "center";
-  ctx.textBaseline = "middle";
-  ctx.fillText("K", 130, 134);
-  ctx.textAlign = "left";
-  ctx.textBaseline = "alphabetic";
-  ctx.fillStyle = paper;
-  ctx.font = `800 52px ${display}`;
-  ctx.fillText("KampongShare", 210, 148);
-
-  // The notice: paper pinned to the cork board, with a marigold pin
+  // the marigold pin, top left
   ctx.save();
-  ctx.shadowColor = "rgba(43, 33, 27, 0.25)";
-  ctx.shadowBlur = 18;
-  ctx.shadowOffsetY = 6;
-  ctx.fillStyle = paper;
-  ctx.beginPath();
-  ctx.roundRect(60, 320, W - 120, 860, 12);
-  ctx.fill();
-  ctx.restore();
+  ctx.shadowColor = "rgba(43, 33, 27, 0.3)";
+  ctx.shadowBlur = 8;
+  ctx.shadowOffsetY = 4;
   ctx.fillStyle = accent;
   ctx.beginPath();
-  ctx.arc(W / 2, 330, 26, 0, Math.PI * 2);
+  ctx.arc(M + 22, M + 22, 22, 0, Math.PI * 2);
   ctx.fill();
+  ctx.restore();
 
-  let y = 430;
-  ctx.fillStyle = primary;
-  ctx.font = `700 36px ${font}`;
-  ctx.fillText("Volunteer and donate", 120, y);
-
+  // the title: 96px, shrinking to 72px before it wraps (two lines at most, never cut off mid-word)
+  let size = 96;
+  const titleFont = () => `700 ${size}px ${display}`; // i18n-ignore
+  ctx.font = titleFont();
+  while (ctx.measureText(event.title).width > W - 2 * M && size > 72) {
+    size -= 4;
+    ctx.font = titleFont();
+  }
   ctx.fillStyle = ink;
-  ctx.font = `800 76px ${display}`;
-  y += 100;
-  for (const line of wrapLines(ctx, event.title, W - 240, 4)) {
-    ctx.fillText(line, 120, y);
-    y += 92;
+  ctx.textBaseline = "alphabetic";
+  let y = M + 80 + size;
+  for (const line of wrapLines(ctx, event.title, W - 2 * M, 3)) {
+    ctx.fillText(line, M, y);
+    y += size * 1.1;
   }
 
+  // when and where
+  y += 40;
+  ctx.font = `700 44px ${font}`;
+  for (const line of wrapLines(ctx, formatEventTime(event.starts_at, event.ends_at), W - 2 * M, 2)) {
+    ctx.fillText(line, M, y);
+    y += 58;
+  }
+  ctx.font = `400 44px ${font}`;
+  for (const line of wrapLines(ctx, event.location_name ?? "", W - 2 * M, 2)) {
+    ctx.fillText(line, M, y);
+    y += 58;
+  }
+
+  // one line of what's needed, in green
+  if (event.volunteers_needed) {
+    y += 40;
+    ctx.fillStyle = primary;
+    ctx.font = `400 40px ${font}`;
+    for (const line of wrapLines(ctx, t("share.posterNeed", { count: event.volunteers_needed }), W - 2 * M, 2)) {
+      ctx.fillText(line, M, y);
+      y += 54;
+    }
+  }
+
+  // the QR code (280px) and "Scan to join or donate"
+  const qr = qrcode(0, "M");
+  qr.addData(link);
+  qr.make();
+  const count = qr.getModuleCount();
+  const cell = Math.floor(280 / count);
+  const qrSize = cell * count;
+  const qrTop = H - M - 150 - qrSize;
+  ctx.fillStyle = "#ffffff";
+  ctx.fillRect(M - 12, qrTop - 12, qrSize + 24, qrSize + 24);
+  ctx.fillStyle = ink;
+  for (let row = 0; row < count; row += 1) {
+    for (let col = 0; col < count; col += 1) {
+      if (qr.isDark(row, col)) ctx.fillRect(M + col * cell, qrTop + row * cell, cell, cell);
+    }
+  }
   ctx.font = `700 40px ${font}`;
-  ctx.fillStyle = primary;
-  y += 30;
-  for (const line of wrapLines(ctx, `by ${orgName}`, W - 240, 2)) {
-    ctx.fillText(line, 120, y);
-    y += 54;
+  let scanY = qrTop + qrSize / 2 - 10;
+  for (const line of wrapLines(ctx, t("share.posterScan"), W - 2 * M - qrSize - 48, 2)) {
+    ctx.fillText(line, M + qrSize + 48, scanY);
+    scanY += 52;
   }
 
-  ctx.font = `400 40px ${font}`;
+  // the organization, then "on KampongShare"
   ctx.fillStyle = ink;
-  y += 30;
-  for (const line of wrapLines(ctx, formatEventTime(event.starts_at, event.ends_at, "en"), W - 240, 2)) {
-    ctx.fillText(line, 120, y);
-    y += 54;
-  }
-  ctx.fillStyle = muted;
-  for (const line of wrapLines(ctx, event.location_name ?? "Singapore", W - 240, 2)) {
-    ctx.fillText(line, 120, y);
-    y += 54;
-  }
-
-  // Short link inside the card: shrink the text until it fits (links can be long), wrap as a last resort
-  const linkText = shareLink(event.id).replace(/^https?:\/\//, "");
-  const linkWidth = W - 240;
-  let size = 44;
-  ctx.font = `700 ${size}px ${font}`;
-  while (ctx.measureText(linkText).width > linkWidth && size > 26) {
-    size -= 2;
-    ctx.font = `700 ${size}px ${font}`;
-  }
-  const linkLines = ctx.measureText(linkText).width > linkWidth ? [linkText.slice(0, Math.ceil(linkText.length / 2)), linkText.slice(Math.ceil(linkText.length / 2))] : [linkText];
-  let linkY = 1150 - (linkLines.length - 1) * (size + 10);
-  ctx.fillStyle = muted;
   ctx.font = `700 32px ${font}`;
-  ctx.fillText("Donate or volunteer at", 120, linkY - size - 22);
-  ctx.fillStyle = primary;
-  ctx.font = `700 ${size}px ${font}`;
-  for (const line of linkLines) {
-    ctx.fillText(line, 120, linkY);
-    linkY += size + 10;
-  }
-
-  ctx.fillStyle = ink;
-  ctx.font = `400 30px ${font}`;
-  ctx.textAlign = "center";
-  ctx.fillText("Open the link to donate or sign up to volunteer", W / 2, 1270);
+  ctx.fillText(wrapLines(ctx, orgName, W - 2 * M, 1)[0] ?? "", M, H - M - 50);
+  ctx.fillStyle = muted;
+  ctx.font = `400 28px ${font}`;
+  ctx.fillText(t("share.posterOn"), M, H - M);
 
   const blob = await new Promise((resolve) => canvas.toBlob(resolve, "image/png"));
-  if (!blob) throw new Error("Could not make the poster");
-  // i18n-ignore-end
-  const link = document.createElement("a");
-  link.href = URL.createObjectURL(blob);
-  link.download = "kampongshare-event.png";
-  document.body.append(link);
-  link.click();
-  link.remove();
-  setTimeout(() => URL.revokeObjectURL(link.href), 5000);
+  if (!blob) throw new Error("Could not make the poster"); // i18n-ignore (a developer error)
+  const download = document.createElement("a");
+  download.href = URL.createObjectURL(blob);
+  download.download = "kampongshare-event.png";
+  document.body.append(download);
+  download.click();
+  download.remove();
+  setTimeout(() => URL.revokeObjectURL(download.href), 5000);
 }
 
 /**

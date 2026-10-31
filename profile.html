@@ -14,10 +14,11 @@
     <link rel="icon" href="/img/favicon.svg" type="image/svg+xml" />
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Atkinson+Hyperlegible:wght@400;700&family=Bricolage+Grotesque:opsz,wght@12..96,600..800&display=swap" />
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,600..700&family=Lexend:wght@400;700&display=swap" />
+    <link rel="stylesheet" href="https://unpkg.com/@phosphor-icons/web@2.1.1/src/regular/style.css" />
+    <link rel="stylesheet" href="https://unpkg.com/@phosphor-icons/web@2.1.1/src/duotone/style.css" />
     <link rel="stylesheet" href="/css/style.css" />
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-    <script src="https://unpkg.com/lucide@latest"></script>
     <script src="/js/config.js"></script>
     <script src="/js/supabase.js"></script>
     <script src="/js/auth.js"></script>
@@ -32,111 +33,105 @@
   <body data-require="login">
     <a href="#main" class="skip-link" data-i18n="nav.skip">Skip to main content</a>
     <header class="topbar" x-data="topBar">
-      <div class="container-page flex min-h-16 flex-wrap items-center gap-x-1 gap-y-2 py-2 sm:gap-x-3">
-        <a href="/" class="flex items-center gap-2 rounded-sm font-bold text-primary focus-visible:outline-2 focus-visible:outline-primary" aria-label="KampongShare home" data-i18n-attr="aria-label:nav.homeLink">
+      <div class="container-page flex min-h-16 items-center gap-2 py-2">
+        <a href="/" class="flex min-h-11 items-center gap-2 rounded-sm font-bold text-primary" aria-label="KampongShare home" data-i18n-attr="aria-label:nav.homeLink">
           <img src="/img/favicon.svg" alt="" class="size-8" />
-          <span class="hidden sm:inline">KampongShare</span>
+          <span class="hidden sm:inline" translate="no">KampongShare</span>
         </a>
-        <!-- the logged-in person's own name (only they see it) -->
-        <span class="max-w-16 truncate rounded-full bg-primary-soft px-2.5 py-1 text-xs font-semibold text-primary min-[400px]:max-w-24 sm:max-w-48"
-          x-show="profile?.full_name" x-cloak :title="profile?.full_name"><span class="sr-only" data-i18n="nav.loggedInAs">Logged in as</span> <span x-text="profile?.full_name"></span></span>
         <!-- pushes the links and buttons to the right -->
         <span class="flex-1" aria-hidden="true"></span>
-        <!-- Desktop links (phones use the bottom navigation) -->
-        <nav class="hidden items-center gap-1 sm:flex" aria-label="Site" data-i18n-attr="aria-label:nav.site" x-show="ready" x-cloak>
+        <!-- Desktop links (phones and tablets use the bottom bar) -->
+        <nav class="hidden items-center gap-1 lg:flex" aria-label="Site" data-i18n-attr="aria-label:nav.site" x-show="ready" x-cloak>
           <template x-for="link in topLinks" :key="link.href">
-            <a :href="link.href" class="top-link gap-2" :aria-current="isCurrent(link.href) ? 'page' : null">
+            <a :href="link.href" class="top-link" :aria-current="isCurrent(link.href) ? 'page' : null">
               <span x-text="$t(link.labelKey)"></span>
-              <span class="badge badge-warning" x-show="link.badge" x-text="link.badge" :aria-label="$t('nav.waiting', { count: link.badge })"></span>
+              <span class="tab-count" x-show="link.badge" x-text="link.badge" :aria-label="$t('nav.waiting', { count: link.badge })"></span>
             </a>
           </template>
         </nav>
-        <nav class="segmented order-last w-full sm:order-none sm:w-auto" aria-label="Switch between donating and volunteering" data-i18n-attr="aria-label:nav.switchRole" x-show="canSwitch" x-cloak>
-          <a href="/donor.html" class="segmented-link" :aria-current="here('/donor.html') ? 'page' : null" data-i18n="nav.donating">Donating</a>
-          <a href="/volunteer.html" class="segmented-link" :aria-current="here('/volunteer.html') ? 'page' : null" data-i18n="nav.volunteering">Volunteering</a>
-        </nav>
-        <!-- Language: English / 中文 / Bahasa Melayu (js/i18n.js) -->
-        <div class="relative" x-data="langMenu" @keydown.escape="close(true)" @click.outside="close(false)">
-          <button type="button" x-ref="langButton" class="btn btn-ghost icon-btn min-w-11 gap-1.5 px-2" :aria-label="buttonLabel" aria-label="Language / 语言 / Bahasa"
-            aria-haspopup="menu" :aria-expanded="open.toString()" aria-controls="lang-menu" @click="toggle()">
-            <i data-lucide="globe" class="size-5" aria-hidden="true"></i>
-            <span class="text-sm sm:hidden" :lang="current.htmlLang" x-text="current.short"></span>
-            <span class="hidden text-sm sm:inline" :lang="current.htmlLang" x-text="current.name"></span>
-          </button>
-          <div id="lang-menu" class="menu w-48" role="menu" aria-label="Language / 语言 / Bahasa" x-show="open" x-cloak @keydown.down.prevent="move(1)" @keydown.up.prevent="move(-1)">
-            <template x-for="option in options" :key="option.code">
-              <button type="button" class="menu-item gap-2" role="menuitemradio" :lang="option.htmlLang" :aria-checked="(lang === option.code).toString()" @click="pick(option.code)">
-                <span class="flex-1" x-text="option.name"></span>
-                <span class="text-primary" x-show="lang === option.code"><i data-lucide="check" class="size-4" aria-hidden="true"></i></span>
-              </button>
-            </template>
-          </div>
-        </div>
-        <!-- Theme: System / Light / Dark (js/theme.js) -->
-        <div class="relative" x-data="themeMenu" @keydown.escape="close(true)" @click.outside="close(false)">
-          <button type="button" x-ref="themeButton" class="btn btn-ghost icon-btn size-11 px-0" :aria-label="$t('theme.button', { name: label })" aria-label="Theme"
-            aria-haspopup="menu" :aria-expanded="open.toString()" aria-controls="theme-menu" @click="toggle()">
-            <span x-show="choice === 'system'"><i data-lucide="monitor" class="size-5" aria-hidden="true"></i></span>
-            <span x-show="choice === 'light'" x-cloak><i data-lucide="sun" class="size-5" aria-hidden="true"></i></span>
-            <span x-show="choice === 'dark'" x-cloak><i data-lucide="moon" class="size-5" aria-hidden="true"></i></span>
-          </button>
-          <div id="theme-menu" class="menu w-40" role="menu" aria-label="Theme" data-i18n-attr="aria-label:theme.menu" x-show="open" x-cloak @keydown.down.prevent="move(1)" @keydown.up.prevent="move(-1)">
-            <template x-for="option in options" :key="option.value">
-              <button type="button" class="menu-item gap-2" role="menuitemradio" :aria-checked="(choice === option.value).toString()" @click="pick(option.value)">
-                <span x-show="option.icon === 'monitor'"><i data-lucide="monitor" class="size-4" aria-hidden="true"></i></span>
-                <span x-show="option.icon === 'sun'"><i data-lucide="sun" class="size-4" aria-hidden="true"></i></span>
-                <span x-show="option.icon === 'moon'"><i data-lucide="moon" class="size-4" aria-hidden="true"></i></span>
-                <span class="flex-1" x-text="$t(`theme.${option.value}`)"></span>
-                <span class="text-primary" x-show="choice === option.value"><i data-lucide="check" class="size-4" aria-hidden="true"></i></span>
-              </button>
-            </template>
-          </div>
-        </div>
-        <nav class="flex items-center gap-1" aria-label="Account" data-i18n-attr="aria-label:nav.account" x-show="ready && !profile" x-cloak>
-          <a href="/login.html" class="btn btn-ghost hidden px-3 sm:inline-flex" data-i18n="nav.logIn">Log in</a>
-          <a href="/signup.html" class="btn btn-primary px-4" data-i18n="nav.signUp">Sign up</a>
-        </nav>
+        <!-- visitors: Log in · Sign up -->
+        <a href="/login.html" class="btn btn-quiet hidden sm:inline-flex" x-show="ready && !profile" x-cloak data-i18n="nav.logIn">Log in</a>
+        <a href="/signup.html" class="btn btn-primary px-4" x-show="ready && !profile" x-cloak data-i18n="nav.signUp">Sign up</a>
         <!-- Messages with the unread count (js/messaging.js): individuals and organizations -->
-        <a href="/messages.html" class="btn btn-ghost icon-btn relative size-11 px-0" x-show="showMessages" x-cloak
+        <a href="/messages.html" class="icon-btn relative" x-show="showMessages" x-cloak
           :aria-current="here('/messages.html') ? 'page' : null" aria-label="Messages"
           :aria-label="unread ? $t('nav.messagesUnread', { count: unread }) : $t('nav.messages')">
-          <i data-lucide="message-circle" class="size-5" aria-hidden="true"></i>
+          <i class="ph ph-chat-circle" aria-hidden="true"></i>
           <span class="nav-count" x-show="unread" x-cloak x-text="unread > 99 ? '99+' : unread" aria-hidden="true"></span>
         </a>
-        <div class="relative" x-show="profile" x-cloak @keydown.escape="if (open) { open = false; $refs.accountButton.focus() }" @click.outside="open = false">
-          <button type="button" x-ref="accountButton" class="btn btn-secondary min-w-11 px-2 sm:px-4" :aria-expanded="open.toString()" aria-controls="account-menu" @click="open = !open">
-            <!-- phones: an icon (the name is still read out), so the top bar fits on one row -->
-            <i data-lucide="user-round" class="size-5 sm:hidden" aria-hidden="true"></i>
-            <span class="sr-only sm:not-sr-only" data-i18n="nav.account">Account</span>
+        <!-- Avatar menu (logged in) or settings menu (visitors): theme, language, profile, switch, log out -->
+        <div class="relative" x-data="accountMenu" @keydown.escape="close(true)" @click.outside="close(false)">
+          <button type="button" x-ref="menuButton" class="icon-btn gap-1" :class="profile ? '' : 'w-auto px-3'" :aria-label="buttonLabel"
+            aria-label="Settings · Language / 语言 / Bahasa" aria-haspopup="menu" :aria-expanded="open.toString()" aria-controls="account-menu" @click="toggle()">
+            <span class="avatar" x-show="profile" x-cloak x-text="initial" aria-hidden="true"></span>
+            <i class="ph ph-gear-six" x-show="!profile" aria-hidden="true"></i>
+            <span class="text-sm font-bold" x-show="!profile" :lang="language.htmlLang" x-text="language.short" aria-hidden="true"></span>
           </button>
-          <div id="account-menu" class="menu" x-show="open" x-cloak>
-            <a :href="dashboard" href="/" class="menu-item sm:hidden" data-i18n="nav.myDashboard">My dashboard</a>
-            <a href="/profile.html" class="menu-item" data-i18n="nav.myProfile">My profile</a>
-            <button type="button" class="menu-item" @click="logout()" data-i18n="nav.logOut">Log out</button>
+          <div id="account-menu" class="menu w-64" role="menu" :aria-label="buttonLabel" x-show="open" x-cloak
+            @keydown.down.prevent="move(1)" @keydown.up.prevent="move(-1)" @keydown.home.prevent="moveTo(0)" @keydown.end.prevent="moveTo(-1)">
+            <template x-if="profile">
+              <div role="none">
+                <p class="menu-heading font-bold break-words text-ink" aria-hidden="true" x-text="profile.full_name"></p>
+                <div role="group" :aria-label="profile.full_name">
+                  <a :href="dashboard" class="menu-item" role="menuitem" x-show="!canSwitch"><i class="ph ph-squares-four" aria-hidden="true"></i><span data-i18n="nav.myDashboard">My dashboard</span></a>
+                  <a href="/donor.html" class="menu-item" role="menuitem" x-show="canSwitch" :aria-current="here('/donor.html') ? 'page' : null"><i class="ph ph-hand-heart" aria-hidden="true"></i><span data-i18n="nav.donating">Donating</span></a>
+                  <a href="/volunteer.html" class="menu-item" role="menuitem" x-show="canSwitch" :aria-current="here('/volunteer.html') ? 'page' : null"><i class="ph ph-users" aria-hidden="true"></i><span data-i18n="nav.volunteering">Volunteering</span></a>
+                  <a href="/profile.html" class="menu-item" role="menuitem" :aria-current="here('/profile.html') ? 'page' : null"><i class="ph ph-user" aria-hidden="true"></i><span data-i18n="nav.myProfile">My profile</span></a>
+                </div>
+                <div class="menu-separator" role="separator"></div>
+              </div>
+            </template>
+            <p class="menu-heading" aria-hidden="true" data-i18n="theme.menu">Theme</p>
+            <div role="group" aria-label="Theme" data-i18n-attr="aria-label:theme.menu">
+              <template x-for="option in themeOptions" :key="option.value">
+                <button type="button" class="menu-item" role="menuitemradio" :aria-checked="(theme === option.value).toString()" @click="pickTheme(option.value)">
+                  <i :class="option.icon" aria-hidden="true"></i>
+                  <span class="flex-1" x-text="$t(`theme.${option.value}`)"></span>
+                  <i class="ph ph-check text-primary" x-show="theme === option.value" aria-hidden="true"></i>
+                </button>
+              </template>
+            </div>
+            <div class="menu-separator" role="separator"></div>
+            <p class="menu-heading" aria-hidden="true">Language / 语言 / Bahasa</p>
+            <div role="group" aria-label="Language / 语言 / Bahasa">
+              <template x-for="option in languages" :key="option.code">
+                <button type="button" class="menu-item" role="menuitemradio" :lang="option.htmlLang" :aria-checked="(lang === option.code).toString()" @click="pickLang(option.code)">
+                  <i class="ph ph-globe" aria-hidden="true"></i>
+                  <span class="flex-1" x-text="option.name"></span>
+                  <i class="ph ph-check text-primary" x-show="lang === option.code" aria-hidden="true"></i>
+                </button>
+              </template>
+            </div>
+            <template x-if="profile">
+              <div role="none">
+                <div class="menu-separator" role="separator"></div>
+                <button type="button" class="menu-item" role="menuitem" @click="logout()"><i class="ph ph-sign-out" aria-hidden="true"></i><span data-i18n="nav.logOut">Log out</span></button>
+              </div>
+            </template>
           </div>
         </div>
       </div>
-        <nav class="bottom-nav" aria-label="Main" data-i18n-attr="aria-label:nav.main" x-show="ready" x-cloak>
-          <template x-for="link in bottomLinks" :key="link.href">
-            <a :href="link.href" class="bottom-nav-link" :aria-current="isCurrent(link.href) ? 'page' : null">
-              <i :data-lucide="link.icon" class="size-5" aria-hidden="true"></i>
-              <span x-text="$t(link.labelKey)"></span>
-            </a>
-          </template>
-        </nav>
+      <nav class="bottom-nav" aria-label="Main" data-i18n-attr="aria-label:nav.main" x-show="ready" x-cloak>
+        <template x-for="link in bottomLinks" :key="link.href">
+          <a :href="link.href" class="bottom-nav-link" :aria-current="isCurrent(link.href) ? 'page' : null">
+            <i :class="link.icon" aria-hidden="true"></i>
+            <span x-text="$t(link.labelKey)"></span>
+          </a>
+        </template>
+      </nav>
     </header>
 
     <main id="main" tabindex="-1" class="container-page py-8 focus:outline-none" x-data="profilePage">
       <div class="mx-auto max-w-2xl space-y-6">
         <div>
-          <h1 class="text-2xl font-bold sm:text-3xl" data-i18n="profile.title">My profile</h1>
+          <h1 class="title" data-i18n="profile.title">My profile</h1>
           <p class="mt-1 text-muted" data-i18n="profile.intro">Everything we hold about you. You can correct it at any time.</p>
         </div>
 
         <div class="card space-y-3" x-show="loading" role="status"><span class="sr-only" data-i18n="profile.loading">Loading your profile…</span>
           <div class="skeleton h-5 w-1/3"></div><div class="skeleton h-11 w-full"></div><div class="skeleton h-11 w-full"></div>
         </div>
-        <div class="card text-center" x-show="!loading && loadError" x-cloak role="alert">
+        <div class="empty" x-show="!loading && loadError" x-cloak role="alert">
           <p class="text-danger" x-text="loadError"></p>
           <button type="button" class="btn btn-secondary mt-3" @click="location.reload()" data-i18n="common.tryAgain">Try again</button>
         </div>
@@ -144,10 +139,10 @@
         <template x-if="!loading && form && profile">
           <div class="space-y-6">
             <!-- Add the other role to this account (single-role individuals) -->
-            <section class="card flex flex-col gap-3 border-primary bg-primary-soft sm:flex-row sm:items-center sm:justify-between"
+            <section class="card flex flex-col gap-3 bg-primary-soft sm:flex-row sm:items-center sm:justify-between"
               x-show="missingRole" aria-labelledby="add-role-heading">
               <div>
-                <h2 id="add-role-heading" class="text-lg font-semibold text-ink" x-text="missingRole === 'volunteer' ? $t('profile.wantVolunteer') : $t('profile.wantDonate')"></h2>
+                <h2 id="add-role-heading" class="card-title text-ink" x-text="missingRole === 'volunteer' ? $t('profile.wantVolunteer') : $t('profile.wantDonate')"></h2>
                 <p class="text-sm text-ink" x-text="missingRole === 'volunteer'
                   ? $t('profile.addVolunteerText')
                   : $t('profile.addDonateText')"></p>
@@ -159,8 +154,8 @@
             </section>
 
             <!-- Just added: what to do next -->
-            <div class="rounded-md border border-success bg-success-soft p-4 text-sm text-success" x-show="justAdded" x-cloak role="status">
-              <p class="font-semibold" x-text="justAdded === 'volunteer' ? $t('profile.volunteeringOn') : $t('profile.donatingOn')"></p>
+            <div class="rounded-md border border-primary bg-primary-soft p-4 text-sm text-primary" x-show="justAdded" x-cloak role="status">
+              <p class="font-bold" x-text="justAdded === 'volunteer' ? $t('profile.volunteeringOn') : $t('profile.donatingOn')"></p>
               <p class="mt-1 text-ink" x-show="justAdded === 'volunteer'"><span data-i18n="profile.addedVolunteerHelp">Add when you're free and what you enjoy below, then press Save changes. An admin will approve your volunteer account before you can apply to events — you can already browse them.</span> <span data-i18n="profile.switchHelp">You can switch between donating and volunteering in the top bar.</span></p>
               <p class="mt-1 text-ink" x-show="justAdded === 'donor'" data-i18n="profile.switchHelp">You can switch between donating and volunteering in the top bar.</p>
               <a class="btn btn-secondary mt-3" :href="justAdded === 'volunteer' ? '/volunteer.html' : '/donor.html'"
@@ -169,37 +164,37 @@
 
             <form class="space-y-6" novalidate @submit.prevent="save">
               <!-- 1. Details -->
-              <section class="card space-y-5" aria-labelledby="details-heading">
-                <h2 id="details-heading" class="text-lg font-semibold" data-i18n="profile.yourDetails">Your details</h2>
+              <section class="card space-y-6" aria-labelledby="details-heading">
+                <h2 id="details-heading" class="card-title" data-i18n="profile.yourDetails">Your details</h2>
                 <div>
-                  <label for="pf-name" class="label"><span data-i18n="profile.fullName">Full name</span> <span class="text-danger" aria-hidden="true">*</span></label>
+                  <label for="pf-name" class="label"><span data-i18n="profile.fullName">Full name</span></label>
                   <input id="pf-name" class="input" type="text" autocomplete="name" maxlength="100" required x-model="form.fullName"
                     :aria-invalid="errors.fullName ? 'true' : null" aria-describedby="err-pf-name" />
                   <p id="err-pf-name" class="field-error" x-show="errors.fullName" x-text="errors.fullName"></p>
                 </div>
                 <div>
                   <label for="pf-email" class="label" data-i18n="field.email">Email</label>
-                  <input id="pf-email" class="input bg-canvas text-muted" type="email" :value="email" readonly aria-describedby="help-pf-email" />
+                  <input id="pf-email" class="input" type="email" :value="email" readonly aria-describedby="help-pf-email" />
                   <p id="help-pf-email" class="helper-text" data-i18n="profile.emailHelp">Used to log in. It can't be changed here yet.</p>
                 </div>
                 <div>
-                  <label for="pf-phone" class="label"><span data-i18n="field.phone">Phone</span> <span class="font-normal text-muted" data-i18n="common.optional">(optional)</span></label>
-                  <input id="pf-phone" class="input" type="tel" inputmode="tel" autocomplete="tel-national" x-model="form.phone"
+                  <label for="pf-phone" class="label"><span data-i18n="field.phone">Phone</span> <span class="optional" data-i18n="common.optional">(optional)</span></label>
+                  <input id="pf-phone" class="input" type="tel" inputmode="tel" autocomplete="tel-national" x-model="form.phone" placeholder="e.g. 9123 4567" data-i18n-attr="placeholder:field.phonePlaceholder"
                     :aria-invalid="errors.phone ? 'true' : null" aria-describedby="help-pf-phone err-pf-phone" />
                   <p id="help-pf-phone" class="helper-text" data-i18n="profile.phoneHelp">Only shown to organizations you give to or volunteer with, and to admins.</p>
                   <p id="err-pf-phone" class="field-error" x-show="errors.phone" x-text="errors.phone"></p>
                 </div>
-                <div class="grid gap-5 sm:grid-cols-2">
+                <div class="space-y-6">
                   <div>
-                    <label for="pf-postal" class="label"><span data-i18n="field.postalCode">Postal code</span> <span class="font-normal text-muted" data-i18n="common.optional">(optional)</span></label>
-                    <input id="pf-postal" class="input" type="text" inputmode="numeric" autocomplete="postal-code" maxlength="6" x-model="form.postalCode"
+                    <label for="pf-postal" class="label"><span data-i18n="field.postalCode">Postal code</span> <span class="optional" data-i18n="common.optional">(optional)</span></label>
+                    <input id="pf-postal" class="input" type="text" inputmode="numeric" autocomplete="postal-code" maxlength="6" x-model="form.postalCode" placeholder="e.g. 520123" data-i18n-attr="placeholder:field.postalPlaceholder"
                       :aria-invalid="errors.postalCode ? 'true' : null" aria-describedby="help-pf-postal err-pf-postal" />
                     <p id="help-pf-postal" class="helper-text" data-i18n="profile.postalHelp">Only used to show needs near you. We never ask for your full address.</p>
                     <p id="err-pf-postal" class="field-error" x-show="errors.postalCode" x-text="errors.postalCode"></p>
                   </div>
                   <div>
-                    <label for="pf-area" class="label"><span data-i18n="field.area">Area</span> <span class="font-normal text-muted" data-i18n="common.optional">(optional)</span></label>
-                    <input id="pf-area" class="input" type="text" list="sg-areas" maxlength="50" x-model="form.area"
+                    <label for="pf-area" class="label"><span data-i18n="field.area">Area</span> <span class="optional" data-i18n="common.optional">(optional)</span></label>
+                    <input id="pf-area" class="input" type="text" list="sg-areas" maxlength="50" x-model="form.area" placeholder="e.g. Tampines" data-i18n-attr="placeholder:field.areaPlaceholder"
                       :aria-invalid="errors.area ? 'true' : null" aria-describedby="err-pf-area" />
                     <p id="err-pf-area" class="field-error" x-show="errors.area" x-text="errors.area"></p>
                   </div>
@@ -209,20 +204,20 @@
               <!-- 2. Donate / volunteer (individual accounts only) -->
               <fieldset class="card space-y-3" x-show="isIndividual" aria-describedby="help-pf-roles err-pf-roles">
                 <legend class="sr-only" data-i18n="profile.whatToDo">What would you like to do?</legend>
-                <h2 class="text-lg font-semibold" data-i18n="profile.whatToDo">What would you like to do?</h2>
+                <h2 class="card-title" data-i18n="profile.whatToDo">What would you like to do?</h2>
                 <p id="help-pf-roles" class="helper-text mt-0" data-i18n="profile.keepOne">Keep at least one turned on.</p>
                 <div class="grid gap-3 sm:grid-cols-2">
                   <label class="choice-card">
                     <input id="pf-donate" type="checkbox" class="mt-1 size-4 accent-primary" x-model="form.isDonor" @change="errors = { ...errors, roles: undefined }" />
                     <span>
-                      <span class="block font-semibold" data-i18n="profile.donate">Donate</span>
+                      <span class="block font-bold" data-i18n="profile.donate">Donate</span>
                       <span class="block text-sm text-muted" data-i18n="profile.donateHelp">Offer items to organizations.</span>
                     </span>
                   </label>
                   <label class="choice-card">
                     <input type="checkbox" class="mt-1 size-4 accent-primary" x-model="form.isVolunteer" @change="onVolunteerToggle()" />
                     <span>
-                      <span class="block font-semibold" data-i18n="profile.volunteer">Volunteer</span>
+                      <span class="block font-bold" data-i18n="profile.volunteer">Volunteer</span>
                       <span class="block text-sm text-muted" data-i18n="profile.volunteerHelp">Apply to help at events.</span>
                     </span>
                   </label>
@@ -232,19 +227,19 @@
               <p class="card text-sm text-muted" x-show="!isIndividual" data-i18n="profile.staffNoRoles">Organization and admin accounts can't donate or volunteer.</p>
 
               <!-- 3. Volunteering -->
-              <section id="volunteer-section" class="card scroll-mt-24 space-y-5" x-show="isIndividual && form.isVolunteer" aria-labelledby="vol-heading">
+              <section id="volunteer-section" class="card scroll-mt-24 space-y-6" x-show="isIndividual && form.isVolunteer" aria-labelledby="vol-heading">
                 <div>
                   <div class="flex flex-wrap items-center gap-2">
-                    <h2 id="vol-heading" class="text-lg font-semibold" data-i18n="profile.volunteering">Volunteering</h2>
+                    <h2 id="vol-heading" class="card-title" data-i18n="profile.volunteering">Volunteering</h2>
                     <span :class="volunteerStatus?.className" x-show="volunteerStatus" x-text="volunteerStatus?.label"></span>
                   </div>
                   <p class="helper-text" data-i18n="profile.volunteeringHelp">Tell organizations when you're free and what you enjoy. All optional.</p>
                 </div>
-                <p class="rounded-md bg-warning-soft p-3 text-sm text-warning" x-show="profile.is_volunteer && profile.volunteer_approval !== 'approved' && profile.volunteer_approval !== 'rejected'" data-i18n="profile.approvalHelp">
+                <p class="note-warning" x-show="profile.is_volunteer && profile.volunteer_approval !== 'approved' && profile.volunteer_approval !== 'rejected'" data-i18n="profile.approvalHelp">
                   An admin checks every volunteer account first. You can browse events now and apply once you're approved.
                 </p>
                 <div class="space-y-2 rounded-md border border-danger bg-danger-soft p-3 text-sm text-danger" x-show="profile.volunteer_approval === 'rejected'">
-                  <p class="font-semibold" data-i18n="profile.adminNote">Note from the admin</p>
+                  <p class="font-bold" data-i18n="profile.adminNote">Note from the admin</p>
                   <p class="whitespace-pre-line text-ink" x-text="profile.volunteer_note || $t('orgDash.noReason')"></p>
                   <button type="button" class="btn btn-secondary" :disabled="reviewBusy" @click="askForReview()">
                     <span class="spinner" x-show="reviewBusy" x-cloak aria-hidden="true"></span>
@@ -252,7 +247,7 @@
                   </button>
                 </div>
                 <fieldset>
-                  <legend class="label" data-i18n="signup.days">Days you're usually free</legend>
+                  <legend class="label"><span data-i18n="signup.days">Days you're usually free</span> <span class="optional" data-i18n="common.optional">(optional)</span></legend>
                   <div class="flex flex-wrap gap-2">
                     <template x-for="option in dayOptions" :key="option.value">
                       <label class="check-pill"><input type="checkbox" class="size-4 accent-primary" :value="option.value" x-model="form.days" /><span x-text="option.label"></span></label>
@@ -260,7 +255,7 @@
                   </div>
                 </fieldset>
                 <fieldset>
-                  <legend class="label" data-i18n="signup.times">Times of day</legend>
+                  <legend class="label"><span data-i18n="signup.times">Times of day</span> <span class="optional" data-i18n="common.optional">(optional)</span></legend>
                   <div class="flex flex-wrap gap-2">
                     <template x-for="option in timeOptions" :key="option.value">
                       <label class="check-pill"><input type="checkbox" class="size-4 accent-primary" :value="option.value" x-model="form.times" /><span x-text="option.label"></span></label>
@@ -268,7 +263,7 @@
                   </div>
                 </fieldset>
                 <fieldset>
-                  <legend class="label" data-i18n="field.interests">Interests</legend>
+                  <legend class="label"><span data-i18n="field.interests">Interests</span> <span class="optional" data-i18n="common.optional">(optional)</span></legend>
                   <div class="flex flex-wrap gap-2">
                     <template x-for="option in interestOptions" :key="option.value">
                       <label class="check-pill"><input type="checkbox" class="size-4 accent-primary" :value="option.value" x-model="form.interests" /><span x-text="option.label"></span></label>
@@ -276,7 +271,7 @@
                   </div>
                 </fieldset>
                 <fieldset>
-                  <legend class="label" data-i18n="field.skills">Skills</legend>
+                  <legend class="label"><span data-i18n="field.skills">Skills</span> <span class="optional" data-i18n="common.optional">(optional)</span></legend>
                   <div class="flex flex-wrap gap-2">
                     <template x-for="option in skillOptions" :key="option.value">
                       <label class="check-pill"><input type="checkbox" class="size-4 accent-primary" :value="option.value" x-model="form.skills" /><span x-text="option.label"></span></label>
@@ -284,7 +279,7 @@
                   </div>
                 </fieldset>
                 <label class="flex items-start gap-3 text-sm">
-                  <input type="checkbox" class="mt-0.5 size-5 shrink-0 accent-primary" x-model="form.matchingOptIn" />
+                  <input type="checkbox" class="mt-1 size-5 shrink-0 accent-primary" x-model="form.matchingOptIn" />
                   <span>
                     <span data-i18n="signup.matching">Use my availability, interests and skills to recommend volunteer events.</span>
                     <span class="block text-muted" data-i18n="profile.matchingHelp">Optional. If unticked, we won't use these details for AI suggestions.</span>
@@ -293,7 +288,7 @@
               </section>
 
               <div role="alert">
-                <p class="rounded-md bg-danger-soft p-3 text-sm font-medium text-danger" x-show="formError" x-text="formError"></p>
+                <p class="note-danger" x-show="formError" x-text="formError"></p>
               </div>
               <button type="submit" class="btn btn-primary w-full sm:w-auto" :disabled="saving">
                 <span class="spinner" x-show="saving" x-cloak aria-hidden="true"></span>
@@ -303,7 +298,7 @@
 
             <!-- 4. Consent (REQUIREMENTS.md 4.2) -->
             <section class="card space-y-3" aria-labelledby="consent-heading">
-              <h2 id="consent-heading" class="text-lg font-semibold" data-i18n="profile.privacyTitle">Privacy &amp; consent</h2>
+              <h2 id="consent-heading" class="card-title" data-i18n="profile.privacyTitle">Privacy &amp; consent</h2>
               <template x-if="hasConsent">
                 <div class="space-y-3">
                   <p class="text-sm">
@@ -318,14 +313,14 @@
                 </div>
               </template>
               <template x-if="!hasConsent">
-                <div class="space-y-3 rounded-md border border-warning bg-warning-soft p-4">
-                  <p class="text-sm font-semibold text-warning" data-i18n="profile.needConsent">You need to give consent before you can donate or volunteer.</p>
+                <div class="space-y-3 rounded-md bg-warning-soft p-4">
+                  <p class="text-sm font-bold text-warning" data-i18n="profile.needConsent">You need to give consent before you can donate or volunteer.</p>
                   <label class="flex items-start gap-3 text-sm">
-                    <input type="checkbox" class="mt-0.5 size-5 shrink-0 accent-primary" x-model="consentChecked" />
-                    <span><span data-i18n="signup.consentBefore">I agree to the</span> <a href="/privacy.html" target="_blank" rel="noopener" class="font-semibold text-primary underline" data-i18n="signup.consentLink">Privacy Notice</a> <span data-i18n="signup.consentAfter">and to KampongShare using my details to coordinate donations and volunteering.</span></span>
+                    <input type="checkbox" class="mt-1 size-5 shrink-0 accent-primary" x-model="consentChecked" />
+                    <span><span data-i18n="signup.consentBefore">I agree to the</span> <a href="/privacy.html" target="_blank" rel="noopener" class="font-bold text-primary underline" data-i18n="signup.consentLink">Privacy Notice</a> <span data-i18n="signup.consentAfter">and to KampongShare using my details to coordinate donations and volunteering.</span></span>
                   </label>
                   <label class="flex items-start gap-3 text-sm">
-                    <input type="checkbox" class="mt-0.5 size-5 shrink-0 accent-primary" x-model="ageChecked" />
+                    <input type="checkbox" class="mt-1 size-5 shrink-0 accent-primary" x-model="ageChecked" />
                     <span data-i18n="signup.age">I confirm I am 18 or older.</span>
                   </label>
                   <button type="button" class="btn btn-primary" :disabled="consentBusy || !consentChecked || !ageChecked" @click="submitConsent()">
@@ -338,29 +333,29 @@
 
             <!-- 5. Your data (REQUIREMENTS.md 4.4) -->
             <section class="card space-y-3" aria-labelledby="data-heading">
-              <h2 id="data-heading" class="text-lg font-semibold" data-i18n="profile.yourData">Your data</h2>
+              <h2 id="data-heading" class="card-title" data-i18n="profile.yourData">Your data</h2>
               <dl class="grid gap-x-4 gap-y-2 text-sm sm:grid-cols-[max-content_1fr]">
-                <dt class="font-medium text-muted" data-i18n="profile.account">Account</dt>
+                <dt class=" text-muted" data-i18n="profile.account">Account</dt>
                 <dd x-text="roleLabel(profile.role)"></dd>
-                <dt class="font-medium text-muted" data-i18n="field.email">Email</dt>
+                <dt class=" text-muted" data-i18n="field.email">Email</dt>
                 <dd class="break-words" x-text="email || '—'"></dd>
-                <dt class="font-medium text-muted" data-i18n="profile.memberSince">Member since</dt>
+                <dt class=" text-muted" data-i18n="profile.memberSince">Member since</dt>
                 <dd x-text="formatDate(profile.created_at)"></dd>
-                <dt class="font-medium text-muted" data-i18n="profile.consent">Consent</dt>
+                <dt class=" text-muted" data-i18n="profile.consent">Consent</dt>
                 <dd x-text="profile.consented_at ? $t('profile.givenOn', { date: formatDate(profile.consented_at, true) }) : $t('common.notGiven')"></dd>
-                <dt class="font-medium text-muted" data-i18n="profile.adult">18 or older</dt>
+                <dt class=" text-muted" data-i18n="profile.adult">18 or older</dt>
                 <dd x-text="profile.age_confirmed ? $t('profile.confirmed') : $t('profile.notConfirmed')"></dd>
-                <dt class="font-medium text-muted" x-show="volunteerStatus" data-i18n="profile.volunteerAccount">Volunteer account</dt>
+                <dt class=" text-muted" x-show="volunteerStatus" data-i18n="profile.volunteerAccount">Volunteer account</dt>
                 <dd x-show="volunteerStatus" x-text="volunteerStatus?.label"></dd>
-                <dt class="font-medium text-muted" x-show="isIndividual" data-i18n="profile.aiMatching">AI matching</dt>
+                <dt class=" text-muted" x-show="isIndividual" data-i18n="profile.aiMatching">AI matching</dt>
                 <dd x-show="isIndividual" x-text="profile.matching_opt_in ? $t('profile.matchingOn') : $t('profile.matchingOff')"></dd>
               </dl>
-              <p class="text-sm text-muted"><span data-i18n="profile.readHow">Read how we use it in the</span> <a href="/privacy.html" class="font-semibold text-primary underline" data-i18n="common.privacyNotice">Privacy Notice</a><span data-i18n="match.noMatchAfter">.</span></p>
+              <p class="text-sm text-muted"><span data-i18n="profile.readHow">Read how we use it in the</span> <a href="/privacy.html" class="font-bold text-primary underline" data-i18n="common.privacyNotice">Privacy Notice</a><span data-i18n="match.noMatchAfter">.</span></p>
             </section>
 
             <!-- 6. Delete account (REQUIREMENTS.md 4.4) -->
             <section class="card space-y-3" aria-labelledby="delete-heading">
-              <h2 id="delete-heading" class="text-lg font-semibold" data-i18n="profile.deleteTitle">Delete my account</h2>
+              <h2 id="delete-heading" class="card-title" data-i18n="profile.deleteTitle">Delete my account</h2>
               <template x-if="isIndividual">
                 <div class="space-y-3">
                   <p class="text-sm text-muted" data-i18n="profile.deleteHelp">
@@ -368,7 +363,7 @@
                     Past donations stay with the organizations for their records, but without your name or contact details.
                   </p>
                   <label class="flex items-start gap-3 text-sm">
-                    <input id="delete-understood" type="checkbox" class="mt-0.5 size-5 shrink-0 accent-primary" x-model="deleteUnderstood"
+                    <input id="delete-understood" type="checkbox" class="mt-1 size-5 shrink-0 accent-primary" x-model="deleteUnderstood"
                       :aria-invalid="deleteError && !deleteUnderstood ? 'true' : null" aria-describedby="delete-error" />
                     <span data-i18n="profile.deleteUnderstand">I understand this can't be undone.</span>
                   </label>

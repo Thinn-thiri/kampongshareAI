@@ -4,31 +4,34 @@
 @custom-variant dark (&:where([data-theme=dark], [data-theme=dark] *));
 
 @theme {
-  /* "The void deck noticeboard" (REQUIREMENTS.md section 3): paper, cork, kopi-brown ink,
-     noticeboard green, marigold pins and tape. These are the light values; dark is below.
-     board = cork (behind pinned notices; only ink text on it), field-border = input borders (3:1),
-     highlight = the marigold stroke behind hovered links, *-edge = the solid edge under buttons. */
+  /* "The void deck noticeboard" (DESIGN.md): calm paper everywhere, one pinned notice as the signature.
+     These are the light values; dark ("noticeboard at night") is below.
+     board = cork (the strip above "Most needed", the search tint, the icon-hover circle; only ink text on it),
+     field-border = text box borders (3:1), accent = marigold: pins, the tracker's current step, focus glow only.
+     canvas-hover = the slightly darker canvas shade a clickable card turns on hover. */
+  --color-*: initial;
+  --color-white: #ffffff;
+  --color-black: #000000;
+  --color-transparent: transparent;
+  --color-current: currentColor;
   --color-canvas: #fffdf7;
+  --color-canvas-hover: #f6efe3;
   --color-surface: #ffffff;
   --color-board: #e7d3b8;
   --color-ink: #2b211b;
   --color-muted: #6b5d52;
   --color-line: #e9dfd2;
   --color-field-border: #8a7967;
+  --color-edge: #d6c4ad;
   --color-primary: #1e6b47;
   --color-primary-hover: #17573a;
   --color-primary-soft: #e3f1e8;
-  --color-primary-edge: #17573a;
   --color-on-primary: #ffffff;
   --color-accent: #f2b705;
   --color-on-accent: #2b211b;
-  --color-highlight: #fae196;
   --color-danger: #b42318;
   --color-danger-soft: #fdecea;
-  --color-danger-edge: #7e1911;
   --color-on-danger: #ffffff;
-  --color-success: #1e6b47;
-  --color-success-soft: #e3f1e8;
   --color-warning: #8a5a00;
   --color-warning-soft: #fdf3d3;
   --color-info: #1f4e8c;
@@ -39,31 +42,29 @@
   --radius-sm: 6px;
   --radius-md: 10px;
   --radius-lg: 14px;
-  --shadow-sm: 0 1px 2px rgb(43 33 27 / 0.08);
-  --shadow-md: 0 4px 14px rgb(43 33 27 / 0.12);
+  --shadow-sm: 0 1px 3px rgb(43 33 27 / 0.1);
+  --shadow-md: 0 6px 18px rgb(43 33 27 / 0.14);
 
-  /* type: Atkinson Hyperlegible for reading (made for low vision), Bricolage Grotesque for headings.
-     Chinese falls back to the device's own Chinese font (no big web font). */
-  --font-sans: "Atkinson Hyperlegible", "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", "Noto Sans SC", system-ui, sans-serif;
-  --font-display: "Bricolage Grotesque", "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", "Noto Sans SC", system-ui, sans-serif;
+  /* type (DESIGN.md 4): Fraunces 600 / 700 (a soft, warm serif) for titles only, Lexend 400 / 700 (made for
+     easier reading) for everything else. Chinese falls back to the device's own Chinese font. */
+  --font-sans: "Lexend", "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", "Noto Sans SC", sans-serif;
+  --font-display: "Fraunces", "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", "Noto Sans SC", serif;
 
-  /* type scale 13 / 15 / 17 / 20 / 26 / 34 / 44 px */
-  --text-xs: 0.8125rem;
-  --text-xs--line-height: 1.45;
-  --text-sm: 0.9375rem;
-  --text-sm--line-height: 1.5;
+  /* type scale: small 16/24 · body 17/27 · card title 19/26 · section 22/30 · title 30/36 · display 40/44
+     (title and display are smaller on phones, below) */
+  --text-*: initial;
+  --text-sm: 1rem;
+  --text-sm--line-height: 1.5rem;
   --text-base: 1.0625rem;
-  --text-base--line-height: 1.55;
-  --text-lg: 1.25rem;
-  --text-lg--line-height: 1.4;
-  --text-xl: 1.25rem;
-  --text-xl--line-height: 1.4;
-  --text-2xl: 1.625rem;
-  --text-2xl--line-height: 1.25;
-  --text-3xl: 2.125rem;
-  --text-3xl--line-height: 1.15;
-  --text-4xl: 2.75rem;
-  --text-4xl--line-height: 1.1;
+  --text-base--line-height: 1.6875rem;
+  --text-lg: 1.1875rem;
+  --text-lg--line-height: 1.625rem;
+  --text-xl: 1.375rem;
+  --text-xl--line-height: 1.875rem;
+  --text-2xl: 1.875rem;
+  --text-2xl--line-height: 2.25rem;
+  --text-4xl: 2.5rem;
+  --text-4xl--line-height: 2.75rem;
 }
 
 /* Light theme is the @theme above. Dark theme ("noticeboard at night"): the same tokens with dark values.
@@ -75,73 +76,67 @@
 }
 [data-theme="light"] {
   --color-canvas: #fffdf7;
+  --color-canvas-hover: #f6efe3;
   --color-surface: #ffffff;
   --color-board: #e7d3b8;
   --color-ink: #2b211b;
   --color-muted: #6b5d52;
   --color-line: #e9dfd2;
   --color-field-border: #8a7967;
+  --color-edge: #d6c4ad;
   --color-primary: #1e6b47;
   --color-primary-hover: #17573a;
   --color-primary-soft: #e3f1e8;
-  --color-primary-edge: #17573a;
   --color-on-primary: #ffffff;
   --color-accent: #f2b705;
   --color-on-accent: #2b211b;
-  --color-highlight: #fae196;
   --color-danger: #b42318;
   --color-danger-soft: #fdecea;
-  --color-danger-edge: #7e1911;
   --color-on-danger: #ffffff;
-  --color-success: #1e6b47;
-  --color-success-soft: #e3f1e8;
   --color-warning: #8a5a00;
   --color-warning-soft: #fdf3d3;
   --color-info: #1f4e8c;
   --color-info-soft: #e4edf8;
   --color-overlay: rgb(43 33 27 / 0.45);
-  --shadow-sm: 0 1px 2px rgb(43 33 27 / 0.08);
-  --shadow-md: 0 4px 14px rgb(43 33 27 / 0.12);
+  --shadow-sm: 0 1px 3px rgb(43 33 27 / 0.1);
+  --shadow-md: 0 6px 18px rgb(43 33 27 / 0.14);
 }
 :root[data-theme="dark"],
 [data-theme="dark"] {
   color-scheme: dark;
   --color-canvas: #1c1612;
+  --color-canvas-hover: #2f2721;
   --color-surface: #26201b;
   --color-board: #3a2e24;
   --color-ink: #f5eee6;
   --color-muted: #c2b2a3;
   --color-line: #3a2f27;
   --color-field-border: #8f7f70;
+  --color-edge: #54463a;
   --color-primary: #7bd3a0;
   --color-primary-hover: #9be0b7;
   --color-primary-soft: #16301f;
-  --color-primary-edge: #447458;
   --color-on-primary: #0e2a1b;
   --color-accent: #f2b705;
   --color-on-accent: #2b211b;
-  --color-highlight: #523e0f;
   --color-danger: #f97066;
   --color-danger-soft: #3a1714;
-  --color-danger-edge: #893e38;
   --color-on-danger: #2a0b08;
-  --color-success: #7bd3a0;
-  --color-success-soft: #16301f;
   --color-warning: #f2b705;
   --color-warning-soft: #3a2c0a;
   --color-info: #9cc3f5;
   --color-info-soft: #172a44;
   --color-overlay: rgb(0 0 0 / 0.6);
-  /* a little stronger, so cards still lift off the dark background */
-  --shadow-sm: 0 1px 2px rgb(0 0 0 / 0.4);
-  --shadow-md: 0 4px 14px rgb(0 0 0 / 0.5);
+  /* a little stronger, so notices and menus still lift off the dark background */
+  --shadow-sm: 0 1px 3px rgb(0 0 0 / 0.45);
+  --shadow-md: 0 6px 18px rgb(0 0 0 / 0.55);
 }
 /* themed panels set their own text and background (the page body does this for <html>) */
 [data-theme] {
   color: var(--color-ink);
 }
 
-/* Short colour change only when the user switches theme (js/theme.js adds the class);
+/* Theme switch: a 150 ms colour change only when the user switches (js/theme.js adds the class);
    never on first load. Turned off with prefers-reduced-motion below. */
 html.theme-changing,
 html.theme-changing * {
@@ -205,18 +200,22 @@ html.theme-changing * {
 
 @layer base {
   body {
-    @apply bg-canvas font-sans text-ink antialiased;
-    line-height: 1.55;
+    @apply bg-canvas font-sans text-base text-ink antialiased;
   }
+  /* titles only: Fraunces 700 for the page title, 600 for section and card titles */
   h1,
   h2,
   h3 {
     font-family: var(--font-display);
-    letter-spacing: -0.015em;
+    font-weight: 600;
+    letter-spacing: -0.01em;
   }
-  /* readable line length */
+  h1 {
+    font-weight: 700;
+  }
+  /* lines no longer than about 70 characters */
   p {
-    max-width: 75ch;
+    max-width: 70ch;
   }
   .text-center p,
   p.text-center {
@@ -226,83 +225,115 @@ html.theme-changing * {
   [x-cloak] {
     display: none !important;
   }
-  /* pages with data-require stay hidden until js/auth.js confirms access */
-  /* phones: leave room so the bottom navigation never covers the end of the page */
-  @media (max-width: 639px) {
+  /* phones and tablets: leave room so the bottom navigation never covers the end of the page */
+  @media (max-width: 1023px) {
     body {
       padding-bottom: 4.5rem;
     }
   }
+  /* pages with data-require stay hidden until js/auth.js confirms access */
   body[data-require]:not([data-access-ok]) main {
     visibility: hidden;
   }
 }
 
 @layer components {
-  /* buttons — min height 44px */
+  /* ---------- text styles (DESIGN.md 4) ---------- */
+  .display {
+    @apply text-4xl font-bold;
+    font-family: var(--font-display);
+  }
+  .title {
+    @apply text-2xl font-bold;
+    font-family: var(--font-display);
+    letter-spacing: -0.01em;
+  }
+  .section-title {
+    @apply text-xl font-semibold;
+    font-family: var(--font-display);
+    letter-spacing: -0.01em;
+  }
+  /* dashboard summary cards: a clear label and a big number */
+  .stat-label {
+    @apply block text-base leading-6 text-muted;
+  }
+  .stat-number {
+    @apply mt-2 block text-4xl font-bold tabular-nums text-ink;
+    font-family: var(--font-display);
+  }
+  .card-title {
+    @apply text-lg font-semibold break-words;
+    font-family: var(--font-display);
+    letter-spacing: -0.01em;
+  }
+
+  /* ---------- page layout (DESIGN.md 5) ---------- */
+  /* content: max 1120px, 16px gutter on phones */
+  .container-page {
+    @apply mx-auto w-full max-w-[1120px] px-4;
+  }
+  /* the page's sections: 40px apart on phones, 64px on desktop */
+  .page-sections {
+    @apply space-y-10 py-8 sm:space-y-16 sm:py-12;
+  }
+
+  /* ---------- buttons (DESIGN.md 6.3): flat, 48px tall, Label text ---------- */
   .btn {
-    @apply inline-flex min-h-11 items-center justify-center gap-2 rounded-md px-5 text-sm font-bold disabled:cursor-not-allowed disabled:opacity-60;
+    @apply inline-flex min-h-12 items-center justify-center gap-2 rounded-md px-6 text-sm leading-5 font-bold disabled:cursor-not-allowed disabled:opacity-50;
     -webkit-tap-highlight-color: transparent;
     touch-action: manipulation;
-    /* coming back up: a soft spring; going down (:active below): almost instant, so it follows the finger */
     transition:
-      background-color 180ms ease-out,
-      border-color 180ms ease-out,
-      box-shadow 220ms cubic-bezier(0.2, 0.9, 0.3, 1.2),
-      translate 220ms cubic-bezier(0.2, 0.9, 0.3, 1.2);
+      background-color 150ms ease-out,
+      border-color 150ms ease-out;
   }
-  /* primary, secondary and danger sit on a solid edge: they rise 1px on hover and press down 2px */
+  .btn > i {
+    font-size: 1.5rem;
+  }
+  /* main: flat green, a little darker on hover and darker still while pressed */
   .btn-primary {
     @apply bg-primary text-on-primary hover:bg-primary-hover;
-    --btn-edge: var(--color-primary-edge);
-    box-shadow: 0 3px 0 var(--btn-edge);
   }
+  .btn-primary:active:not(:disabled) {
+    background-color: color-mix(in srgb, var(--color-primary-hover) 85%, var(--color-ink));
+  }
+  /* secondary: flat paper with a 1.5px border that turns ink on hover */
   .btn-secondary {
-    @apply border border-ink bg-canvas text-ink hover:bg-board;
-    --btn-edge: var(--color-ink);
-    box-shadow: 0 3px 0 var(--btn-edge);
+    @apply border-[1.5px] border-field-border bg-surface text-ink hover:border-ink hover:bg-canvas-hover;
   }
-  /* hover: a little deeper, towards the ink colour (darker on light, lighter on dark), so the text stays readable */
+  .btn-secondary:active:not(:disabled) {
+    background-color: var(--color-line);
+  }
+  /* danger: same shape as main, in red (delete, reject, cancel event — always with a confirm dialog) */
   .btn-danger {
     @apply bg-danger text-on-danger;
-    --btn-edge: var(--color-danger-edge);
-    box-shadow: 0 3px 0 var(--btn-edge);
   }
   .btn-danger:hover:not(:disabled) {
     background-color: color-mix(in srgb, var(--color-danger) 88%, var(--color-ink));
   }
-  @media (hover: hover) {
-    .btn-primary:hover:not(:disabled),
-    .btn-secondary:hover:not(:disabled),
-    .btn-danger:hover:not(:disabled) {
-      translate: 0 -1px;
-      box-shadow: 0 4px 0 var(--btn-edge);
-    }
-  }
-  .btn-primary:active:not(:disabled),
-  .btn-secondary:active:not(:disabled),
   .btn-danger:active:not(:disabled) {
-    translate: 0 2px;
-    box-shadow: 0 1px 0 var(--btn-edge);
-    transition-duration: 60ms;
-    transition-timing-function: ease-out;
+    background-color: color-mix(in srgb, var(--color-danger) 75%, var(--color-ink));
   }
-  .btn-ghost {
-    @apply text-primary hover:bg-primary-soft;
+  /* quiet: text only, underline on hover (small actions in lists) */
+  .btn-quiet {
+    @apply min-h-11 px-3 text-primary underline-offset-4 hover:underline;
   }
 
-  /* cards */
-  /* calm cards: straight, paper-white, a thin line; the border turns green on hover */
+  /* ---------- cards (DESIGN.md 6.2): surface, 14px corners, a soft 1.5px edge so they stand out from the paper ---------- */
   .card {
-    @apply rounded-lg border border-line bg-surface p-5 transition-colors duration-150 hover:border-primary;
+    @apply rounded-lg border-[1.5px] border-edge bg-surface p-6;
+  }
+  /* clickable cards turn the slightly darker canvas shade */
+  a.card:hover,
+  .card-link:hover {
+    @apply bg-canvas-hover;
   }
 
-  /* badges */
+  /* ---------- status badges (DESIGN.md 6.5): small pill, soft background, icon + word ---------- */
   .badge {
-    @apply inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-xs font-semibold;
+    @apply inline-flex items-center gap-1 rounded-full px-3 py-1 text-sm leading-5 font-bold whitespace-nowrap;
   }
   .badge-success {
-    @apply bg-success-soft text-success;
+    @apply bg-primary-soft text-primary;
   }
   .badge-warning {
     @apply bg-warning-soft text-warning;
@@ -314,73 +345,110 @@ html.theme-changing * {
     @apply bg-info-soft text-info;
   }
   .badge-neutral {
-    @apply border border-line bg-canvas text-muted;
+    @apply bg-canvas-hover text-ink;
+  }
+  /* a plain label with no status (counts, "Account" / "Request" on review cards): no icon */
+  .badge-plain {
+    @apply bg-canvas-hover text-ink;
+  }
+  /* "AI-suggested": a quiet tag with a sparkle */
+  .badge-ai {
+    @apply bg-primary-soft px-2 py-0 font-normal text-primary;
   }
 
-  /* forms */
+  /* ---------- text boxes and form controls (DESIGN.md 6.4) ---------- */
   .label {
-    @apply mb-1 block text-sm font-bold text-ink;
+    @apply mb-2 block text-sm leading-5 font-bold text-ink;
   }
-  /* "paper form": white field, 1.5px brown border; focus = 2px green border + a soft marigold glow */
+  /* "(optional)" after a label */
+  .optional {
+    @apply font-normal text-muted;
+  }
+  /* 48px tall, 17px text (phones don't zoom in), 1.5px border, 10px corners */
+  /* 48px tall, 17px text (phones don't zoom in), a clear 2px border and a light cork-tinted fill,
+     so a text box is easy to spot on a white card; it turns white with a green border while typing */
   .input {
-    @apply min-h-11 w-full rounded-md border-[1.5px] border-field-border bg-surface px-3 text-base text-ink placeholder:text-muted;
-    transition:
-      border-color 150ms,
-      box-shadow 150ms;
+    @apply min-h-12 w-full rounded-md border-2 border-field-border px-3 text-base text-ink placeholder:text-muted hover:border-ink;
+    background-color: color-mix(in srgb, var(--color-board) 22%, var(--color-surface));
   }
   .input:focus {
-    @apply border-primary outline-none;
+    @apply border-primary bg-surface outline-none;
     box-shadow:
       inset 0 0 0 0.5px var(--color-primary),
       0 0 0 4px color-mix(in srgb, var(--color-accent) 35%, transparent);
   }
+  .input:disabled {
+    @apply cursor-not-allowed border-dashed bg-canvas text-muted hover:border-field-border;
+  }
   .helper-text {
-    @apply mt-1 text-sm text-muted;
+    @apply mt-2 text-sm text-muted;
   }
   .field-error {
-    @apply mt-1 flex items-start gap-1.5 text-sm text-danger;
+    @apply mt-2 flex items-start gap-2 text-sm text-danger;
   }
-  /* Lucide alert-circle in front of every error message (no extra markup) */
+  /* Phosphor warning-circle in front of every error message (no extra markup) */
   .field-error::before {
-    content: "";
-    @apply mt-[0.2em] size-4 shrink-0 bg-current;
-    mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2.25' stroke-linecap='round' stroke-linejoin='round'%3E%3Ccircle cx='12' cy='12' r='10'/%3E%3Cline x1='12' x2='12' y1='8' y2='12'/%3E%3Cline x1='12' x2='12.01' y1='16' y2='16'/%3E%3C/svg%3E")
-      center / contain no-repeat;
+    content: "\e4e2";
+    font-family: "Phosphor";
+    font-size: 1.25rem;
+    line-height: 1.375rem;
+  }
+  /* character counter, bottom right: "120 / 300"; danger-coloured at the limit */
+  .counter {
+    @apply mt-2 ml-auto block shrink-0 text-right text-sm whitespace-nowrap text-muted tabular-nums;
+  }
+  .counter-limit {
+    @apply font-bold text-danger;
+  }
+  /* locked (read-only, e.g. after approval): no border, canvas background and a lock at the right;
+     the note "To change this, close the request and post a new one." sits nearby */
+  .input[readonly]:not(.input-busy),
+  .input[readonly]:not(.input-busy):hover {
+    @apply border-transparent bg-canvas pr-11 text-ink;
+    border-style: solid;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 256 256' fill='%236B5D52'%3E%3Cpath d='M208,80H176V56a48,48,0,0,0-96,0V80H48A16,16,0,0,0,32,96V208a16,16,0,0,0,16,16H208a16,16,0,0,0,16-16V96A16,16,0,0,0,208,80ZM96,56a32,32,0,0,1,64,0V80H96ZM208,208H48V96H208V208Z'/%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: right 0.875rem top 0.875rem;
+    background-size: 1.125rem;
+  }
+  .input[readonly]:focus {
+    box-shadow: none;
+    border-color: var(--color-field-border);
   }
 
-  /* long text (request descriptions, messages): faint ruled notepaper lines, one per line of text */
+  /* long text (request descriptions, messages): faint notepaper lines on the 27px line height */
   .input-ruled {
-    line-height: 1.55;
+    @apply py-2;
+    line-height: 1.6875rem;
     background-image: repeating-linear-gradient(
       to bottom,
       transparent 0,
-      transparent calc(1.55em - 1px),
-      var(--color-line) calc(1.55em - 1px),
-      var(--color-line) 1.55em
+      transparent calc(1.6875rem - 1px),
+      var(--color-line) calc(1.6875rem - 1px),
+      var(--color-line) 1.6875rem
     );
     background-position: 0 0.5rem;
     background-attachment: local;
   }
 
-  /* search: a pill with a magnifier, tinted like the cork board */
+  /* search: pill shape, magnifier, board-tinted */
   .search-field {
     @apply relative;
   }
-  .search-field > svg,
   .search-field > i {
-    @apply pointer-events-none absolute top-1/2 left-4 size-5 -translate-y-1/2 text-muted;
+    @apply pointer-events-none absolute top-1/2 left-4 -translate-y-1/2 text-xl text-muted;
   }
   .search-field > .input {
-    @apply rounded-full pl-11;
+    @apply rounded-full pl-12;
     background-color: color-mix(in srgb, var(--color-board) 30%, var(--color-surface));
   }
 
-  /* quantity: big − and + buttons either side of the number (js/ui.js stepNumber) */
+  /* quantity: large − and + buttons (48px) either side of the number (js/ui.js stepNumber) */
   .stepper {
     @apply flex items-stretch gap-2;
   }
   .stepper > .input {
-    @apply w-24 min-w-0 text-center text-lg font-bold;
+    @apply w-24 min-w-0 text-center text-lg font-bold tabular-nums;
     -moz-appearance: textfield;
   }
   .stepper > .input::-webkit-inner-spin-button,
@@ -389,7 +457,7 @@ html.theme-changing * {
     margin: 0;
   }
   .stepper-btn {
-    @apply inline-flex size-11 shrink-0 items-center justify-center rounded-md border-[1.5px] border-field-border bg-canvas text-ink hover:border-primary hover:bg-primary-soft disabled:cursor-not-allowed disabled:opacity-50;
+    @apply inline-flex size-12 shrink-0 items-center justify-center rounded-md border-[1.5px] border-field-border bg-surface text-2xl text-ink hover:border-ink disabled:cursor-not-allowed disabled:opacity-50;
   }
 
   /* password field with a show / hide button inside its right edge */
@@ -400,183 +468,287 @@ html.theme-changing * {
     @apply pr-12;
   }
   .password-toggle {
-    @apply absolute inset-y-0 right-0 inline-flex min-h-11 w-11 items-center justify-center rounded-md text-muted transition-colors duration-200 hover:text-primary focus-visible:text-primary focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary;
+    @apply absolute inset-y-0 right-0 inline-flex w-12 items-center justify-center rounded-md text-xl text-muted hover:text-ink;
   }
 
-  /* ---- extra components (pieces section 3 describes but doesn't define) ---- */
-
-  /* page width: max 1100px, 16px side padding on mobile */
-  .container-page {
-    @apply mx-auto w-full max-w-[1100px] px-4;
+  /* selectable cards (account type, donate / volunteer) and pills (days, interests…) */
+  .choice-card {
+    @apply flex cursor-pointer items-start gap-3 rounded-md border-[1.5px] border-field-border bg-surface p-4 hover:border-ink has-checked:border-primary has-checked:bg-primary-soft has-focus-visible:outline-3 has-focus-visible:outline-offset-2 has-focus-visible:outline-primary;
   }
-
-  /* top bar and mobile bottom navigation */
-  .topbar {
-    @apply sticky top-0 z-30 border-b border-line bg-surface;
-  }
-  .bottom-nav {
-    @apply fixed inset-x-0 bottom-0 z-30 flex border-t border-line bg-surface sm:hidden;
-  }
-  .bottom-nav-link {
-    @apply relative flex min-h-14 flex-1 flex-col items-center justify-center gap-0.5 text-xs font-medium text-muted hover:text-primary aria-[current=page]:font-bold aria-[current=page]:text-ink;
-  }
-  /* Donating / Volunteering switch */
-  /* tabs (role="tablist" / "tab"): scroll sideways on phones instead of wrapping */
-  .tablist {
-    @apply flex gap-1 overflow-x-auto border-b border-line;
-  }
-  .tab {
-    @apply inline-flex min-h-11 shrink-0 items-center gap-2 border-b-2 border-transparent px-4 text-sm font-semibold whitespace-nowrap text-muted hover:text-ink focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-primary aria-selected:border-primary aria-selected:text-primary;
-  }
-  .tab-count {
-    @apply inline-flex min-w-6 items-center justify-center rounded-full bg-canvas px-1.5 text-xs font-bold text-muted;
-  }
-
-  /* filter chips and quick reasons (buttons with aria-pressed) */
-  .chip {
-    @apply inline-flex min-h-11 items-center rounded-full border border-line bg-surface px-4 text-sm font-medium text-ink hover:border-primary focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary aria-pressed:border-primary aria-pressed:bg-primary-soft aria-pressed:text-primary;
-  }
-
-  /* details panel (native <dialog>): full screen on phones, a sheet on the right on wider screens */
-  .side-panel {
-    @apply m-0 h-dvh max-h-none w-full max-w-none overflow-y-auto bg-surface p-0 text-ink shadow-md backdrop:bg-overlay sm:ml-auto sm:w-[30rem] sm:border-l sm:border-line;
-  }
-
-  /* "Ask KampongShare" chat: a round icon button (above the phone bottom bar), panel full screen on phones */
-  .chat-fab {
-    @apply fixed right-4 bottom-20 z-40 inline-flex size-14 items-center justify-center gap-2 rounded-full bg-primary text-sm font-semibold text-on-primary shadow-md hover:bg-primary-hover sm:bottom-6;
-  }
-  .chat-panel {
-    @apply fixed inset-0 m-0 h-dvh max-h-none w-full max-w-none overflow-hidden bg-surface p-0 text-ink shadow-md backdrop:bg-overlay sm:inset-auto sm:right-6 sm:bottom-6 sm:h-[600px] sm:max-h-[calc(100dvh-3rem)] sm:w-[380px] sm:rounded-lg sm:border sm:border-line;
-  }
-  .chat-bubble-bot {
-    @apply max-w-[90%] rounded-lg rounded-tl-sm bg-canvas px-3 py-2 text-sm text-ink;
-  }
-  .chat-bubble-user {
-    @apply max-w-[85%] rounded-lg rounded-tr-sm bg-primary px-3 py-2 text-sm text-on-primary;
+  .check-pill {
+    @apply inline-flex min-h-11 cursor-pointer items-center gap-2 rounded-full border-[1.5px] border-field-border bg-surface px-4 text-sm hover:border-ink has-checked:border-primary has-checked:bg-primary-soft has-checked:font-bold has-checked:text-primary has-focus-visible:outline-3 has-focus-visible:outline-offset-2 has-focus-visible:outline-primary;
   }
 
   /* on / off switch (<input type="checkbox" role="switch">), inside a label at least 44px tall */
   .switch {
-    @apply relative h-6 w-11 shrink-0 cursor-pointer appearance-none rounded-full border border-muted bg-canvas transition-colors duration-200 checked:border-primary checked:bg-primary focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary;
+    @apply relative h-6 w-11 shrink-0 cursor-pointer appearance-none rounded-full border-[1.5px] border-field-border bg-canvas checked:border-primary checked:bg-primary;
   }
   .switch::before {
     content: "";
-    @apply absolute top-0.5 left-0.5 size-[1.125rem] rounded-full bg-muted transition-transform duration-200;
+    @apply absolute top-0.5 left-0.5 size-4 rounded-full bg-muted;
   }
   .switch:checked::before {
     @apply translate-x-5 bg-on-primary;
   }
 
-  /* the unread number on the top bar's Messages button */
-  .nav-count {
-    @apply absolute top-0 right-0 inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-danger px-1 text-xs font-bold text-on-danger;
+  /* ---------- navigation (DESIGN.md 6.6) ---------- */
+  .topbar {
+    @apply sticky top-0 z-30 bg-surface;
+    box-shadow: 0 1px 0 var(--color-line);
   }
-
-  /* messages.html: list and conversation side by side on wider screens, leaving room for the chat button */
-  .messages-layout {
-    @apply grid gap-4 sm:h-[calc(100dvh-16rem)] sm:min-h-[26rem] sm:grid-cols-[17rem_minmax(0,1fr)] lg:grid-cols-[20rem_minmax(0,1fr)];
-  }
-  .conversation-link {
-    @apply flex min-h-11 items-start gap-3 px-4 py-3 hover:bg-canvas focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-primary aria-[current=true]:bg-primary-soft;
-  }
-  /* phones: the open conversation fills the screen (the Back button returns to the list) */
-  .conversation-open {
-    @apply max-sm:fixed max-sm:inset-0 max-sm:z-40 max-sm:rounded-none max-sm:border-0;
-  }
-  .message-mine {
-    @apply rounded-lg rounded-tr-sm bg-primary-soft px-3 py-2 text-sm whitespace-pre-wrap break-words text-ink;
-  }
-  .message-theirs {
-    @apply rounded-lg rounded-tl-sm border border-line bg-canvas px-3 py-2 text-sm whitespace-pre-wrap break-words text-ink;
-  }
-
-  /* desktop top bar links (Home · Browse needs · My dashboard) */
+  /* desktop links: the current page is bold with a 2px green line under it */
   .top-link {
-    @apply relative inline-flex min-h-11 items-center rounded-md px-3 text-sm font-bold text-muted hover:bg-board hover:text-ink aria-[current=page]:text-ink;
+    @apply relative inline-flex min-h-11 items-center gap-2 rounded-md px-3 text-sm text-ink hover:bg-canvas-hover aria-[current=page]:font-bold;
   }
-  /* round icon buttons in the top bar and chat (theme, language, messages, account, close):
-     a cork circle behind the icon on hover and focus */
+  /* phones and tablets: a bottom bar */
+  .bottom-nav {
+    @apply fixed inset-x-0 bottom-0 z-30 flex bg-surface lg:hidden;
+    box-shadow: 0 -1px 0 var(--color-line);
+  }
+  .bottom-nav-link {
+    @apply relative flex min-h-14 flex-1 flex-col items-center justify-center gap-1 px-1 pt-1 pb-3 text-center text-sm leading-tight text-muted hover:text-ink aria-[current=page]:font-bold aria-[current=page]:text-ink;
+  }
+  .bottom-nav-link > i {
+    font-size: 1.5rem;
+  }
+  /* round icon buttons (messages, settings, chat close): a cork circle on hover and focus */
   .icon-btn {
-    @apply rounded-full hover:bg-board focus-visible:bg-board;
+    @apply inline-flex size-11 shrink-0 items-center justify-center rounded-full text-ink hover:bg-board focus-visible:bg-board;
   }
+  .icon-btn > i {
+    font-size: 1.5rem;
+  }
+  /* the avatar in the account menu button: the first letter of the person's name */
+  .avatar {
+    @apply grid size-9 place-items-center rounded-full bg-primary text-sm font-bold text-on-primary;
+  }
+  /* the unread number on the Messages button */
+  .nav-count {
+    @apply absolute top-0 right-0 inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-danger px-1 text-sm leading-none font-bold text-on-danger tabular-nums;
+  }
+  /* Active | History and other two-way switches inside a page */
   .segmented {
-    @apply flex rounded-md border border-line bg-canvas p-1;
+    @apply flex rounded-md bg-canvas-hover p-1;
   }
   .segmented-link {
-    @apply relative flex min-h-11 flex-1 items-center justify-center rounded-sm px-3 text-sm font-bold text-muted hover:text-ink aria-[current=page]:bg-surface aria-[current=page]:text-ink aria-[current=page]:shadow-sm aria-pressed:bg-surface aria-pressed:text-ink aria-pressed:shadow-sm;
+    @apply relative flex min-h-11 flex-1 items-center justify-center gap-2 rounded-sm px-3 text-sm text-muted hover:text-ink aria-[current=page]:bg-surface aria-[current=page]:font-bold aria-[current=page]:text-ink aria-pressed:bg-surface aria-pressed:font-bold aria-pressed:text-ink;
+  }
+  /* tabs (role="tablist" / "tab"): scroll sideways on phones instead of wrapping */
+  .tablist {
+    @apply flex gap-1 overflow-x-auto;
+    box-shadow: inset 0 -1px 0 var(--color-line);
+  }
+  .tab {
+    @apply inline-flex min-h-12 shrink-0 items-center gap-2 border-b-2 border-transparent px-4 text-sm whitespace-nowrap text-muted hover:text-ink aria-selected:border-primary aria-selected:font-bold aria-selected:text-ink;
+  }
+  .tab-count {
+    @apply inline-flex min-w-6 items-center justify-center rounded-full bg-canvas-hover px-2 text-sm leading-5 font-bold text-ink tabular-nums;
+  }
+  /* filter chips and quick reasons (buttons with aria-pressed) */
+  .chip {
+    @apply inline-flex min-h-11 items-center rounded-full border-[1.5px] border-field-border bg-surface px-4 text-sm text-ink hover:border-ink aria-pressed:border-primary aria-pressed:bg-primary-soft aria-pressed:font-bold aria-pressed:text-primary;
   }
 
-  /* selectable cards (account type, donate / volunteer) and pills (days, interests…) */
-  .choice-card {
-    @apply flex cursor-pointer items-start gap-3 rounded-md border border-line bg-surface p-4 transition-colors duration-200 hover:border-primary has-checked:border-primary has-checked:bg-primary-soft has-focus-visible:outline-2 has-focus-visible:outline-offset-2 has-focus-visible:outline-primary;
-  }
-  .check-pill {
-    @apply inline-flex min-h-11 cursor-pointer items-center gap-2 rounded-full border border-line bg-surface px-4 text-sm font-medium transition-colors duration-200 hover:border-primary has-checked:border-primary has-checked:bg-primary-soft has-checked:text-primary has-focus-visible:outline-2 has-focus-visible:outline-primary;
-  }
-
+  /* menus (account, settings, More ⋯) */
   .menu {
-    @apply absolute right-0 z-40 mt-2 w-48 rounded-md border border-line bg-surface p-1 shadow-md;
+    @apply absolute right-0 z-40 mt-2 w-56 rounded-md border-[1.5px] border-edge bg-surface p-1 shadow-md;
   }
   .menu-item {
-    @apply flex min-h-11 w-full items-center rounded-sm px-3 text-left text-sm text-ink hover:bg-canvas focus-visible:outline-2 focus-visible:outline-primary;
+    @apply flex min-h-11 w-full items-center gap-3 rounded-sm px-3 text-left text-sm text-ink hover:bg-canvas-hover;
+  }
+  .menu-item > i {
+    font-size: 1.25rem;
+  }
+  .menu-item-danger {
+    @apply text-danger;
+  }
+  .menu-heading {
+    @apply px-3 pt-3 pb-1 text-sm text-muted;
+  }
+  .menu-separator {
+    @apply my-1 h-px bg-line;
   }
 
-  /* "AI-suggested" tag */
-  .badge-ai {
-    @apply border border-primary-soft bg-primary-soft text-primary;
-  }
-
-  /* loading skeleton */
-  .skeleton {
-    @apply animate-pulse rounded-md bg-line;
-  }
-
-  /* toasts: bottom-centre on mobile, top-right on desktop */
+  /* ---------- feedback (DESIGN.md 6.7) ---------- */
+  /* toasts: bottom centre on phones (above the bottom bar), top right on desktop */
   .toast-region {
-    @apply pointer-events-none fixed inset-x-4 bottom-20 z-50 flex flex-col items-center gap-2 sm:inset-x-auto sm:top-20 sm:right-4 sm:bottom-auto sm:items-end;
+    @apply pointer-events-none fixed inset-x-4 bottom-20 z-50 flex flex-col items-center gap-2 lg:inset-x-auto lg:top-20 lg:right-4 lg:bottom-auto lg:items-end;
   }
   .toast {
-    @apply pointer-events-auto w-full max-w-sm rounded-md border px-4 py-3 text-sm font-medium shadow-md;
+    @apply pointer-events-auto w-full max-w-sm rounded-md px-4 py-3 text-sm font-bold shadow-md;
   }
   .toast-success {
-    @apply border-success bg-success-soft text-success;
+    @apply bg-primary-soft text-primary;
   }
   .toast-error {
-    @apply border-danger bg-danger-soft text-danger;
+    @apply bg-danger-soft text-danger;
   }
   .toast-close {
-    @apply -my-2 -mr-2 inline-flex size-11 shrink-0 items-center justify-center rounded-sm text-xl leading-none opacity-80 hover:opacity-100 focus-visible:outline-2 focus-visible:outline-current;
+    @apply -my-2 -mr-2 inline-flex size-11 shrink-0 items-center justify-center rounded-sm text-xl leading-none;
+  }
+  /* dialogs (native <dialog>): a question for a title, one sentence, then Cancel and the action */
+  .dialog {
+    @apply m-auto w-[calc(100%-2rem)] max-w-md rounded-lg border-[1.5px] border-edge bg-surface p-6 text-ink shadow-md backdrop:bg-overlay;
+  }
+  /* details panel (native <dialog>): full screen on phones, a sheet on the right on wider screens */
+  .side-panel {
+    @apply m-0 h-dvh max-h-none w-full max-w-none overflow-y-auto bg-surface p-0 text-ink shadow-md backdrop:bg-overlay sm:ml-auto sm:w-[32rem] sm:border-l-[1.5px] sm:border-edge;
+  }
+  /* empty states: Pinny looking around, one sentence, one button */
+  .empty {
+    @apply flex flex-col items-center gap-4 rounded-lg border-[1.5px] border-edge bg-surface px-6 py-12 text-center;
+  }
+  .empty > img {
+    @apply h-auto w-24;
+  }
+  /* loading: skeleton shapes of the real content (still, no pulsing) */
+  .skeleton {
+    @apply rounded-md bg-line;
+  }
+  /* inline notes ("This is what donors see", "Waiting for approval") */
+  .note {
+    @apply rounded-md bg-canvas-hover p-4 text-sm;
+  }
+  .note-warning {
+    @apply rounded-md bg-warning-soft p-4 text-sm text-warning;
+  }
+  .note-danger {
+    @apply rounded-md bg-danger-soft p-4 text-sm text-danger;
+  }
+  .note-success {
+    @apply rounded-md bg-primary-soft p-4 text-sm text-primary;
   }
 
   /* "Skip to main content": hidden until a keyboard user tabs to it */
   .skip-link {
-    @apply sr-only focus:not-sr-only focus:fixed focus:top-2 focus:left-2 focus:z-50 focus:inline-flex focus:min-h-11 focus:items-center focus:rounded-md focus:bg-primary focus:px-4 focus:font-semibold focus:text-on-primary focus:shadow-md;
+    @apply sr-only focus:not-sr-only focus:fixed focus:top-2 focus:left-2 focus:z-50 focus:inline-flex focus:min-h-11 focus:items-center focus:rounded-md focus:bg-primary focus:px-4 focus:font-bold focus:text-on-primary focus:shadow-md;
   }
 
-  /* confirm dialog (native <dialog>) */
-  .dialog {
-    @apply m-auto w-[calc(100%-2rem)] max-w-md rounded-lg border border-line bg-surface p-6 text-ink shadow-md backdrop:bg-overlay;
-  }
-
-  /* button spinner */
+  /* button spinner (replaces the button's icon while it works) */
   .spinner {
-    @apply inline-block size-4 animate-spin rounded-full border-2 border-current border-r-transparent;
+    @apply inline-block size-5 animate-spin rounded-full border-2 border-current border-r-transparent;
+  }
+
+  /* ---------- "Ask KampongShare" chat: a round button bottom right, above any phone navigation ---------- */
+  .chat-fab {
+    @apply fixed right-4 bottom-20 z-40 inline-flex size-14 items-center justify-center rounded-full bg-primary text-on-primary shadow-md hover:bg-primary-hover lg:bottom-6;
+  }
+  .chat-fab > i {
+    font-size: 1.75rem;
+  }
+  .chat-panel {
+    @apply fixed inset-0 m-0 h-dvh max-h-none w-full max-w-none overflow-hidden bg-surface p-0 text-ink shadow-md backdrop:bg-overlay sm:inset-auto sm:right-6 sm:bottom-6 sm:h-[600px] sm:max-h-[calc(100dvh-3rem)] sm:w-[400px] sm:rounded-lg;
+  }
+  .chat-bubble-bot {
+    @apply max-w-[90%] rounded-lg rounded-tl-sm bg-canvas-hover px-4 py-2 text-base text-ink;
+  }
+  .chat-bubble-user {
+    @apply max-w-[85%] rounded-lg rounded-tr-sm bg-primary px-4 py-2 text-base text-on-primary;
+  }
+
+  /* ---------- messages.html ---------- */
+  .messages-layout {
+    @apply grid gap-4 sm:h-[calc(100dvh-16rem)] sm:min-h-[26rem] sm:grid-cols-[17rem_minmax(0,1fr)] lg:grid-cols-[20rem_minmax(0,1fr)];
+  }
+  .conversation-link {
+    @apply flex min-h-11 items-start gap-3 px-4 py-3 hover:bg-canvas-hover aria-[current=true]:bg-primary-soft;
+  }
+  /* phones: the open conversation fills the screen (the Back button returns to the list) */
+  .conversation-open {
+    @apply max-sm:fixed max-sm:inset-0 max-sm:z-40 max-sm:rounded-none;
+  }
+  .message-mine {
+    @apply rounded-lg rounded-tr-sm bg-primary-soft px-4 py-2 text-base whitespace-pre-wrap break-words text-ink;
+  }
+  .message-theirs {
+    @apply rounded-lg rounded-tl-sm bg-canvas-hover px-4 py-2 text-base whitespace-pre-wrap break-words text-ink;
   }
 }
 
-/* respect users who turn off animations */
-@media (prefers-reduced-motion: reduce) {
-  *,
-  *::before,
-  *::after {
-    animation-duration: 0.01ms !important;
-    transition-duration: 0.01ms !important;
+/* ===================================================================================
+   Rules outside the layers, so they win over utilities
+   =================================================================================== */
+
+/* title and display are smaller on phones (28 → 24, 40 → 32) */
+@media (max-width: 639px) {
+  .text-2xl,
+  .title {
+    font-size: 1.625rem;
+    line-height: 2rem;
   }
+  .stat-number {
+    font-size: 2rem;
+    line-height: 2.25rem;
+  }
+  .text-4xl,
+  .display {
+    font-size: 2rem;
+    line-height: 2.25rem;
+  }
+}
+
+/* Phosphor icons (DESIGN.md 7): 20px in text by default; size-* sets the size of an icon too */
+i.ph,
+i.ph-duotone {
+  display: inline-flex;
+  flex-shrink: 0;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.25rem;
+  line-height: 1;
+}
+i:is(.ph, .ph-duotone).size-4 {
+  font-size: 1rem;
+}
+i:is(.ph, .ph-duotone).size-5 {
+  font-size: 1.25rem;
+}
+i:is(.ph, .ph-duotone).size-6 {
+  font-size: 1.5rem;
+}
+i:is(.ph, .ph-duotone).size-8 {
+  font-size: 2rem;
+}
+i:is(.ph, .ph-duotone).size-10 {
+  font-size: 2.5rem;
+}
+/* category icons: duotone with a marigold fill */
+.category-icon {
+  color: var(--color-ink);
+}
+.category-icon::before {
+  color: var(--color-accent);
+  opacity: 0.9 !important;
+}
+
+/* status badges: an icon before the word (never colour alone) */
+.badge::before {
+  font-family: "Phosphor";
+  font-size: 1rem;
+  font-weight: normal;
+  line-height: 1;
+}
+.badge-warning::before {
+  content: "\e2b8"; /* hourglass: waiting */
+}
+.badge-info::before {
+  content: "\e2ce"; /* info */
+}
+.badge-success::before {
+  content: "\e184"; /* check-circle: done */
+}
+.badge-danger::before {
+  content: "\e4f8"; /* x-circle */
+}
+.badge-neutral::before {
+  content: "\e32c"; /* minus-circle: stopped */
+}
+.badge-ai::before {
+  content: "\e6a2"; /* sparkle */
 }
 
 /* phones: a full-screen conversation hides the bottom bar and the chat button, which would cover
-   the text box (not in a layer, so it wins over the components) */
+   the text box */
 @media (max-width: 639px) {
   body[data-conversation-open] .bottom-nav,
   body[data-conversation-open] .chat-fab {
@@ -584,11 +756,7 @@ html.theme-changing * {
   }
 }
 
-/* ===================================================================================
-   "The void deck noticeboard" — rules outside the layers, so they win over utilities
-   =================================================================================== */
-
-/* keyboard focus: always a 3px green ring, 2px away (inputs show their green border + glow instead) */
+/* keyboard focus: always a 3px green outline, 2px away (inputs show their green border + glow instead) */
 :focus-visible {
   outline: 3px solid var(--color-primary);
   outline-offset: 2px;
@@ -596,90 +764,85 @@ html.theme-changing * {
 .input:focus-visible {
   outline: none;
 }
-/* inside sideways-scrolling tab lists and the conversation list the ring is drawn inside */
+/* inside sideways-scrolling tab lists, the conversation list and the bottom bar it's drawn inside */
 .tab:focus-visible,
 .conversation-link:focus-visible,
-.bottom-nav-link:focus-visible {
+.bottom-nav-link:focus-visible,
+.menu-item:focus-visible {
   outline-offset: -3px;
 }
 
-/* links in text: green with a thin underline; on hover a marigold highlight sweeps up behind the
-   whole word (a background, so it follows the text across lines) */
-/* (in page content only: the logo in the top bar is a link too, but not a text link) */
+/* links in text: green with a thin underline that thickens on hover */
 :where(main, footer, dialog, .chat-panel) a.text-primary:not(.btn),
 .link {
   color: var(--color-primary);
   text-decoration-line: underline;
   text-decoration-thickness: 1px;
   text-underline-offset: 3px;
-  background-image: linear-gradient(var(--color-highlight), var(--color-highlight));
-  background-repeat: no-repeat;
-  background-position: 0 100%;
-  background-size: 100% 0;
-  /* a little room either side so the highlight doesn't end exactly at the letters (no layout shift) */
-  padding-inline: 0.15em;
-  margin-inline: -0.15em;
-  border-radius: 3px;
-  -webkit-box-decoration-break: clone;
-  box-decoration-break: clone;
-  transition: background-size 200ms ease-out;
 }
 :where(main, footer, dialog, .chat-panel) a.text-primary:not(.btn):hover,
 .link:hover {
-  background-size: 100% 100%;
+  text-decoration-thickness: 2px;
 }
 
-/* the current page in the top bar, bottom bar and Donating / Volunteering switch:
-   a short strip of marigold "tape" under it */
+/* the current page in the top bar, bottom bar and in-page switches: a 2px green line under it */
 .top-link[aria-current="page"]::after,
-.segmented-link[aria-current="page"]::after,
-.segmented-link[aria-pressed="true"]::after,
 .bottom-nav-link[aria-current="page"]::after {
   content: "";
   position: absolute;
-  left: 50%;
-  bottom: 3px;
-  width: min(2.5rem, 70%);
-  height: 5px;
-  translate: -50% 0;
-  rotate: -1.5deg;
+  left: 0.75rem;
+  right: 0.75rem;
+  bottom: 0.25rem;
+  height: 2px;
   border-radius: 1px;
-  background: var(--color-accent);
+  background: var(--color-primary);
 }
 .bottom-nav-link[aria-current="page"]::after {
-  bottom: auto;
-  top: 3px;
+  left: 30%;
+  right: 30%;
+  bottom: 0.25rem;
 }
 
-/* ---------- the signature: notices pinned to a cork board (donation request cards only) ---------- */
-.noticeboard {
-  border-radius: var(--radius-lg);
-  background: var(--color-board);
-  padding: 1.75rem 0.875rem 1.25rem;
-  gap: 2rem 1.25rem;
+/* ---------- the signature: the pinned notice (donation requests only, DESIGN.md 6.1) ---------- */
+/* the grid: room above each notice for its pin */
+.notice-grid {
+  display: grid;
+  gap: 2rem 1.5rem;
+  padding-top: 0.75rem;
 }
 @media (min-width: 640px) {
-  .noticeboard {
-    padding: 2rem 1.5rem 1.5rem;
+  .notice-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
+}
+@media (min-width: 1024px) {
+  .notice-grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+/* the thin cork strip above "Most needed" (the only place the board colour fills an area) */
+.board-strip {
+  height: 0.75rem;
+  border-radius: var(--radius-sm);
+  background: var(--color-board);
 }
 .notice {
   position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
   border-radius: 6px;
-  border: 1px solid var(--color-line);
+  border: 1.5px solid var(--color-edge);
   background: var(--color-surface);
-  padding: 1.75rem 1.25rem 1.25rem;
-  --notice-shadow: 0 2px 6px rgb(43 33 27 / 0.18);
-  --notice-shadow-lifted: 0 10px 22px rgb(43 33 27 / 0.2), 0 2px 4px rgb(43 33 27 / 0.12);
-  box-shadow: var(--notice-shadow);
+  padding: 1.5rem;
+  box-shadow: 0 1px 3px rgb(43 33 27 / 0.14);
   rotate: var(--tilt, 0deg);
-  /* settles like paper: a soft spring (a tiny overshoot), and the shadow grows as it lifts */
   transition:
-    rotate 260ms cubic-bezier(0.2, 0.9, 0.3, 1.15),
-    translate 260ms cubic-bezier(0.2, 0.9, 0.3, 1.15),
-    box-shadow 260ms ease-out;
+    rotate 150ms ease-out,
+    translate 150ms ease-out,
+    box-shadow 150ms ease-out;
 }
-/* the marigold pin at the top centre, with a short soft shadow */
+/* the marigold pin, centred, with a small soft shadow */
 .notice::before {
   content: "";
   position: absolute;
@@ -690,97 +853,87 @@ html.theme-changing * {
   translate: -50% 0;
   background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Ccircle cx='12' cy='12' r='9' fill='%23F2B705' stroke='%23A67C00' stroke-width='1.5'/%3E%3Ccircle cx='9.3' cy='9.3' r='2.6' fill='%23FBE38F'/%3E%3C/svg%3E")
     center / contain no-repeat;
-  filter: drop-shadow(1px 4px 2px rgb(43 33 27 / 0.4));
-  transition:
-    filter 220ms ease-out,
-    scale 220ms cubic-bezier(0.2, 0.9, 0.3, 1.3);
+  filter: drop-shadow(1px 3px 2px rgb(43 33 27 / 0.35));
+  transition: filter 150ms ease-out;
 }
-/* a gentle tilt that alternates (never more than 1.2°); nth-of-type skips Alpine's <template> */
-.notice:nth-of-type(4n + 1) {
-  --tilt: -1deg;
+/* tilt (max 0.8°, alternating): only in the home page's "Most needed" */
+.notice-tilt > .notice:nth-of-type(4n + 1) {
+  --tilt: -0.8deg;
 }
-.notice:nth-of-type(4n + 2) {
-  --tilt: 0.6deg;
+.notice-tilt > .notice:nth-of-type(4n + 2) {
+  --tilt: 0.5deg;
 }
-.notice:nth-of-type(4n + 3) {
-  --tilt: -0.4deg;
+.notice-tilt > .notice:nth-of-type(4n + 3) {
+  --tilt: -0.3deg;
 }
-.notice:nth-of-type(4n + 4) {
-  --tilt: 0.9deg;
+.notice-tilt > .notice:nth-of-type(4n + 4) {
+  --tilt: 0.7deg;
 }
-/* hover (mouse / trackpad only) or keyboard focus inside: straighten, lift 2px, the card's shadow grows,
-   and the pin is pressed in (smaller, with a shorter shadow) */
+/* hover / focus: straightens, lifts 2px, and the pin shadow shrinks */
 .notice:has(:focus-visible) {
   rotate: 0deg;
   translate: 0 -2px;
-  box-shadow: var(--notice-shadow-lifted);
+  box-shadow: 0 6px 16px rgb(43 33 27 / 0.16);
 }
 .notice:has(:focus-visible)::before {
-  filter: drop-shadow(0 1px 1px rgb(43 33 27 / 0.35));
-  scale: 0.9;
+  filter: drop-shadow(0 1px 1px rgb(43 33 27 / 0.3));
 }
 @media (hover: hover) {
-  /* tells the browser ahead of time, so the first hover doesn't stutter */
-  .notice {
-    will-change: rotate, translate;
-  }
   .notice:hover {
     rotate: 0deg;
     translate: 0 -2px;
-    box-shadow: var(--notice-shadow-lifted);
+    box-shadow: 0 6px 16px rgb(43 33 27 / 0.16);
   }
   .notice:hover::before {
-    filter: drop-shadow(0 1px 1px rgb(43 33 27 / 0.35));
-    scale: 0.9;
+    filter: drop-shadow(0 1px 1px rgb(43 33 27 / 0.3));
   }
 }
 [data-theme="dark"] .notice {
-  --notice-shadow: 0 2px 8px rgb(0 0 0 / 0.45);
-  --notice-shadow-lifted: 0 12px 24px rgb(0 0 0 / 0.55), 0 2px 4px rgb(0 0 0 / 0.4);
+  box-shadow: 0 1px 4px rgb(0 0 0 / 0.5);
 }
-
-/* "still needed" as tear-off tabs: solid = received, striped = promised, dashed = still needed */
-.tear-tabs {
+/* past deadline: no pin, muted text, "Deadline passed" instead of the button */
+.notice-expired {
+  color: var(--color-muted);
+}
+.notice-expired::before {
+  content: none;
+}
+/* "6 of 10 bags still needed": a slim bar, received (solid) + promised (lighter) */
+.need-bar {
   display: flex;
-  gap: 3px;
+  height: 0.5rem;
+  overflow: hidden;
+  border-radius: 9999px;
+  background: var(--color-line);
 }
-.tear-tab {
-  flex: 1 1 0;
-  max-width: 1.75rem;
-  height: 1.375rem;
-  border-radius: 0 0 4px 4px;
-  border: 1.5px solid var(--color-primary);
+.need-bar > span {
+  height: 100%;
 }
-.tear-tab-received {
+.need-bar-received {
   background: var(--color-primary);
 }
-.tear-tab-promised {
-  background: var(--color-primary-soft)
-    repeating-linear-gradient(45deg, var(--color-primary) 0 2px, transparent 2px 6px);
-}
-.tear-tab-needed {
-  background: var(--color-surface);
-  border: 1.5px dashed var(--color-field-border);
+.need-bar-promised {
+  background: color-mix(in srgb, var(--color-primary) 45%, var(--color-surface));
 }
 
 /* ---------- paper form details ---------- */
-/* an invalid field: red border on a pale red field (the message below has the icon) */
+/* an invalid field: danger border on danger-soft (the message below has the icon) */
 .input[aria-invalid="true"] {
   border-color: var(--color-danger);
   background-color: var(--color-danger-soft);
 }
 
-/* select: our own chevron-down (Lucide) instead of the browser's arrow */
+/* select: our own chevron (Phosphor caret-down) instead of the browser's arrow */
 select.input {
   appearance: none;
-  padding-right: 2.5rem;
-  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%236B5D52' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
+  padding-right: 2.75rem;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 256 256' fill='%236B5D52'%3E%3Cpath d='M213.66,101.66l-80,80a8,8,0,0,1-11.32,0l-80-80A8,8,0,0,1,53.66,90.34L128,164.69l74.34-74.35a8,8,0,0,1,11.32,11.32Z'/%3E%3C/svg%3E");
   background-repeat: no-repeat;
-  background-position: right 0.75rem center;
+  background-position: right 0.875rem center;
   background-size: 1.25rem;
 }
 [data-theme="dark"] select.input {
-  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23C2B2A3' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 256 256' fill='%23C2B2A3'%3E%3Cpath d='M213.66,101.66l-80,80a8,8,0,0,1-11.32,0l-80-80A8,8,0,0,1,53.66,90.34L128,164.69l74.34-74.35a8,8,0,0,1,11.32,11.32Z'/%3E%3C/svg%3E");
 }
 
 /* checkboxes and radios: 24px, green tick / dot, marigold glow on keyboard focus */
@@ -796,9 +949,6 @@ input[type="radio"]:not(.sr-only) {
   border-radius: 6px;
   background: var(--color-surface);
   cursor: pointer;
-  transition:
-    background-color 150ms,
-    border-color 150ms;
 }
 input[type="radio"]:not(.sr-only) {
   border-radius: 9999px;
@@ -809,7 +959,6 @@ input[type="radio"]:not(.sr-only)::before {
   width: 1rem;
   height: 1rem;
   scale: 0;
-  transition: scale 120ms;
 }
 input[type="checkbox"]:not(.switch, .sr-only):checked {
   border-color: var(--color-primary);
@@ -817,7 +966,7 @@ input[type="checkbox"]:not(.switch, .sr-only):checked {
 }
 input[type="checkbox"]:not(.switch, .sr-only)::before {
   background: var(--color-on-primary);
-  mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='3.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M20 6 9 17l-5-5'/%3E%3C/svg%3E")
+  mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 256 256'%3E%3Cpath d='M232.49,80.49l-128,128a12,12,0,0,1-17,0l-56-56a12,12,0,1,1,17-17L96,183,215.51,63.51a12,12,0,0,1,17,17Z'/%3E%3C/svg%3E")
     center / contain no-repeat;
 }
 input[type="radio"]:not(.sr-only):checked {
@@ -838,37 +987,13 @@ input[type="radio"]:focus-visible {
   box-shadow: 0 0 0 5px color-mix(in srgb, var(--color-accent) 40%, transparent);
 }
 
-/* the one welcome moment: the home page's first section settles in once (off with reduced motion) */
-@keyframes welcome {
+/* ---------- motion (DESIGN.md 8): only these, and none with reduced motion ----------
+   Dialogs, menus and toasts: fade + 4px slide, 150 ms. They replay whenever an element goes from
+   hidden to shown (Alpine x-show, <dialog> open), so no extra markup is needed. */
+@keyframes ks-appear {
   from {
     opacity: 0;
-    translate: 0 8px;
-  }
-}
-.welcome {
-  animation: welcome 300ms ease-out both;
-}
-
-/* ---------- small, quick motion where something opens or appears after a tap (150–220 ms) ----------
-   Animations replay whenever an element goes from hidden to shown (Alpine x-show, <dialog> open), so no
-   extra markup is needed. All of it switches off with prefers-reduced-motion (rule at the top of this file
-   and below). Nothing fades in on page load except the home page's .welcome. */
-@keyframes ks-drop-in {
-  from {
-    opacity: 0;
-    translate: 0 -6px;
-  }
-}
-@keyframes ks-rise-in {
-  from {
-    opacity: 0;
-    translate: 0 8px;
-  }
-}
-@keyframes ks-pop-in {
-  from {
-    opacity: 0;
-    scale: 0.96;
+    translate: 0 4px;
   }
 }
 @keyframes ks-fade-in {
@@ -876,83 +1001,22 @@ input[type="radio"]:focus-visible {
     opacity: 0;
   }
 }
-@keyframes ks-slide-in-right {
-  from {
-    translate: 100% 0;
-  }
-}
-
-/* menus (account, language, theme, conversation options) drop down from their button */
-.menu {
-  transform-origin: top right;
-  animation: ks-drop-in 150ms ease-out;
-}
-/* "Why this score?", the Offer form */
-.reveal {
-  animation: ks-drop-in 180ms ease-out;
-}
-/* dialogs grow in gently over a fading backdrop */
-.dialog[open] {
-  animation: ks-pop-in 180ms ease-out;
+.menu,
+.toast,
+.dialog[open],
+.side-panel[open],
+.chat-panel[open] {
+  animation: ks-appear 150ms ease-out;
 }
 .dialog[open]::backdrop,
 .side-panel[open]::backdrop,
 .chat-panel[open]::backdrop {
-  animation: ks-fade-in 180ms ease-out;
-}
-/* details panel slides in from the right (phones: rises, it's full screen) */
-.side-panel[open] {
-  animation: ks-rise-in 200ms ease-out;
-}
-@media (min-width: 640px) {
-  .side-panel[open] {
-    animation: ks-slide-in-right 220ms cubic-bezier(0.2, 0.8, 0.2, 1);
-  }
-}
-/* the chat panel rises from its button */
-.chat-panel[open] {
-  transform-origin: bottom right;
-  animation: ks-rise-in 200ms ease-out;
-}
-/* toasts, new chat answers and new messages rise into place */
-.toast,
-.chat-bubble-bot,
-.chat-bubble-user,
-.message-mine,
-.message-theirs {
-  animation: ks-rise-in 200ms ease-out;
-}
-/* a new unread number pops in */
-.nav-count {
-  animation: ks-pop-in 200ms ease-out;
-}
-/* tabs, chips and menu items change colour smoothly */
-.tab,
-.chip,
-.top-link,
-.segmented-link,
-.bottom-nav-link,
-.menu-item,
-.conversation-link,
-.check-pill,
-.choice-card,
-.stepper-btn,
-.icon-btn {
-  transition:
-    color 150ms,
-    background-color 150ms,
-    border-color 150ms;
-}
-/* in-page links (e.g. "How it works") scroll smoothly */
-@media (prefers-reduced-motion: no-preference) {
-  html {
-    scroll-behavior: smooth;
-  }
+  animation: ks-fade-in 150ms ease-out;
 }
 
-/* ---------- tracking timeline (REQUIREMENTS.md 12) ----------
-   <ol class="tracker tracker-row|tracker-column">: done = green circle + tick, current = marigold circle
-   (pulses once when it first appears), future = empty circle; a stopped journey ends in an x / archive. */
+/* ---------- tracking timeline (REQUIREMENTS.md 12, DESIGN.md 6.5) ----------
+   <ol class="tracker tracker-row|tracker-column">: done = green tick circle, current = marigold circle
+   (one gentle pulse when it first appears), future = empty circle; a stopped journey ends in an x / archive. */
 .tracker {
   list-style: none;
   margin: 0;
@@ -971,20 +1035,21 @@ input[type="radio"]:focus-visible {
   width: 2rem;
   height: 2rem;
   border-radius: 9999px;
-  border: 2px solid var(--color-field-border);
+  border: 2px dashed var(--color-field-border);
   background: var(--color-surface);
   color: var(--color-muted);
 }
-.tracker-dot svg {
-  width: 1.1rem;
-  height: 1.1rem;
+.tracker-dot i {
+  font-size: 1.1rem;
 }
 .tracker-done .tracker-dot {
+  border-style: solid;
   border-color: var(--color-primary);
   background: var(--color-primary);
   color: var(--color-on-primary);
 }
 .tracker-current .tracker-dot {
+  border-style: solid;
   border-color: var(--color-accent);
   background: var(--color-accent);
   color: var(--color-on-accent);
@@ -992,6 +1057,7 @@ input[type="radio"]:focus-visible {
   animation: ks-pulse-once 700ms ease-out 1;
 }
 .tracker-stopped .tracker-dot {
+  border-style: solid;
   background: var(--color-canvas);
 }
 .tracker-stop-x .tracker-dot {
@@ -1002,11 +1068,11 @@ input[type="radio"]:focus-visible {
 .tracker-label {
   font-size: var(--text-sm);
   font-weight: 700;
-  line-height: 1.3;
+  line-height: 1.25rem;
   overflow-wrap: anywhere;
 }
 .tracker-date {
-  font-size: var(--text-xs);
+  font-size: var(--text-sm);
   color: var(--color-muted);
 }
 .tracker-next {
@@ -1027,8 +1093,8 @@ input[type="radio"]:focus-visible {
 .tracker-note {
   margin-top: 0.75rem;
   border-radius: var(--radius-md);
-  background: var(--color-canvas);
-  padding: 0.75rem;
+  background: var(--color-canvas-hover);
+  padding: 0.75rem 1rem;
   font-size: var(--text-sm);
 }
 /* cards: steps side by side, a line joins each circle to the one before it */
@@ -1042,18 +1108,12 @@ input[type="radio"]:focus-visible {
   align-items: center;
   gap: 0.25rem;
   text-align: center;
-  padding: 0 0.3rem;
+  padding: 0 0.25rem;
 }
-/* phones: smaller words in the row, broken only between words (Malay names are long) */
+/* phones: words broken only between words (Malay names are long) */
 .tracker-row .tracker-label {
-  font-size: var(--text-xs);
   overflow-wrap: normal;
   hyphens: auto;
-}
-@media (min-width: 40rem) {
-  .tracker-row .tracker-label {
-    font-size: var(--text-sm);
-  }
 }
 .tracker-row .tracker-step + .tracker-step::before {
   content: "";
@@ -1071,7 +1131,7 @@ input[type="radio"]:focus-visible {
 .tracker-column {
   display: flex;
   flex-direction: column;
-  gap: 1.25rem;
+  gap: 1.5rem;
 }
 .tracker-column .tracker-step {
   display: grid;
@@ -1082,14 +1142,14 @@ input[type="radio"]:focus-visible {
   display: flex;
   flex-direction: column;
   gap: 0.25rem;
-  padding-top: 0.3rem;
+  padding-top: 0.25rem;
 }
 .tracker-column .tracker-step:not(.tracker-last, .tracker-stopped)::after {
   content: "";
   position: absolute;
   left: calc(1rem - 1.5px);
   top: 2rem;
-  bottom: -1.25rem;
+  bottom: -1.5rem;
   width: 3px;
   background: var(--color-line);
 }
@@ -1105,25 +1165,29 @@ input[type="radio"]:focus-visible {
   }
 }
 
-/* "Delivered · Thank you!": a green rubber stamp, slightly crooked */
+/* "Delivered · Thank you!": a slightly rotated green ink stamp with a hand-heart, stamped down once */
 .stamp {
   display: inline-flex;
   align-items: center;
-  gap: 0.4rem;
+  gap: 0.5rem;
   rotate: -4deg;
-  border: 2.5px solid var(--color-success);
+  border: 2.5px solid var(--color-primary);
   border-radius: 6px;
-  padding: 0.25rem 0.65rem;
-  color: var(--color-success);
-  background: color-mix(in srgb, var(--color-success-soft) 70%, transparent);
+  padding: 0.25rem 0.75rem;
+  color: var(--color-primary);
+  background: color-mix(in srgb, var(--color-primary-soft) 70%, transparent);
   font-family: var(--font-display);
-  font-weight: 800;
-  letter-spacing: 0.01em;
-  box-shadow: inset 0 0 0 1.5px color-mix(in srgb, var(--color-success) 25%, transparent);
+  font-weight: 700;
+  box-shadow: inset 0 0 0 1.5px color-mix(in srgb, var(--color-primary) 25%, transparent);
+  animation: ks-stamp 220ms ease-out 1;
 }
-.stamp svg {
-  width: 1.15rem;
-  height: 1.15rem;
+.stamp i {
+  font-size: 1.25rem;
+}
+@keyframes ks-stamp {
+  from {
+    scale: 1.1;
+  }
 }
 .pinny {
   width: 4.5rem;
@@ -1131,29 +1195,26 @@ input[type="radio"]:focus-visible {
   flex-shrink: 0;
 }
 
-/* reduced motion: notices hang straight and never move */
+/* reduced motion: nothing moves */
 @media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+  }
   .notice,
   .notice:hover,
   .notice:has(:focus-visible) {
     rotate: 0deg !important;
     translate: none !important;
   }
-  .notice::before {
-    scale: none !important;
-  }
-  .welcome,
   .menu,
-  .reveal,
+  .toast,
   .dialog[open],
   .side-panel[open],
   .chat-panel[open],
-  .toast,
-  .chat-bubble-bot,
-  .chat-bubble-user,
-  .message-mine,
-  .message-theirs,
-  .nav-count,
+  .stamp,
   .tracker-current .tracker-dot {
     animation: none;
   }

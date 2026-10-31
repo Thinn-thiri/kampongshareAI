@@ -16,9 +16,7 @@ document.addEventListener("alpine:init", () => {
     loading: true,
     notFound: false,
     error: "",
-    requestUrgency,
-    itemTabs,
-    itemBarLabel,
+    ...noticeHelpers(),
     formatEventTime,
 
     async init() {
