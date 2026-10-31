@@ -192,10 +192,13 @@
           <div class="notice-grid" x-show="requests.length">
             <template x-for="request in requests" :key="request.id">
               <article class="notice">
-                <p class="flex items-center gap-2 text-sm text-muted">
-                  <i class="size-8" :class="categoryIcon(noticeCategory(request))" aria-hidden="true"></i>
-                  <span x-text="enumLabel('category', noticeCategory(request))"></span>
-                </p>
+                <div class="flex flex-wrap items-center justify-between gap-2">
+                  <p class="flex items-center gap-2 text-sm text-muted">
+                    <i class="size-8" :class="categoryIcon(noticeCategory(request))" aria-hidden="true"></i>
+                    <span x-text="enumLabel('category', noticeCategory(request))"></span>
+                  </p>
+                  <span class="badge-sm" :class="noticeUrgency(request).className" x-text="noticeUrgency(request).label"></span>
+                </div>
                 <h3 class="card-title" x-text="request.title"></h3>
                 <div class="need-bar" role="img" :aria-label="noticeNeed(request).label">
                   <span class="need-bar-received" :style="`width:${noticeNeed(request).received}%`"></span>

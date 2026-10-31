@@ -221,10 +221,13 @@
       <div class="notice-grid" x-show="!loading && !error && filtered.length" x-cloak>
         <template x-for="request in filtered" :key="request.id">
           <article class="notice">
-            <p class="flex items-center gap-2 text-sm text-muted">
-              <i class="size-8" :class="categoryIcon(noticeCategory(request))" aria-hidden="true"></i>
-              <span x-text="enumLabel('category', noticeCategory(request))"></span>
-            </p>
+            <div class="flex flex-wrap items-center justify-between gap-2">
+              <p class="flex items-center gap-2 text-sm text-muted">
+                <i class="size-8" :class="categoryIcon(noticeCategory(request))" aria-hidden="true"></i>
+                <span x-text="enumLabel('category', noticeCategory(request))"></span>
+              </p>
+              <span class="badge-sm" :class="noticeUrgency(request).className" x-text="noticeUrgency(request).label"></span>
+            </div>
             <div>
               <h2 class="card-title" x-text="request.title"></h2>
               <p class="text-sm text-muted break-words" x-text="request.organization?.name"></p>

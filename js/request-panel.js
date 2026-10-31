@@ -17,6 +17,21 @@ function noticeCategory(request) {
 }
 
 /**
+ * The urgency badge on a notice: the score and level when it's scored ("82 · High urgency"), otherwise the
+ * organization's own level ("High urgency"). "Why this score?" is in the details panel.
+ * @param {DonationRequest} request
+ * @returns {{ className: string, label: string }}
+ */
+function noticeUrgency(request) {
+  /** @type {Record<Urgency, string>} */
+  const classes = { critical: "badge badge-danger", high: "badge badge-warning", medium: "badge badge-info", low: "badge badge-neutral" };
+  const level = urgencyWordOf(request);
+  const word = enumLabel("urgency", level);
+  const label = request.ai_score != null ? t("requests.noticeUrgencyScored", { score: request.ai_score, level: word }) : t("requests.urgencyOwn", { level: word });
+  return { className: classes[level] ?? "badge badge-neutral", label };
+}
+
+/**
  * "How much is left" on a notice: the words, the bar's two parts (percent) and the bar's label.
  * One item: "6 of 10 bags still needed"; more: "3 of 4 items still needed".
  * @param {DonationRequest} request
@@ -76,6 +91,7 @@ function noticeHelpers() {
     noticeCategory,
     noticeNeed,
     noticeEnds,
+    noticeUrgency,
     categoryIcon,
     /**
      * @param {DonationRequest} request

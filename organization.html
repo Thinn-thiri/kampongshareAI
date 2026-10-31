@@ -592,6 +592,7 @@
               <article class="notice">
                 <div class="flex flex-wrap items-center gap-2">
                   <span :class="statusInfo(request.status, 'request').className" x-text="statusInfo(request.status, 'request').label"></span>
+                  <span class="badge-sm" :class="noticeUrgency(request).className" x-show="request.status === 'open' || request.status === 'pending_approval'" x-text="noticeUrgency(request).label"></span>
                   <span :class="DEADLINE_BADGE.className" x-show="request.status === 'open' && isPastDeadline(request)" x-text="DEADLINE_BADGE.label"></span>
                 </div>
                 <h3 class="card-title" x-text="request.title"></h3>

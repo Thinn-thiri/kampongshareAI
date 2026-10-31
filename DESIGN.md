@@ -120,7 +120,7 @@ All text must exist in **English, 中文 and BM** (see the Languages section in 
 ```
         📍  ← marigold pin, centred, small soft shadow
   ┌───────────────────────────┐
-  │ 🍚 Food                   │  category icon (duotone) + name, Small
+  │ 🍚 Food    ⏳ 82 · High    │  category icon (duotone) + name, Small; urgency badge right
   │ Rice for 40 families      │  Card title
   │ Tampines Food Bank        │  Small, muted
   │                           │
@@ -133,7 +133,7 @@ All text must exist in **English, 中文 and BM** (see the Languages section in 
 ```
 
 - **Paper:** surface colour, radius 6 px, a soft 1.5 px `edge` border, very light shadow.
-- **Shows only three facts:** what, how much is left, when it ends. Everything else is in the details.
+- **Shows only three facts plus urgency:** what, how much is left, when it ends, and a small urgency badge ("82 · High urgency"; just "High urgency" before it's scored; "Why this score?" is in the details). Everything else is in the details.
 - **Tilt (max 0.8°, alternating):** only in the home page's "Most needed" section. Everywhere else it's straight.
 - **Hover/focus:** straightens, lifts 2 px, and the pin shadow shrinks (150 ms). No movement with reduced motion.
 - **Past deadline:** no pin, muted text, and the label "Deadline passed" instead of the button.
@@ -182,7 +182,7 @@ Every field follows the same anatomy:
 - **Mark optional fields, not required ones:** "Phone (optional)". Most fields are required, so this keeps forms clean.
 - **Character counters** sit at the bottom right, for example "120 / 300". They turn danger-coloured at the limit.
 - **Long text boxes** (request description, messages): faint notepaper lines matching the 27 px line height, the only decorative input.
-- **Search:** pill shape, magnifier icon, board-tinted background.
+- **Search:** the same rectangle (10 px corners) as other text boxes, with a magnifier icon and a board-tinted background.
 - **Filter bars** (e.g. Browse needs): one slim row with no box around it: search, then the pickers, all with a plain white (surface) background. Each picker's first choice names it ("All categories", "Any urgency"), so the labels are kept only for screen readers. The result count sits underneath.
 - **Quantity:** large − and + buttons (48 px) either side of the number, never past the remaining amount.
 - **Checkboxes and radios:** 24 px, green tick or dot, label clickable. **Dropdowns:** custom chevron, the same as text boxes.

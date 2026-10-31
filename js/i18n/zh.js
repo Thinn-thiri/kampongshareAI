@@ -247,6 +247,7 @@ const I18N_ZH = {
   requests: {
     urgencyScored: "{score} · {level}",
     urgencyOwn: "紧急程度：{level}",
+    noticeUrgencyScored: "{score} · 紧急程度：{level}",
     whyScore: "为什么是这个分数？",
     hideWhy: "收起原因",
     formulaNote: "分数由固定公式计算得出。最终决定始终由人来做。",

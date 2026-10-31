@@ -310,7 +310,7 @@ Visitors should understand the app, see real needs and try the AI **before** sig
 
 - Hero: one sentence on what KampongShare does + buttons **Browse needs**, **Sign up to donate**, **Volunteer**, **Register your organization** (`signup.html?role=organization` pre-selects the role).
 - **Impact numbers** from `supabase.rpc('public_stats').single()`: items delivered, completed donations, open requests, upcoming events, organizations. If a number is 0, show friendly text ("Be the first to give") instead.
-- **Most needed:** up to 6 open requests sorted by `ai_score` (highest first, unscored last), as pinned notices (the only tilted ones): category, title, organization, a progress bar, how much is still needed and when it ends, and one Offer button that opens the request details panel (urgency, "Why this score?", description, drop-off and each item's Offer form).
+- **Most needed:** up to 6 open requests sorted by `ai_score` (highest first, unscored last), as pinned notices (the only tilted ones): category, urgency level, title, organization, a progress bar, how much is still needed and when it ends, and one Offer button that opens the request details panel (urgency, "Why this score?", description, drop-off and each item's Offer form).
 - **Upcoming events:** small Leaflet map + next 3 events, linking to `event.html`.
 - **"What can you give?"** matching box (6.4).
 - "How it works" in 3 steps, and a footer link to `privacy.html`.

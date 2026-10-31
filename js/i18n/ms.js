@@ -247,6 +247,7 @@ const I18N_MS = {
   requests: {
     urgencyScored: "{score} · {level}",
     urgencyOwn: "Kecemasan: {level}",
+    noticeUrgencyScored: "{score} · Kecemasan: {level}",
     whyScore: "Kenapa skor ini?",
     hideWhy: "Sembunyikan sebab",
     formulaNote: "Nombor ini datang daripada formula tetap. Manusia sentiasa membuat keputusan.",

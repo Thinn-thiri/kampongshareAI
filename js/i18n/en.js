@@ -248,6 +248,7 @@ const I18N_EN = {
   requests: {
     urgencyScored: "{score} · {level}",
     urgencyOwn: "{level} urgency",
+    noticeUrgencyScored: "{score} · {level} urgency",
     whyScore: "Why this score?",
     hideWhy: "Hide why",
     formulaNote: "The number comes from a fixed formula. People always make the decisions.",
