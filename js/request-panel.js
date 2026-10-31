@@ -114,39 +114,33 @@ const REQUEST_PANEL_MARKUP = `
   </div>
   <template x-if="request">
     <div class="space-y-6 p-6">
-      <div class="space-y-1">
-        <a class="text-primary" :href="'/org.html?id=' + request.organization_id" x-text="request.organization?.name || $t('common.organization')"></a>
-        <p class="text-sm text-muted break-words" x-show="request.organization?.address" x-text="request.organization?.address"></p>
-        <p class="text-sm text-muted" x-text="noticeEnds(request)"></p>
-      </div>
-
-      <div class="space-y-2">
-        <div class="flex flex-wrap items-center gap-2">
-          <span :class="requestUrgency(request).className" x-text="requestUrgency(request).label"></span>
-          <span class="badge badge-ai" x-show="requestUrgency(request).scored" data-i18n="common.aiSuggested">AI-suggested</span>
+      <!-- small supporting facts first; the items below are what people come for -->
+      <div class="space-y-2 text-sm text-muted">
+        <p class="break-words">
+          <a class="link" :href="'/org.html?id=' + request.organization_id" x-text="request.organization?.name || $t('common.organization')"></a>
+          <span aria-hidden="true">·</span>
+          <span x-text="noticeEnds(request)"></span>
+        </p>
+        <p class="break-words" x-show="request.organization?.address" x-text="request.organization?.address"></p>
+        <div class="flex flex-wrap items-center gap-x-2 gap-y-1">
+          <span class="badge-sm" :class="requestUrgency(request).className" x-text="requestUrgency(request).label"></span>
+          <span class="badge badge-ai badge-sm" x-show="requestUrgency(request).scored" data-i18n="common.aiSuggested">AI-suggested</span>
+          <template x-if="scoreDetails(request)">
+            <button type="button" class="btn btn-quiet min-h-11 px-1 text-sm font-normal" :aria-expanded="whyOpen.toString()" aria-controls="request-panel-why" @click="whyOpen = !whyOpen"
+              x-text="whyOpen ? $t('requests.hideWhy') : $t('requests.whyScore')"></button>
+          </template>
         </div>
         <template x-if="scoreDetails(request)">
-          <div x-data="{ why: false }">
-            <button type="button" class="btn btn-quiet -ml-3" :aria-expanded="why.toString()" aria-controls="request-panel-why" @click="why = !why"
-              x-text="why ? $t('requests.hideWhy') : $t('requests.whyScore')"></button>
-            <div id="request-panel-why" class="note space-y-2" x-show="why" x-cloak>
-              <p x-text="scoreDetails(request).explanation"></p>
-              <ul class="space-y-1" x-show="scoreDetails(request).factors.length">
-                <template x-for="factor in scoreDetails(request).factors" :key="factor.key">
-                  <li class="flex justify-between gap-3"><span x-text="factorLabel(factor)"></span><span class="shrink-0 tabular-nums" x-text="$t('requests.factorPoints', { points: factor.points, max: factor.max })"></span></li>
-                </template>
-              </ul>
-              <p class="text-muted" data-i18n="requests.formulaNote">The number comes from a fixed formula. People always make the decisions.</p>
-            </div>
+          <div id="request-panel-why" class="note space-y-2 text-ink" x-show="whyOpen" x-cloak>
+            <p x-text="scoreDetails(request).explanation"></p>
+            <ul class="space-y-1" x-show="scoreDetails(request).factors.length">
+              <template x-for="factor in scoreDetails(request).factors" :key="factor.key">
+                <li class="flex justify-between gap-3"><span x-text="factorLabel(factor)"></span><span class="shrink-0 tabular-nums" x-text="$t('requests.factorPoints', { points: factor.points, max: factor.max })"></span></li>
+              </template>
+            </ul>
+            <p class="text-muted" data-i18n="requests.formulaNote">The number comes from a fixed formula. People always make the decisions.</p>
           </div>
         </template>
-      </div>
-
-      <p class="whitespace-pre-line break-words" x-show="request.description" x-text="request.description"></p>
-
-      <div class="note" x-show="request.dropoff_instructions">
-        <p class="font-bold" data-i18n="requests.dropoff">Drop-off</p>
-        <p class="whitespace-pre-line break-words" x-text="request.dropoff_instructions"></p>
       </div>
 
       <!-- who is looking -->
@@ -164,19 +158,19 @@ const REQUEST_PANEL_MARKUP = `
       </p>
 
       <section class="space-y-4" aria-labelledby="request-panel-items">
-        <h3 id="request-panel-items" class="card-title" data-i18n="requests.whatsNeeded">What's needed</h3>
-        <ul class="space-y-6">
+        <h3 id="request-panel-items" class="section-title" data-i18n="requests.whatsNeeded">What's needed</h3>
+        <ul class="space-y-3">
           <template x-for="item in request.request_items" :key="item.id">
-            <li :id="'panel-item-' + item.id" class="space-y-2 scroll-mt-24">
-              <p class="flex items-center gap-2 font-bold break-words">
-                <i class="size-6" :class="categoryIcon(item.category)" aria-hidden="true"></i>
+            <li :id="'panel-item-' + item.id" class="flex scroll-mt-24 flex-col gap-3 rounded-lg border-[1.5px] border-edge p-4">
+              <p class="flex items-center gap-2 text-lg font-bold break-words">
+                <i class="size-8" :class="categoryIcon(item.category)" aria-hidden="true"></i>
                 <span x-text="item.name"></span>
               </p>
               <div class="need-bar" role="img" :aria-label="itemBarLabel(item)">
                 <span class="need-bar-received" :style="'width:' + itemPercent(item).received + '%'"></span>
                 <span class="need-bar-promised" :style="'width:' + itemPercent(item).promised + '%'"></span>
               </div>
-              <p class="tabular-nums" x-text="item.quantity_remaining > 0 ? $t('requests.noticeOne', { remaining: item.quantity_remaining, needed: item.quantity_needed, unit: item.unit }) : $t('requests.noticeAllPromised')"></p>
+              <p class="font-bold tabular-nums" x-text="item.quantity_remaining > 0 ? $t('requests.noticeOne', { remaining: item.quantity_remaining, needed: item.quantity_needed, unit: item.unit }) : $t('requests.noticeAllPromised')"></p>
               <p class="text-sm text-muted tabular-nums" x-show="ownsContent(request.organization_id)"
                 x-text="$t('orgDash.itemSummary', { needed: item.quantity_needed, promised: item.quantity_committed, received: item.quantity_received, remaining: item.quantity_remaining })"></p>
               <template x-if="activeOfferFor(item)">
@@ -245,6 +239,15 @@ const REQUEST_PANEL_MARKUP = `
         </ul>
       </section>
 
+      <!-- about this request: the organization's own words and where to drop off, in smaller text -->
+      <div class="space-y-3 text-sm" x-show="request.description || request.dropoff_instructions">
+        <p class="whitespace-pre-line break-words text-muted" x-show="request.description" x-text="request.description"></p>
+        <div class="note" x-show="request.dropoff_instructions">
+          <p class="font-bold" data-i18n="requests.dropoff">Drop-off</p>
+          <p class="whitespace-pre-line break-words" x-text="request.dropoff_instructions"></p>
+        </div>
+      </div>
+
       <div class="flex flex-wrap gap-3" x-show="viewerReady">
         <template x-if="messageMode(viewer) === 'visitor'">
           <a class="btn btn-secondary" :href="messageLoginHref()"><i class="ph ph-chat-circle" aria-hidden="true"></i><span data-i18n="messages.messageOrg">Message organization</span></a>
@@ -276,6 +279,7 @@ document.addEventListener("alpine:init", () => {
     statusInfo,
     /** @type {DonationRequest | null} */
     request: null,
+    whyOpen: false,
     /** @type {DonationOffer[]} this donor's active offers */
     myOffers: [],
     /** @type {string | null} the item whose offer form is open */
@@ -295,6 +299,7 @@ document.addEventListener("alpine:init", () => {
     async show({ request, opener, itemId }) {
       this.request = request;
       this.offerItemId = null;
+      this.whyOpen = false;
       openSidePanel("request-panel", opener);
       if (!this.viewerReady) await this.loadViewer();
       await this.loadMyOffers();
