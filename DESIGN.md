@@ -178,7 +178,7 @@ Every field follows the same anatomy:
 | Disabled                     | canvas background, muted text, dashed border                                                                                                                     |
 | Locked (e.g. after approval) | no border, canvas background, a lock icon and the note "To change this, close the request and post a new one."                                                   |
 
-- **17 px input text**, so phones don't zoom in.
+- **17 px input text**, so phones don't zoom in. Placeholders (the example text) are 15 px, a quieter hint.
 - **Mark optional fields, not required ones:** "Phone (optional)". Most fields are required, so this keeps forms clean.
 - **Character counters** sit at the bottom right, for example "120 / 300". They turn danger-coloured at the limit.
 - **Long text boxes** (request description, messages): faint notepaper lines matching the 27 px line height, the only decorative input.

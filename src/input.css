@@ -315,6 +315,11 @@ html.theme-changing * {
   .btn-danger:active:not(:disabled) {
     background-color: color-mix(in srgb, var(--color-danger) 75%, var(--color-ink));
   }
+  /* a smaller button for compact forms (44px, the minimum touch size) */
+  .btn-sm {
+    @apply min-h-11 px-4;
+    font-size: 0.9375rem;
+  }
   /* quiet: text only, underline on hover (small actions in lists) */
   .btn-quiet {
     @apply min-h-11 px-3 text-primary underline-offset-4 hover:underline;
@@ -378,6 +383,10 @@ html.theme-changing * {
   .input {
     @apply min-h-12 w-full rounded-md border-2 border-field-border px-3 text-base text-ink placeholder:text-muted hover:border-ink;
     background-color: color-mix(in srgb, var(--color-board) 22%, var(--color-surface));
+  }
+  /* example text is a quiet hint: a little smaller than what people type */
+  .input::placeholder {
+    font-size: 0.9375rem;
   }
   .input:focus {
     @apply border-primary bg-surface outline-none;
@@ -478,6 +487,14 @@ html.theme-changing * {
   }
   .stepper-btn {
     @apply inline-flex size-12 shrink-0 items-center justify-center rounded-md border-[1.5px] border-field-border bg-surface text-2xl text-ink hover:border-ink disabled:cursor-not-allowed disabled:opacity-50;
+  }
+
+  /* a compact stepper (the offer form): 44px buttons, a narrower number box */
+  .stepper-sm > .input {
+    @apply min-h-11 w-16 text-base;
+  }
+  .stepper-sm > .stepper-btn {
+    @apply size-11 text-xl;
   }
 
   /* password field with a show / hide button inside its right edge */

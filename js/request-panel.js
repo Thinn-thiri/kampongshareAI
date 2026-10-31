@@ -162,15 +162,15 @@ const REQUEST_PANEL_MARKUP = `
         <ul class="space-y-3">
           <template x-for="item in request.request_items" :key="item.id">
             <li :id="'panel-item-' + item.id" class="flex scroll-mt-24 flex-col gap-3 rounded-lg border-[1.5px] border-edge p-4">
-              <p class="flex items-center gap-2 text-lg font-bold break-words">
-                <i class="size-8" :class="categoryIcon(item.category)" aria-hidden="true"></i>
+              <p class="flex items-center gap-2 font-bold break-words">
+                <i class="size-7" :class="categoryIcon(item.category)" aria-hidden="true"></i>
                 <span x-text="item.name"></span>
               </p>
               <div class="need-bar" role="img" :aria-label="itemBarLabel(item)">
                 <span class="need-bar-received" :style="'width:' + itemPercent(item).received + '%'"></span>
                 <span class="need-bar-promised" :style="'width:' + itemPercent(item).promised + '%'"></span>
               </div>
-              <p class="font-bold tabular-nums" x-text="item.quantity_remaining > 0 ? $t('requests.noticeOne', { remaining: item.quantity_remaining, needed: item.quantity_needed, unit: item.unit }) : $t('requests.noticeAllPromised')"></p>
+              <p class="text-[0.9375rem] leading-5 font-bold tabular-nums" x-text="item.quantity_remaining > 0 ? $t('requests.noticeOne', { remaining: item.quantity_remaining, needed: item.quantity_needed, unit: item.unit }) : $t('requests.noticeAllPromised')"></p>
               <p class="text-sm text-muted tabular-nums" x-show="ownsContent(request.organization_id)"
                 x-text="$t('orgDash.itemSummary', { needed: item.quantity_needed, promised: item.quantity_committed, received: item.quantity_received, remaining: item.quantity_remaining })"></p>
               <template x-if="activeOfferFor(item)">
@@ -185,27 +185,30 @@ const REQUEST_PANEL_MARKUP = `
                 </div>
               </template>
 
-              <form class="space-y-4 rounded-md bg-canvas p-4" novalidate x-show="offerItemId === item.id" x-cloak
+              <form class="white-fields space-y-4 rounded-md bg-canvas p-4" novalidate x-show="offerItemId === item.id" x-cloak
                 @submit.prevent="sendOffer(item)" :aria-label="$t('common.offerItem', { item: item.name })">
                 <div>
-                  <label :for="'offer-qty-' + item.id" class="label" data-i18n="needs.howMany">How many?</label>
-                  <div class="stepper">
-                    <button type="button" class="stepper-btn" @click="stepNumber($el, -1)" aria-label="Decrease" data-i18n-attr="aria-label:common.decrease">
-                      <i class="ph ph-minus" aria-hidden="true"></i>
-                    </button>
-                    <input :id="'offer-qty-' + item.id" class="input" type="number" inputmode="numeric" step="1" min="1" :max="item.quantity_remaining"
-                      x-model.number="offerForm.quantity" :aria-invalid="offerErrors.quantity ? 'true' : null"
-                      :aria-describedby="'offer-qty-help-' + item.id + ' offer-qty-err-' + item.id" />
-                    <button type="button" class="stepper-btn" @click="stepNumber($el, 1)" aria-label="Increase" data-i18n-attr="aria-label:common.increase">
-                      <i class="ph ph-plus" aria-hidden="true"></i>
-                    </button>
+                  <!-- "How many?" with the stepper beside it -->
+                  <div class="flex items-center justify-between gap-3">
+                    <label :for="'offer-qty-' + item.id" class="label mb-0" data-i18n="needs.howMany">How many?</label>
+                    <div class="stepper stepper-sm shrink-0">
+                      <button type="button" class="stepper-btn" @click="stepNumber($el, -1)" aria-label="Decrease" data-i18n-attr="aria-label:common.decrease">
+                        <i class="ph ph-minus" aria-hidden="true"></i>
+                      </button>
+                      <input :id="'offer-qty-' + item.id" class="input" type="number" inputmode="numeric" step="1" min="1" :max="item.quantity_remaining"
+                        x-model.number="offerForm.quantity" :aria-invalid="offerErrors.quantity ? 'true' : null"
+                        :aria-describedby="'offer-qty-help-' + item.id + ' offer-qty-err-' + item.id" />
+                      <button type="button" class="stepper-btn" @click="stepNumber($el, 1)" aria-label="Increase" data-i18n-attr="aria-label:common.increase">
+                        <i class="ph ph-plus" aria-hidden="true"></i>
+                      </button>
+                    </div>
                   </div>
                   <p :id="'offer-qty-help-' + item.id" class="helper-text" x-text="$t('needs.upTo', { count: item.quantity_remaining, unit: item.unit })"></p>
                   <p :id="'offer-qty-err-' + item.id" class="field-error" x-show="offerErrors.quantity" x-text="offerErrors.quantity"></p>
                 </div>
                 <div>
                   <label :for="'offer-msg-' + item.id" class="label"><span data-i18n="needs.message">Message to the organization</span> <span class="optional" data-i18n="common.optional">(optional)</span></label>
-                  <textarea :id="'offer-msg-' + item.id" class="input input-ruled" rows="3" maxlength="500" x-model="offerForm.message"
+                  <textarea :id="'offer-msg-' + item.id" class="input input-oneline block" rows="1" maxlength="500" x-model="offerForm.message"
                     placeholder="e.g. I can drop it off on Saturday morning." data-i18n-attr="placeholder:needs.messagePlaceholder"
                     :aria-invalid="offerErrors.message ? 'true' : null" :aria-describedby="'offer-msg-count-' + item.id + ' offer-msg-err-' + item.id"></textarea>
                   <p :id="'offer-msg-count-' + item.id" class="counter" :class="offerForm.message.length >= 500 ? 'counter-limit' : ''" x-text="offerForm.message.length + ' / 500'"></p>
@@ -216,8 +219,8 @@ const REQUEST_PANEL_MARKUP = `
                     <label class="flex items-start gap-3">
                       <input :id="'offer-food-' + item.id" type="checkbox" x-model="offerForm.foodSafetyConfirmed"
                         :aria-invalid="offerErrors.foodSafety ? 'true' : null" :aria-describedby="'offer-food-err-' + item.id" />
-                      <span><span data-i18n="needs.foodConfirm">Items are sealed, unopened and not past their expiry date.</span>
-                        <span class="block text-sm text-muted" data-i18n="needs.foodNote">Cooked or home-made food can't be accepted.</span></span>
+                      <span class="pt-0.5 text-[0.9375rem] leading-5"><span data-i18n="needs.foodConfirm">Items are sealed, unopened and not past their expiry date.</span>
+                        <span class="mt-1 block text-[0.875rem] leading-5 text-muted" data-i18n="needs.foodNote">Cooked or home-made food can't be accepted.</span></span>
                     </label>
                     <p :id="'offer-food-err-' + item.id" class="field-error ml-9" x-show="offerErrors.foodSafety" x-text="offerErrors.foodSafety"></p>
                   </div>
@@ -227,11 +230,11 @@ const REQUEST_PANEL_MARKUP = `
                   <p class="note-danger" x-show="offerError" x-text="offerError"></p>
                 </div>
                 <div class="flex flex-wrap gap-3">
-                  <button type="submit" class="btn btn-primary" :disabled="sending">
+                  <button type="submit" class="btn btn-primary btn-sm" :disabled="sending">
                     <span class="spinner" x-show="sending" aria-hidden="true"></span>
                     <span x-text="sending ? $t('common.sending') : offerButtonText(item)"></span>
                   </button>
-                  <button type="button" class="btn btn-secondary" @click="closeOffer()" :disabled="sending" data-i18n="common.cancel">Cancel</button>
+                  <button type="button" class="btn btn-secondary btn-sm" @click="closeOffer()" :disabled="sending" data-i18n="common.cancel">Cancel</button>
                 </div>
               </form>
             </li>
@@ -242,9 +245,9 @@ const REQUEST_PANEL_MARKUP = `
       <!-- about this request: the organization's own words and where to drop off, in smaller text -->
       <div class="space-y-3 text-sm" x-show="request.description || request.dropoff_instructions">
         <p class="whitespace-pre-line break-words text-muted" x-show="request.description" x-text="request.description"></p>
-        <div class="note" x-show="request.dropoff_instructions">
+        <div class="note text-[0.875rem] leading-5" x-show="request.dropoff_instructions">
           <p class="font-bold" data-i18n="requests.dropoff">Drop-off</p>
-          <p class="whitespace-pre-line break-words" x-text="request.dropoff_instructions"></p>
+          <p class="mt-1 whitespace-pre-line break-words" x-text="request.dropoff_instructions"></p>
         </div>
       </div>
 

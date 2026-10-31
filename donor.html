@@ -345,7 +345,7 @@
                       x-text="[offer.item?.request?.title, offer.item?.request?.organization?.name].filter(Boolean).join(' · ') || $t('donor.requestGone')"></p>
                     <p class="text-sm text-muted" x-text="$t('donor.offeredOn', { date: formatDate(offer.created_at) })"></p>
                   </div>
-                  <span :class="offerDisplay(offer).className" x-text="offerDisplay(offer).label"></span>
+                  <span class="badge-sm" :class="offerDisplay(offer).className" x-text="offerDisplay(offer).label"></span>
                 </div>
 
                 <!-- where it is: Offer sent → Accepted → Delivered (REQUIREMENTS.md 12) -->
@@ -389,7 +389,7 @@
                       x-text="[offer.item?.request?.title, offer.item?.request?.organization?.name].filter(Boolean).join(' · ') || $t('donor.requestGone')"></p>
                     <p class="text-sm text-muted" x-text="offerEndedText(offer)"></p>
                   </div>
-                  <span :class="offerDisplay(offer).className" x-text="offerDisplay(offer).label"></span>
+                  <span class="badge-sm" :class="offerDisplay(offer).className" x-text="offerDisplay(offer).label"></span>
                 </div>
                 <!-- delivered: a rubber stamp, and (the first time only) Pinny says thank you -->
                 <div class="flex flex-wrap items-center gap-4 py-1" x-show="offer.status === 'delivered'">
