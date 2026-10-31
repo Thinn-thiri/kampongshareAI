@@ -236,7 +236,7 @@
             </p>
             <ul class="grid gap-3 sm:grid-cols-2" x-show="matches.length">
               <template x-for="match in matches" :key="match.itemId">
-                <li class="flex flex-col gap-2 rounded-lg bg-canvas p-4">
+                <li class="flex flex-col gap-2 rounded-lg border-[1.5px] border-edge bg-canvas p-4">
                   <p class="font-bold break-words" x-text="match.itemName"></p>
                   <p class="text-sm break-words" x-text="[match.requestTitle, match.organization].filter(Boolean).join(' · ')"></p>
                   <p class="text-sm text-muted" x-text="$t('match.resultLine', { count: match.remaining, unit: match.unit, deadline: deadlineText(match.deadline) })"></p>
