@@ -268,7 +268,7 @@ WhatsApp and Facebook don't run JavaScript when they read a link, so previews ne
 
 ### 5.3 Share panel
 
-Shown on approved events in `organization.html` and on `event.html`. Pending events show "Waiting for admin approval" instead, with no share buttons.
+Lives on `event.html` (`#share`); each approved event card in `organization.html` has a **Share** link to it, beside **Volunteers** (which opens a side panel). The event's own organization also gets the editable Instagram caption and "Write caption with AI" there. Pending events show "Waiting for admin approval" instead, with no share buttons.
 
 - **WhatsApp:** `https://wa.me/?text=<encoded message>` — opens WhatsApp with the message ready; the user picks a chat or group.
 - **Facebook:** `https://www.facebook.com/sharer/sharer.php?u=<encoded link>` (Facebook ignores pre-filled text; the preview comes from 5.2).

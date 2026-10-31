@@ -65,6 +65,8 @@ document.addEventListener("alpine:init", () => {
         setTimeout(() => {
           const element = document.getElementById("event-map");
           if (element) createPinMap(element, { lat: event.latitude, lng: event.longitude, label: event.title });
+          // "Share" on the organization's event card links to #share: go there once it has been drawn
+          if (location.hash === "#share") document.getElementById("share")?.scrollIntoView({ block: "start" });
         }, 0);
       }
     },

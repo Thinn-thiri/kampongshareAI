@@ -18,6 +18,8 @@ document.addEventListener("alpine:init", () => {
     /** @type {string | null} */
     busyId: null,
 
+    /** @type {string | null} the application whose full details are shown (null: the short list) */
+    viewingId: null,
     /** @type {string | null} volunteer whose task form is open */
     taskFor: null,
     taskForm: { title: "", description: "", dueAt: "" },
@@ -76,8 +78,29 @@ document.addEventListener("alpine:init", () => {
      * @param {Event} panelEvent
      */
     onPanelEvent(panelEvent) {
-      if (panelEvent.type === "close") this.open = false;
+      if (panelEvent.type === "close") {
+        this.open = false;
+        this.viewingId = null;
+        this.taskFor = null;
+      }
       onSidePanelEvent(panelEvent);
+    },
+
+    /**
+     * Shows one volunteer's full details (focus moves to their name).
+     * @param {string} applicationId
+     */
+    view(applicationId) {
+      this.viewingId = applicationId;
+      setTimeout(() => document.getElementById(`vol-name-${applicationId}`)?.focus(), 0);
+    },
+
+    /** Back to the short list; focus returns to that volunteer's View button. */
+    backToList() {
+      const id = this.viewingId;
+      this.viewingId = null;
+      this.taskFor = null;
+      setTimeout(() => document.getElementById(`vol-view-${id}`)?.focus(), 0);
     },
 
     async load() {

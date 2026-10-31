@@ -1225,7 +1225,6 @@ const I18N_ZH = {
     viewPublicPage: "查看公开页面",
     shareWaiting: "等待管理员审核——获批后就可以分享。",
     share: "分享",
-    hideSharing: "收起分享",
     whatsappMessage: "WhatsApp 信息",
     instagramCaption: "Instagram 文案",
     writing: "撰写中…",
@@ -1284,6 +1283,10 @@ const I18N_ZH = {
     seeAsDonors: "查看捐赠者看到的内容",
     rejectOffer: "拒绝认捐",
     editEventLabel: "编辑活动：{title}",
+    viewVolunteer: "查看",
+    viewVolunteerNamed: "查看 {name} 的详情",
+    allVolunteers: "所有志愿者",
+    shareEventNamed: "分享 {event}",
   },
 
   form: {

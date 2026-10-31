@@ -1010,15 +1010,15 @@
                 </div>
                 <div class="min-w-0">
                   <h3 class="card-title break-words" x-text="event.title"></h3>
-                  <p class="text-sm text-muted" x-text="formatEventTime(event.starts_at, event.ends_at)"></p>
-                  <p class="text-sm text-muted break-words" x-text="event.location_name"></p>
-                  <p class="text-sm text-muted" x-show="!isActiveEventStatus(event)" x-text="eventEndedText(event)"></p>
+                  <p class="text-[0.8125rem] leading-5 text-muted" x-text="formatEventTime(event.starts_at, event.ends_at)"></p>
+                  <p class="text-[0.8125rem] leading-5 text-muted break-words" x-text="event.location_name"></p>
+                  <p class="text-[0.8125rem] leading-5 text-muted" x-show="!isActiveEventStatus(event)" x-text="eventEndedText(event)"></p>
                 </div>
                 <div class="note-warning" x-show="event.status === 'cancelled'">
                   <p class="font-bold" data-i18n="enum.eventStatus.cancelled">Cancelled</p>
                   <p class="mt-1 whitespace-pre-line break-words text-ink" x-text="event.cancel_reason || $t('orgDash.noReason')"></p>
                 </div>
-                <dl class="grid grid-cols-[max-content_1fr] gap-x-3 gap-y-1 text-sm">
+                <dl class="grid grid-cols-[max-content_1fr] gap-x-3 gap-y-0.5 text-[0.8125rem] leading-5">
                   <dt class="text-muted" data-i18n="field.volunteersNeeded">Volunteers needed</dt>
                   <dd x-text="event.volunteers_needed || $t('admin.noLimit')"></dd>
                   <dt class="text-muted" data-i18n="field.linkedRequest">Linked request</dt>
@@ -1102,54 +1102,17 @@
                   </div>
                 </div>
 
-                <!-- Share (REQUIREMENTS.md 5.3): approved events only -->
-                <div class="pt-1" x-data="{ sharing: false }" x-show="event.status !== 'completed' && event.status !== 'cancelled'">
-                  <p class="text-sm text-muted" x-show="event.approval !== 'approved'" data-i18n="orgDash.shareWaiting">Waiting for admin approval — you can share it once it's approved.</p>
-                  <template x-if="event.approval === 'approved'">
-                    <div>
-                      <button type="button" class="btn btn-quiet -ml-3 px-3" :aria-expanded="sharing.toString()" :aria-controls="`share-${event.id}`" @click="sharing = !sharing"
-                        x-text="sharing ? $t('orgDash.hideSharing') : $t('orgDash.share')">Share</button>
-                      <template x-if="sharing">
-                        <div :id="`share-${event.id}`" class="mt-3 space-y-4" x-data="sharePanel(event, org?.name || 'KampongShare', true)">
-                          <div>
-                            <label :for="`share-msg-${event.id}`" class="label" data-i18n="orgDash.whatsappMessage">Message for WhatsApp</label>
-                            <textarea :id="`share-msg-${event.id}`" class="input input-ruled py-2" rows="4" maxlength="500" x-model="message"></textarea>
-                            <p class="helper-text" data-i18n="share.messageHelp">You can edit it before sharing.</p>
-                          </div>
-                          <div class="grid grid-cols-2 gap-2 sm:grid-cols-3">
-                            <a class="btn btn-primary" :href="whatsapp" target="_blank" rel="noopener">WhatsApp</a>
-                            <a class="btn btn-secondary" :href="facebook" target="_blank" rel="noopener">Facebook</a>
-                            <button type="button" class="btn btn-secondary" x-show="canNativeShare" @click="nativeShare()" data-i18n="share.nativeShare">Share…</button>
-                            <button type="button" class="btn btn-secondary" @click="copyLink()" data-i18n="share.copyLink">Copy link</button>
-                            <button type="button" class="btn btn-secondary" :disabled="makingPoster" @click="poster()">
-                              <span class="spinner" x-show="makingPoster" x-cloak aria-hidden="true"></span>
-                              <span data-i18n="share.poster">Download poster</span>
-                            </button>
-                          </div>
-                          <div class="space-y-2 rounded-md bg-canvas p-3">
-                            <div class="flex flex-wrap items-center justify-between gap-2">
-                              <label :for="`share-caption-${event.id}`" class="label mb-0" data-i18n="orgDash.instagramCaption">Instagram caption</label>
-                              <span class="badge badge-ai" x-show="captionIsAi" data-i18n="common.aiSuggested">AI-suggested</span>
-                            </div>
-                            <textarea :id="`share-caption-${event.id}`" class="input input-ruled py-2" rows="4" maxlength="600" x-model="caption"></textarea>
-                            <div class="flex flex-wrap gap-2">
-                              <button type="button" class="btn btn-secondary" x-show="canUseAi" :disabled="loadingCaption" @click="writeCaption()">
-                                <span class="spinner" x-show="loadingCaption" x-cloak aria-hidden="true"></span>
-                                <span x-text="loadingCaption ? $t('orgDash.writing') : captionIsAi ? $t('orgDash.writeAnother') : $t('orgDash.writeCaption')">Write caption with AI</span>
-                              </button>
-                              <button type="button" class="btn btn-secondary" @click="copyCaption()" data-i18n="share.copyCaption">Copy caption</button>
-                            </div>
-                            <p class="helper-text mt-0" data-i18n="orgDash.captionHelp">Check and edit the caption before posting. Instagram captions can't hold links, so the link is on the poster.</p>
-                          </div>
-                        </div>
-                      </template>
-                    </div>
-                  </template>
-                </div>
+                <!-- Share (REQUIREMENTS.md 5.3) opens the event's public page at its share panel; Volunteers sits beside it -->
+                <p class="text-sm text-muted" x-show="event.approval !== 'approved' && event.status !== 'completed' && event.status !== 'cancelled'" data-i18n="orgDash.shareWaiting">Waiting for admin approval — you can share it once it's approved.</p>
+                <div class="flex flex-wrap items-center gap-x-1 pt-1">
+                <a class="btn btn-quiet -ml-2 gap-1 px-2 text-[0.875rem]" x-show="event.approval === 'approved' && event.status !== 'completed' && event.status !== 'cancelled'"
+                  :href="`/event.html?id=${encodeURIComponent(event.id)}#share`" :aria-label="$t('orgDash.shareEventNamed', { event: event.title })">
+                  <i class="ph ph-share-network size-4" aria-hidden="true"></i><span data-i18n="orgDash.share">Share</span>
+                </a>
 
                 <!-- Volunteers for this event -->
-                <div class="pt-1" x-data="eventVolunteers(event)" x-show="event.approval === 'approved' || event.status === 'completed'">
-                  <button type="button" class="btn btn-quiet -ml-3 px-3" aria-haspopup="dialog" :aria-controls="`volunteers-${event.id}`" @click="openPanel($event)">
+                <div x-data="eventVolunteers(event)" x-show="event.approval === 'approved' || event.status === 'completed'">
+                  <button type="button" class="btn btn-quiet gap-1 px-2 text-[0.875rem]" aria-haspopup="dialog" :aria-controls="`volunteers-${event.id}`" @click="openPanel($event)">
                     <span data-i18n="orgDash.volunteers">Volunteers</span>
                     <span class="badge badge-warning badge-sm" x-show="loaded && pendingCount > 0" x-text="$t('orgDash.waitingCount', { count: pendingCount })"></span>
                   </button>
@@ -1167,21 +1130,41 @@
                     </button>
                   </div>
                   <div class="space-y-3 p-4 sm:p-6">
-                    <p class="text-sm" :class="isFull ? 'text-danger' : 'text-muted'" x-show="loaded" x-text="summary"></p>
+                    <!-- viewing one volunteer: a way back to the list -->
+                    <button type="button" class="btn btn-quiet -ml-3 gap-1 px-3 text-sm" x-show="viewingId" x-cloak @click="backToList()">
+                      <i class="ph ph-arrow-left size-4" aria-hidden="true"></i>
+                      <span data-i18n="orgDash.allVolunteers">All volunteers</span>
+                    </button>
+                    <p class="text-sm" :class="isFull ? 'text-danger' : 'text-muted'" x-show="loaded && !viewingId" x-text="summary"></p>
                     <div class="space-y-2" x-show="loading" role="status"><span class="sr-only" data-i18n="orgDash.loadingVolunteers">Loading volunteers…</span>
                       <div class="skeleton h-5 w-2/3"></div><div class="skeleton h-4 w-1/2"></div>
                     </div>
                     <p class="text-sm text-danger" x-show="!loading && error" x-text="error" role="alert"></p>
                     <p class="text-sm text-muted" x-show="!loading && !error && loaded && shown.length === 0" data-i18n="orgDash.noApplications">No applications yet.</p>
 
-                    <ul class="space-y-3" x-show="!loading && !error">
+                    <ul class="space-y-2" x-show="!loading && !error">
                       <template x-for="application in shown" :key="application.id">
-                        <li class="space-y-2 rounded-md bg-canvas p-3 text-sm">
-                          <div class="flex flex-wrap items-center justify-between gap-2">
-                            <p class="font-bold break-words" x-text="application.volunteer?.full_name || $t('admin.nameNotGiven')"></p>
-                            <span class="badge-sm" :class="badges[application.status].className" x-text="badges[application.status].label"></span>
+                        <!-- first a short row (name, status, message, View); View shows the full details -->
+                        <!-- flex + gap (not space-y): the hidden details mustn't add space under the name row -->
+                        <li class="flex flex-col gap-2 rounded-md border-[1.5px] border-edge bg-surface px-3 py-1 text-sm" :class="viewingId === application.id ? 'py-3' : ''" x-show="!viewingId || viewingId === application.id">
+                          <div class="flex items-center justify-between gap-2">
+                            <div class="flex min-w-0 flex-wrap items-center gap-2">
+                              <p class="font-bold break-words" :id="`vol-name-${application.id}`" tabindex="-1" x-text="application.volunteer?.full_name || $t('admin.nameNotGiven')"></p>
+                              <span class="badge-sm" :class="badges[application.status].className" x-text="badges[application.status].label"></span>
+                            </div>
+                            <div class="flex shrink-0 items-center gap-1" x-show="viewingId !== application.id">
+                              <button type="button" class="icon-btn size-10 text-primary" :disabled="messaging" @click="messageVolunteer(application)"
+                                :aria-label="$t('messages.messageVolunteerNamed', { name: application.volunteer?.full_name || $t('orgDash.thisVolunteer') })"
+                                :title="$t('messages.messageVolunteer')">
+                                <i class="ph ph-chat-circle" aria-hidden="true"></i>
+                              </button>
+                              <button type="button" class="btn btn-tonal btn-sm min-h-10" :id="`vol-view-${application.id}`" @click="view(application.id)"
+                                :aria-label="$t('orgDash.viewVolunteerNamed', { name: application.volunteer?.full_name || $t('orgDash.thisVolunteer') })"
+                                data-i18n="orgDash.viewVolunteer">View</button>
+                            </div>
                           </div>
-                          <dl class="grid grid-cols-[max-content_1fr] gap-x-3 gap-y-1">
+                          <div class="space-y-2" x-show="viewingId === application.id" x-cloak>
+                          <dl class="grid grid-cols-[max-content_1fr] gap-x-3 gap-y-0.5 text-[0.8125rem] leading-5">
                             <dt class="text-muted" data-i18n="field.phone">Phone</dt>
                             <dd>
                               <template x-if="application.volunteer?.phone">
@@ -1198,45 +1181,47 @@
                             <dt class="text-muted" data-i18n="orgDash.applied">Applied</dt>
                             <dd x-text="formatDate(application.created_at)"></dd>
                           </dl>
-                          <p class="rounded-md border-[1.5px] border-edge bg-surface p-2 whitespace-pre-line break-words" x-show="application.message" x-text="application.message"></p>
-                          <div class="rounded-md border-[1.5px] border-edge bg-surface p-3" x-data="tracker(() => trackerFor(application))"></div>
+                          <p class="rounded-md border-[1.5px] border-edge bg-surface px-2 py-1.5 text-[0.8125rem] leading-5 whitespace-pre-line break-words" x-show="application.message" x-text="application.message"></p>
+                          <div class="rounded-md border-[1.5px] border-edge bg-surface px-2 py-1.5" x-data="tracker(() => trackerFor(application))"></div>
 
+                          <!-- one row of small buttons: decide / assign / remove, then Message volunteer beside them -->
                           <div class="flex flex-wrap gap-2">
                             <template x-if="application.status === 'pending'">
-                              <div class="flex flex-wrap gap-2">
-                                <button type="button" class="btn btn-primary" :disabled="busyId === application.id || isFull" @click="decide(application, 'approve')"
+                              <div class="contents">
+                                <button type="button" class="btn btn-primary btn-sm min-h-10 px-3 text-[0.8125rem]" :disabled="busyId === application.id || isFull" @click="decide(application, 'approve')"
                                   x-text="isFull ? $t('event.eventFull') : $t('common.approve')"></button>
-                                <button type="button" class="btn btn-danger" :disabled="busyId === application.id" @click="decide(application, 'reject')" data-i18n="common.reject">Reject</button>
+                                <button type="button" class="btn btn-danger btn-sm min-h-10 px-3 text-[0.8125rem]" :disabled="busyId === application.id" @click="decide(application, 'reject')" data-i18n="common.reject">Reject</button>
                               </div>
                             </template>
                             <template x-if="application.status === 'approved'">
-                              <div class="flex flex-wrap gap-2">
-                                <button type="button" class="btn btn-secondary" x-show="taskFor !== application.volunteer_id" @click="openTask(application.volunteer_id)" data-i18n="orgDash.assignTask">Assign task</button>
-                                <button type="button" class="btn btn-danger" :disabled="busyId === application.id" @click="decide(application, 'remove')" data-i18n="orgDash.removeVolunteer">Remove volunteer</button>
+                              <div class="contents">
+                                <button type="button" class="btn btn-secondary btn-sm min-h-10 px-3 text-[0.8125rem]" x-show="taskFor !== application.volunteer_id" @click="openTask(application.volunteer_id)" data-i18n="orgDash.assignTask">Assign task</button>
+                                <button type="button" class="btn btn-danger btn-sm min-h-10 px-3 text-[0.8125rem]" :disabled="busyId === application.id" @click="decide(application, 'remove')" data-i18n="orgDash.removeVolunteer">Remove volunteer</button>
                               </div>
                             </template>
-                            <button type="button" class="btn btn-secondary" :disabled="messaging" @click="messageVolunteer(application)"
-                              :aria-label="$t('messages.messageVolunteerNamed', { name: application.volunteer?.full_name || $t('orgDash.thisVolunteer') })">
-                              <i class="ph ph-chat-circle size-4" aria-hidden="true"></i>
-                              <span data-i18n="messages.messageVolunteer">Message volunteer</span>
+                            <!-- icon only; its name is "Message volunteer <name>" -->
+                            <button type="button" class="btn btn-secondary btn-sm size-10 min-h-10 px-0" :disabled="messaging" @click="messageVolunteer(application)"
+                              :aria-label="$t('messages.messageVolunteerNamed', { name: application.volunteer?.full_name || $t('orgDash.thisVolunteer') })"
+                              :title="$t('messages.messageVolunteer')">
+                              <i class="ph ph-chat-circle text-xl" aria-hidden="true"></i>
                             </button>
                           </div>
 
                           <!-- Tasks for this volunteer -->
                           <ul class="space-y-1" x-show="tasksOf(application.volunteer_id).length">
                             <template x-for="task in tasksOf(application.volunteer_id)" :key="task.id">
-                              <li class="flex flex-wrap items-center justify-between gap-2 rounded-md border-[1.5px] border-edge bg-surface p-2">
+                              <li class="flex flex-wrap items-center justify-between gap-2 rounded-md border-[1.5px] border-edge bg-surface px-2 py-1 text-[0.75rem] leading-4">
                                 <span class="min-w-0 break-words">
                                   <span class="" x-text="task.title"></span>
                                   <span class="text-muted" x-show="task.due_at" x-text="task.due_at ? $t('orgDash.dueLine', { date: formatDate(task.due_at, true) }) : ''"></span>
                                 </span>
-                                <span :class="taskBadge(task.status).className" x-text="taskBadge(task.status).label"></span>
+                                <span class="badge-sm text-[0.75rem]" :class="taskBadge(task.status).className" x-text="taskBadge(task.status).label"></span>
                               </li>
                             </template>
                           </ul>
 
                           <!-- Assign task form -->
-                          <form class="space-y-3 rounded-md border-[1.5px] border-edge bg-surface p-3" novalidate x-show="taskFor === application.volunteer_id" x-cloak
+                          <form class="compact-fields space-y-2 rounded-md border-[1.5px] border-edge bg-surface p-2.5" novalidate x-show="taskFor === application.volunteer_id" x-cloak
                             @submit.prevent="saveTask(application.volunteer_id)">
                             <div>
                               <label :for="`task-title-${event.id}-${application.volunteer_id}`" class="label"><span data-i18n="orgDash.task">Task</span></label>
@@ -1247,28 +1232,30 @@
                             </div>
                             <div>
                               <label :for="`task-desc-${event.id}-${application.volunteer_id}`" class="label"><span data-i18n="orgDash.taskDetails">Details</span> <span class="optional" data-i18n="common.optional">(optional)</span></label>
-                              <textarea :id="`task-desc-${event.id}-${application.volunteer_id}`" class="input input-ruled py-2" rows="2" maxlength="500" x-model="taskForm.description"></textarea>
+                              <textarea :id="`task-desc-${event.id}-${application.volunteer_id}`" class="input py-1.5" rows="2" maxlength="500" x-model="taskForm.description"></textarea>
                               <p class="field-error" x-show="taskErrors.description" x-text="taskErrors.description"></p>
                             </div>
                             <div>
                               <label :for="`task-due-${event.id}-${application.volunteer_id}`" class="label"><span data-i18n="orgDash.due">Due</span> <span class="optional" data-i18n="common.optional">(optional)</span></label>
                               <input :id="`task-due-${event.id}-${application.volunteer_id}`" class="input" type="datetime-local" x-model="taskForm.dueAt" />
                             </div>
-                            <p class="rounded-md bg-danger-soft p-2 text-danger" x-show="taskError" x-text="taskError" role="alert"></p>
+                            <p class="rounded-md bg-danger-soft p-2 text-[0.8125rem] leading-5 text-danger" x-show="taskError" x-text="taskError" role="alert"></p>
                             <div class="flex flex-wrap gap-2">
-                              <button type="submit" class="btn btn-primary" :disabled="savingTask">
+                              <button type="submit" class="btn btn-primary btn-sm min-h-10 px-3 text-[0.8125rem]" :disabled="savingTask">
                                 <span class="spinner" x-show="savingTask" x-cloak aria-hidden="true"></span>
                                 <span data-i18n="orgDash.assignTask">Assign task</span>
                               </button>
-                              <button type="button" class="btn btn-quiet" @click="taskFor = null" data-i18n="common.cancel">Cancel</button>
+                              <button type="button" class="btn btn-quiet min-h-10 px-3 text-[0.8125rem]" @click="taskFor = null" data-i18n="common.cancel">Cancel</button>
                             </div>
                           </form>
+                          </div>
                         </li>
                       </template>
                     </ul>
                     <button type="button" class="btn btn-quiet -ml-3 px-3" x-show="loaded && !loading" @click="load()" data-i18n="orgDash.refresh">Refresh</button>
                   </div>
                   </dialog>
+                </div>
                 </div>
               </li>
             </template>

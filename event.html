@@ -305,7 +305,7 @@
 
         <!-- Share this event (REQUIREMENTS.md 5.3) — approved events only, and not once it's over or cancelled -->
         <template x-if="event && !isOver">
-          <section class="card space-y-4" x-data="sharePanel(event, event.organization?.name || 'KampongShare', false)" aria-labelledby="share-heading">
+          <section id="share" class="card scroll-mt-24 space-y-4" x-data="sharePanel(event, event.organization?.name || 'KampongShare', ownsContent(event.organization_id))" aria-labelledby="share-heading">
             <div>
               <h2 id="share-heading" class="card-title" data-i18n="share.title">Share this event</h2>
               <p class="text-sm text-muted" data-i18n="share.intro">Help more people give and volunteer. The link opens this page.</p>
@@ -324,9 +324,25 @@
                 <span class="spinner" x-show="makingPoster" x-cloak aria-hidden="true"></span>
                 <span data-i18n="share.poster">Download poster</span>
               </button>
-              <button type="button" class="btn btn-secondary" @click="copyCaption()" data-i18n="share.copyCaption">Copy caption</button>
+              <button type="button" class="btn btn-secondary" x-show="!canUseAi" @click="copyCaption()" data-i18n="share.copyCaption">Copy caption</button>
             </div>
-            <p class="helper-text mt-0" data-i18n="share.instagramNote">Instagram: download the poster, then paste the caption. Instagram captions can't hold clickable links, so the link is printed on the poster.</p>
+            <!-- the event's own organization can edit the Instagram caption and ask the AI for one (5.4) -->
+            <div class="space-y-2 rounded-md bg-canvas p-3" x-show="canUseAi">
+              <div class="flex flex-wrap items-center justify-between gap-2">
+                <label for="share-caption" class="label mb-0" data-i18n="orgDash.instagramCaption">Instagram caption</label>
+                <span class="badge badge-ai" x-show="captionIsAi" data-i18n="common.aiSuggested">AI-suggested</span>
+              </div>
+              <textarea id="share-caption" class="input input-ruled py-2" rows="4" maxlength="600" x-model="caption"></textarea>
+              <div class="flex flex-wrap gap-2">
+                <button type="button" class="btn btn-secondary" :disabled="loadingCaption" @click="writeCaption()">
+                  <span class="spinner" x-show="loadingCaption" x-cloak aria-hidden="true"></span>
+                  <span x-text="loadingCaption ? $t('orgDash.writing') : captionIsAi ? $t('orgDash.writeAnother') : $t('orgDash.writeCaption')">Write caption with AI</span>
+                </button>
+                <button type="button" class="btn btn-secondary" @click="copyCaption()" data-i18n="share.copyCaption">Copy caption</button>
+              </div>
+              <p class="helper-text mt-0" data-i18n="orgDash.captionHelp">Check and edit the caption before posting. Instagram captions can't hold links, so the link is on the poster.</p>
+            </div>
+            <p class="helper-text mt-0" x-show="!canUseAi" data-i18n="share.instagramNote">Instagram: download the poster, then paste the caption. Instagram captions can't hold clickable links, so the link is printed on the poster.</p>
           </section>
         </template>
       </article>

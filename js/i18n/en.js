@@ -1225,7 +1225,6 @@ const I18N_EN = {
     viewPublicPage: "View public page",
     shareWaiting: "Waiting for admin approval — you can share it once it's approved.",
     share: "Share",
-    hideSharing: "Hide sharing",
     whatsappMessage: "Message for WhatsApp",
     instagramCaption: "Instagram caption",
     writing: "Writing…",
@@ -1284,6 +1283,10 @@ const I18N_EN = {
     seeAsDonors: "See what donors see",
     rejectOffer: "Reject offer",
     editEventLabel: "Edit event: {title}",
+    viewVolunteer: "View",
+    viewVolunteerNamed: "View details for {name}",
+    allVolunteers: "All volunteers",
+    shareEventNamed: "Share {event}",
   },
 
   form: {

@@ -1225,7 +1225,6 @@ const I18N_MS = {
     viewPublicPage: "Lihat halaman awam",
     shareWaiting: "Menunggu kelulusan pentadbir — anda boleh berkongsi selepas ia diluluskan.",
     share: "Kongsi",
-    hideSharing: "Sembunyi perkongsian",
     whatsappMessage: "Mesej untuk WhatsApp",
     instagramCaption: "Kapsyen Instagram",
     writing: "Sedang menulis…",
@@ -1284,6 +1283,10 @@ const I18N_MS = {
     seeAsDonors: "Lihat apa yang penderma lihat",
     rejectOffer: "Tolak tawaran",
     editEventLabel: "Sunting acara: {title}",
+    viewVolunteer: "Lihat",
+    viewVolunteerNamed: "Lihat butiran {name}",
+    allVolunteers: "Semua sukarelawan",
+    shareEventNamed: "Kongsi {event}",
   },
 
   form: {
