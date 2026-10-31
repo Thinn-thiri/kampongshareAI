@@ -121,23 +121,11 @@
     </header>
 
     <!-- wider screens: the page fills the screen below the top bar, so the message box is always in view -->
-    <main id="main" tabindex="-1" class="messages-page container-page py-6 focus:outline-none" x-data="messagesPage">
-      <!-- a slim header: title and intro on the left, the translate switch on the right -->
-      <div class="flex flex-wrap items-start justify-between gap-x-6 gap-y-2">
-        <div class="min-w-0">
-          <h1 class="title" data-i18n="messages.title">Messages</h1>
-          <p class="mt-1 text-sm text-muted" data-i18n="messages.intro">Private conversations about donations and volunteering. Only you and the other side can read them.</p>
-        </div>
-        <div class="max-w-xs">
-          <label class="inline-flex min-h-11 cursor-pointer items-center gap-3">
-            <input type="checkbox" role="switch" class="switch" :checked="autoTranslate" @change="toggleAutoTranslate($event)" aria-describedby="translate-help" />
-            <span class="text-sm" data-i18n="messages.translateSwitch">Translate messages automatically</span>
-          </label>
-          <p id="translate-help" class="mt-0 text-[0.875rem] leading-5 text-muted" data-i18n="messages.translateHelp">Messages in another language are translated by AI. You can always see the original.</p>
-        </div>
-      </div>
+    <main id="main" tabindex="-1" class="messages-page container-page py-4 focus:outline-none" x-data="messagesPage">
+      <!-- the title is for screen readers; the conversations fill the screen -->
+      <h1 class="sr-only" data-i18n="messages.title">Messages</h1>
 
-      <div class="messages-layout mt-4">
+      <div class="messages-layout">
         <!-- Conversations (phones: hidden while one is open) -->
         <section class="card flex min-h-0 flex-col p-0" :class="currentId ? 'max-sm:hidden' : ''" aria-labelledby="list-heading">
           <h2 id="list-heading" class="section-title border-b border-line px-4 py-3 text-base" data-i18n="messages.listTitle">Conversations</h2>
@@ -173,6 +161,14 @@
               </li>
             </template>
           </ul>
+          <!-- automatic translation (section 10), at the bottom of the list -->
+          <div class="mt-auto border-t border-line px-4 py-2">
+            <label class="flex min-h-11 cursor-pointer items-center gap-3">
+              <input type="checkbox" role="switch" class="switch" :checked="autoTranslate" @change="toggleAutoTranslate($event)" aria-describedby="translate-help" />
+              <span class="text-sm" data-i18n="messages.translateSwitch">Translate messages automatically</span>
+            </label>
+            <p id="translate-help" class="text-[0.8125rem] leading-5 text-muted" data-i18n="messages.translateHelp">Messages in another language are translated by AI. You can always see the original.</p>
+          </div>
         </section>
 
         <!-- The open conversation (phones: full screen) -->

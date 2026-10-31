@@ -498,7 +498,7 @@ Private messages between **individuals and organizations** (the organization is 
 
 **`messages.html`** (requires login):
 
-- Desktop: conversation list on the left, open conversation on the right; the page fills the screen below the top bar (slim header with the translate switch on the right), so the text box and Send are always in view, and the chat button is hidden while a conversation is open. Phones: the list first; a conversation opens full screen with a Back button (the bottom bar and chat button are hidden there). The open conversation is kept in the hash (`#c=<id>`, ID only).
+- Desktop: conversation list on the left, open conversation on the right; the page fills the screen below the top bar (no visible header; the "Messages" title is for screen readers and the translate switch sits at the bottom of the conversation list), so the text box and Send are always in view, and the chat button is hidden while a conversation is open. Phones: the list first; a conversation opens full screen with a Back button (the bottom bar and chat button are hidden there). The open conversation is kept in the hash (`#c=<id>`, ID only).
 - List items: the other side's name, the topic, a preview of the last message ("You: …" for mine), the time (`last_message_at`) and an unread dot. Newest first.
 - Conversation: bubbles (mine right, theirs left), dates between days, "Show earlier messages" (50 at a time), a text box (max 1,000 characters with a counter; Enter sends, Shift+Enter adds a new line) and Send.
 - A safety note at the top of every conversation: "Donations on KampongShare are always free. Never send money, bank details or passwords."
