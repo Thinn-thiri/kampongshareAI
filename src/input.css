@@ -305,6 +305,16 @@ html.theme-changing * {
   .btn-secondary:active:not(:disabled) {
     background-color: var(--color-line);
   }
+  /* tonal: soft green with green text, for a helpful action next to the main one ("See timeline") */
+  .btn-tonal {
+    @apply bg-primary-soft text-primary;
+  }
+  .btn-tonal:hover:not(:disabled) {
+    background-color: color-mix(in srgb, var(--color-primary-soft) 88%, var(--color-primary));
+  }
+  .btn-tonal:active:not(:disabled) {
+    background-color: color-mix(in srgb, var(--color-primary-soft) 86%, var(--color-primary));
+  }
   /* danger: same shape as main, in red (delete, reject, cancel event — always with a confirm dialog) */
   .btn-danger {
     @apply bg-danger text-on-danger;
@@ -454,6 +464,12 @@ html.theme-changing * {
   .input-oneline {
     @apply max-h-40 resize-none py-2;
     field-sizing: content;
+  }
+  /* the example text stays on one line (cut with …) so the box starts one line tall on phones too */
+  .input-oneline::placeholder {
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
   }
   .search-field {
     @apply relative;
@@ -684,8 +700,12 @@ html.theme-changing * {
   }
 
   /* ---------- messages.html ---------- */
+  /* wider screens: the page is exactly the screen's height below the 64px top bar; the conversations fill what's left */
+  .messages-page {
+    @apply sm:flex sm:h-[calc(100dvh-4rem)] sm:flex-col sm:pb-4;
+  }
   .messages-layout {
-    @apply grid gap-4 sm:h-[calc(100dvh-16rem)] sm:min-h-[26rem] sm:grid-cols-[17rem_minmax(0,1fr)] lg:grid-cols-[20rem_minmax(0,1fr)];
+    @apply grid grid-cols-[minmax(0,1fr)] gap-4 sm:min-h-[22rem] sm:flex-1 sm:grid-cols-[17rem_minmax(0,1fr)] lg:grid-cols-[20rem_minmax(0,1fr)];
   }
   .conversation-link {
     @apply flex min-h-11 items-start gap-3 px-4 py-3 hover:bg-canvas-hover aria-[current=true]:bg-primary-soft;
@@ -784,11 +804,12 @@ i:is(.ph, .ph-duotone).size-10 {
   content: "\e6a2"; /* sparkle */
 }
 
-/* phones: a full-screen conversation hides the bottom bar and the chat button, which would cover
-   the text box */
+/* an open conversation hides the chat button (it would cover Send) and, on phones, the bottom bar */
+body[data-conversation-open] .chat-fab {
+  display: none;
+}
 @media (max-width: 639px) {
-  body[data-conversation-open] .bottom-nav,
-  body[data-conversation-open] .chat-fab {
+  body[data-conversation-open] .bottom-nav {
     display: none;
   }
 }
@@ -1125,13 +1146,6 @@ input[type="radio"]:focus-visible {
 .tracker-list {
   list-style: disc;
   padding-left: 1.25rem;
-  font-size: var(--text-sm);
-}
-.tracker-note {
-  margin-top: 0.75rem;
-  border-radius: var(--radius-md);
-  background: var(--color-canvas-hover);
-  padding: 0.75rem 1rem;
   font-size: var(--text-sm);
 }
 /* cards: steps side by side, a line joins each circle to the one before it */

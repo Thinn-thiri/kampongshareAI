@@ -352,7 +352,7 @@
                 <div x-data="tracker(() => trackerFor(offer))"></div>
 
                 <div class="flex flex-wrap gap-3">
-                  <button type="button" class="btn btn-secondary" @click="openTimeline(offer, $event)" aria-haspopup="dialog"
+                  <button type="button" class="btn btn-tonal btn-sm" @click="openTimeline(offer, $event)" aria-haspopup="dialog"
                     :aria-label="$t('tracker.seeTimelineFor', { item: offer.item?.name ?? '' })" data-i18n="tracker.seeTimeline">See timeline</button>
                   <button type="button" class="btn btn-danger" x-show="isActiveOffer(offer)" :disabled="cancellingId === offer.id" @click="cancel(offer)">
                     <span class="spinner" x-show="cancellingId === offer.id" x-cloak aria-hidden="true"></span>
@@ -403,7 +403,7 @@
                 </div>
                 <div x-data="tracker(() => trackerFor(offer))"></div>
                 <div>
-                  <button type="button" class="btn btn-secondary" @click="openTimeline(offer, $event)" aria-haspopup="dialog"
+                  <button type="button" class="btn btn-tonal btn-sm" @click="openTimeline(offer, $event)" aria-haspopup="dialog"
                     :aria-label="$t('tracker.seeTimelineFor', { item: offer.item?.name ?? '' })" data-i18n="tracker.seeTimeline">See timeline</button>
                 </div>
               </li>

@@ -498,7 +498,7 @@ Private messages between **individuals and organizations** (the organization is 
 
 **`messages.html`** (requires login):
 
-- Desktop: conversation list on the left, open conversation on the right. Phones: the list first; a conversation opens full screen with a Back button (the bottom bar and chat button are hidden there). The open conversation is kept in the hash (`#c=<id>`, ID only).
+- Desktop: conversation list on the left, open conversation on the right; the page fills the screen below the top bar (slim header with the translate switch on the right), so the text box and Send are always in view, and the chat button is hidden while a conversation is open. Phones: the list first; a conversation opens full screen with a Back button (the bottom bar and chat button are hidden there). The open conversation is kept in the hash (`#c=<id>`, ID only).
 - List items: the other side's name, the topic, a preview of the last message ("You: …" for mine), the time (`last_message_at`) and an unread dot. Newest first.
 - Conversation: bubbles (mine right, theirs left), dates between days, "Show earlier messages" (50 at a time), a text box (max 1,000 characters with a counter; Enter sends, Shift+Enter adds a new line) and Send.
 - A safety note at the top of every conversation: "Donations on KampongShare are always free. Never send money, bank details or passwords."
@@ -565,7 +565,7 @@ The step times are recorded by the database (`supabase/migrations/20261030040000
 **One shared tracker:** `buildTracker()` and the Alpine component `tracker` in `js/ui.js`, styled in `src/input.css` (`.tracker`, `.tracker-row` on cards, `.tracker-column` in the details panel; the look follows DESIGN.md 6.5). The steps come from `offerTracker()` (js/offers.js) and `applicationTracker()` (js/volunteering.js).
 
 - Done step: filled `primary` circle with a tick; current step: marigold (`accent`) circle with a clock, `ink`-coloured icon (`on-accent`), one gentle pulse when it first appears (none with reduced motion); future step: empty dashed circle. The lines between steps turn green as steps complete.
-- Under each step: its name and date (full date and time in the panel). One "what happens next" line under the current step (under the tracker on cards).
+- Under each step: its name and date (full date and time in the panel). One "what happens next" line under the current step, in the details panel only (cards show just the steps; "See timeline" has the rest).
 - A journey that stopped ends at that step with an x (rejected, cancelled, withdrawn) or an archive box (request closed, deadline passed, event cancelled, event ended), its date and reason; later steps are hidden.
 - Never colour alone: icon + words on every step; an ordered list with `aria-current="step"` and a hidden summary ("Step 2 of 3: Accepted").
 - "See timeline" opens a `<dialog class="side-panel">` with the full timeline (`openSidePanel()` / `closeSidePanel()` / `onSidePanelEvent()`; focus goes back to the button).

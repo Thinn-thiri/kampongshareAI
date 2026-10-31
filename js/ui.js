@@ -948,12 +948,7 @@ const TRACKER_MARKUP = `
     </li>
   </template>
 </ol>
-<template x-if="layout === 'row' && (model.next || model.stop?.reason)">
-  <div class="tracker-note">
-    <p class="font-bold" x-text="model.stop ? model.stop.reason : model.next"></p>
-    <p class="whitespace-pre-line break-words text-muted" x-show="!model.stop && model.nextDetail" x-text="model.nextDetail"></p>
-  </div>
-</template>`;
+`;
 
 document.addEventListener("alpine:init", () => {
   const Alpine = /** @type {any} */ (window).Alpine;

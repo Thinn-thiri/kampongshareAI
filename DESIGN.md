@@ -150,6 +150,7 @@ All text must exist in **English, 中文 and BM** (see the Languages section in 
 | --------- | --------------------------------------------------------------------------------------- | ----------------------------------------------------------- |
 | Main      | flat green, white text; a little darker on hover, darker still while pressed            | one per card or area                                        |
 | Secondary | flat paper with a 1.5 px field-border border that turns ink on hover                    | alternatives ("Message", "Cancel")                          |
+| Tonal     | soft green (primary-soft) with green text, slightly darker on hover                     | a helpful action beside the main one ("See timeline")         |
 | Quiet     | text only, underline on hover                                                           | small actions in lists                                      |
 | Danger    | flat red, same shape as main                                                                 | delete, reject, cancel event (always with a confirm dialog) |
 

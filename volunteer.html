@@ -192,7 +192,7 @@
                 <p class="text-sm text-primary" x-text="nextEvent.event?.organization?.name"></p>
               </div>
               <div x-data="tracker(() => trackerFor(nextEvent))"></div>
-              <button type="button" class="btn btn-secondary" @click="openTimeline(nextEvent, $event)" aria-haspopup="dialog"
+              <button type="button" class="btn btn-tonal btn-sm" @click="openTimeline(nextEvent, $event)" aria-haspopup="dialog"
                 :aria-label="$t('tracker.seeTimelineFor', { item: nextEvent.event?.title ?? '' })" data-i18n="tracker.seeTimeline">See timeline</button>
             </div>
           </template>
@@ -313,7 +313,7 @@
                 </div>
                 <div x-data="tracker(() => trackerFor(application))"></div>
                 <div class="flex flex-wrap items-center gap-3">
-                  <button type="button" class="btn btn-secondary" @click="openTimeline(application, $event)" aria-haspopup="dialog"
+                  <button type="button" class="btn btn-tonal btn-sm" @click="openTimeline(application, $event)" aria-haspopup="dialog"
                     :aria-label="$t('tracker.seeTimelineFor', { item: application.event?.title ?? '' })" data-i18n="tracker.seeTimeline">See timeline</button>
                   <button type="button" class="btn btn-danger"
                     :disabled="busyId === application.id || application.status === 'approved'"
@@ -362,7 +362,7 @@
                 <p class="sr-only" x-show="applicationOutcome(application).text" x-text="applicationOutcome(application).text"></p>
                 <div x-data="tracker(() => trackerFor(application))"></div>
                 <div>
-                  <button type="button" class="btn btn-secondary" @click="openTimeline(application, $event)" aria-haspopup="dialog"
+                  <button type="button" class="btn btn-tonal btn-sm" @click="openTimeline(application, $event)" aria-haspopup="dialog"
                     :aria-label="$t('tracker.seeTimelineFor', { item: application.event?.title ?? '' })" data-i18n="tracker.seeTimeline">See timeline</button>
                 </div>
               </li>
