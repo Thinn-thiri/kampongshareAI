@@ -129,10 +129,10 @@
         <p class="mt-2 text-muted" data-i18n="needs.intro">Every open request from checked local groups, most urgent first.</p>
       </div>
 
-      <!-- Filters (kept in the URL) -->
-      <form class="grid gap-4 rounded-lg border-[1.5px] border-edge bg-surface p-4 sm:grid-cols-2 sm:p-6 lg:grid-cols-4" role="search" aria-label="Filter needs" data-i18n-attr="aria-label:needs.filterLabel" @submit.prevent>
+      <!-- Filters (kept in the URL): one slim row, no box; each picker's first choice ("All categories") names it, and the labels stay for screen readers -->
+      <form class="filter-bar grid gap-3 sm:grid-cols-2 lg:grid-cols-[2fr_1fr_1fr_1fr]" role="search" aria-label="Filter needs" data-i18n-attr="aria-label:needs.filterLabel" @submit.prevent>
         <div class="sm:col-span-2 lg:col-span-1">
-          <label for="f-q" class="label" data-i18n="needs.search">Search</label>
+          <label for="f-q" class="sr-only" data-i18n="needs.search">Search</label>
           <div class="search-field">
             <i class="ph ph-magnifying-glass" aria-hidden="true"></i>
             <input id="f-q" class="input" type="search" placeholder="e.g. rice, diapers" data-i18n-attr="placeholder:needs.searchPlaceholder" maxlength="60"
@@ -140,7 +140,7 @@
           </div>
         </div>
         <div>
-          <label for="f-category" class="label" data-i18n="needs.category">Category</label>
+          <label for="f-category" class="sr-only" data-i18n="needs.category">Category</label>
           <select id="f-category" class="input" x-model="filters.category" @change="syncUrl()">
             <option value="" data-i18n="needs.allCategories">All categories</option>
             <template x-for="option in categories" :key="option.value">
@@ -149,7 +149,7 @@
           </select>
         </div>
         <div>
-          <label for="f-area" class="label" data-i18n="needs.area">Area</label>
+          <label for="f-area" class="sr-only" data-i18n="needs.area">Area</label>
           <select id="f-area" class="input" x-model="filters.area" @change="syncUrl()">
             <option value="" data-i18n="needs.allAreas">All areas</option>
             <template x-for="area in areas" :key="area">
@@ -158,7 +158,7 @@
           </select>
         </div>
         <div>
-          <label for="f-urgency" class="label" data-i18n="needs.urgency">Urgency</label>
+          <label for="f-urgency" class="sr-only" data-i18n="needs.urgency">Urgency</label>
           <select id="f-urgency" class="input" x-model="filters.urgency" @change="syncUrl()">
             <option value="" data-i18n="needs.anyUrgency">Any urgency</option>
             <template x-for="option in urgencies.slice().reverse()" :key="option.value">
@@ -166,7 +166,7 @@
             </template>
           </select>
         </div>
-        <div class="flex flex-wrap items-center justify-between gap-3 sm:col-span-2 lg:col-span-4" aria-live="polite">
+        <div class="-mt-1 flex min-h-11 flex-wrap items-center gap-x-3 sm:col-span-2 lg:col-span-4" aria-live="polite">
           <p class="text-sm text-muted" x-show="!loading" x-text="$t('needs.count', { count: filtered.length })"></p>
           <button type="button" class="btn btn-quiet" x-show="hasFilters" x-cloak @click="clearFilters()" data-i18n="needs.clearFilters">Clear filters</button>
         </div>

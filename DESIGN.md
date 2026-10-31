@@ -183,6 +183,7 @@ Every field follows the same anatomy:
 - **Character counters** sit at the bottom right, for example "120 / 300". They turn danger-coloured at the limit.
 - **Long text boxes** (request description, messages): faint notepaper lines matching the 27 px line height, the only decorative input.
 - **Search:** pill shape, magnifier icon, board-tinted background.
+- **Filter bars** (e.g. Browse needs): one slim row with no box around it: search, then the pickers, all with a plain white (surface) background. Each picker's first choice names it ("All categories", "Any urgency"), so the labels are kept only for screen readers. The result count sits underneath.
 - **Quantity:** large − and + buttons (48 px) either side of the number, never past the remaining amount.
 - **Checkboxes and radios:** 24 px, green tick or dot, label clickable. **Dropdowns:** custom chevron, the same as text boxes.
 - **Password:** eye button inside the right edge (Step 15.1).

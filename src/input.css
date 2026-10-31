@@ -213,8 +213,8 @@ html.theme-changing * {
   h1 {
     font-weight: 700;
   }
-  /* lines no longer than about 70 characters */
-  p {
+  /* lines no longer than about 70 characters; boxes (notes, cards, anything with a background) still fill their width */
+  p:not([class*="note"], [class*="bg-"], .card) {
     max-width: 70ch;
   }
   .text-center p,
@@ -447,6 +447,11 @@ html.theme-changing * {
   .search-field > .input {
     @apply rounded-full pl-12;
     background-color: color-mix(in srgb, var(--color-board) 30%, var(--color-surface));
+  }
+  /* filter bars sit straight on the page, so their fields are plain white */
+  .filter-bar .input,
+  .filter-bar .search-field > .input {
+    @apply bg-surface;
   }
 
   /* quantity: large − and + buttons (48px) either side of the number (js/ui.js stepNumber) */
