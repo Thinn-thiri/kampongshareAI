@@ -1397,6 +1397,7 @@ const I18N_ZH = {
     consentText: "请在个人资料页面确认隐私同意，并确认您已年满 18 岁。",
     loadingEvents: "正在加载活动…",
     noEvents: "目前没有即将举行的活动。请稍后再来看看。",
+    allApplied: "你已经申请了所有即将举行的活动。可以在“我的申请”里查看。",
     youStatus: "您：{status}",
     applyTo: "报名 {event}",
     apply: "报名",

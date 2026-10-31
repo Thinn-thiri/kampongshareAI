@@ -1397,6 +1397,7 @@ const I18N_MS = {
     consentText: "Sila sahkan persetujuan privasi dan bahawa anda berumur 18 tahun ke atas di halaman profil anda.",
     loadingEvents: "Memuatkan acara…",
     noEvents: "Tiada acara akan datang sekarang. Sila semak semula nanti.",
+    allApplied: "Anda telah memohon untuk semua acara akan datang. Lihat dalam Permohonan saya.",
     youStatus: "Anda: {status}",
     applyTo: "Mohon {event}",
     apply: "Mohon",

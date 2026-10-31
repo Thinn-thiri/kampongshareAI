@@ -230,7 +230,7 @@
               <template x-for="event in endedEvents" :key="event.id">
                 <li class="space-y-3 rounded-md bg-canvas p-3">
                   <div class="flex flex-wrap items-center gap-2">
-                    <span :class="eventTimingBadge(event).className" x-text="eventTimingBadge(event).label"></span>
+                    <span class="badge-sm" :class="eventTimingBadge(event).className" x-text="eventTimingBadge(event).label"></span>
                     <p class="font-bold break-words" x-text="event.title"></p>
                   </div>
                   <p class="text-sm text-muted" x-text="formatEventTime(event.starts_at, event.ends_at)"></p>
@@ -437,7 +437,7 @@
               <p class="mt-1 text-sm text-muted" x-show="!editing"><span data-i18n="orgDash.requestFormIntro">An admin checks each request before donors can see it. Every field is needed unless it says (optional).</span></p>
             </div>
 
-            <p class="note" x-show="locked">
+            <p class="text-[0.8125rem] leading-5 text-muted" x-show="locked">
               <span data-i18n="orgDash.approvedLimits">This request is approved, so you can only change item quantities, the deadline, urgency and drop-off instructions.</span>
               <strong data-i18n="orgDash.lockedHint">To change this, close the request and post a new one.</strong>
             </p>
@@ -494,8 +494,9 @@
               <legend class="label"><span data-i18n="orgDash.itemsNeededTitle">Items needed</span></legend>
               <p class="helper-text mt-0" data-i18n="orgDash.noMedicines">Medicines and medical items aren't accepted.</p>
               <template x-for="(row, index) in form.items" :key="row.key">
-                <div class="space-y-3 rounded-md bg-canvas p-3">
-                  <div class="grid gap-3 sm:grid-cols-[1fr_11rem]">
+                <!-- one item: smaller labels and text boxes (compact-fields) -->
+                <div class="compact-fields space-y-2 rounded-md bg-canvas p-3">
+                  <div class="grid gap-2 sm:grid-cols-[1fr_10rem]">
                     <div>
                       <label :for="`item-name-${row.key}`" class="label" x-text="$t('orgDash.itemName', { number: index + 1 })"></label>
                       <input :id="`item-name-${row.key}`" class="input read-only:bg-surface read-only:text-muted" type="text" maxlength="100"
@@ -512,7 +513,7 @@
                       </select>
                     </div>
                   </div>
-                  <div class="grid gap-3 sm:grid-cols-[1fr_auto]">
+                  <div class="grid gap-2 sm:grid-cols-[1fr_auto]">
                     <div>
                       <label :for="`item-unit-${row.key}`" class="label" data-i18n="orgDash.unit">Unit</label>
                       <input :id="`item-unit-${row.key}`" class="input read-only:bg-surface read-only:text-muted" type="text" maxlength="30"
@@ -522,7 +523,7 @@
                     </div>
                     <div>
                       <label :for="`item-quantity-${row.key}`" class="label" data-i18n="orgDash.quantityNeeded">Quantity needed</label>
-                      <div class="stepper">
+                      <div class="stepper stepper-sm">
                         <button type="button" class="stepper-btn" @click="stepNumber($el, -1)" aria-label="Decrease" data-i18n-attr="aria-label:common.decrease">
                           <i class="ph ph-minus size-5" aria-hidden="true"></i>
                         </button>
@@ -547,7 +548,7 @@
                 </div>
               </template>
               <p class="field-error" x-show="errors.items" x-text="errors.items"></p>
-              <p id="req-locked-note" class="helper-text" x-show="locked" data-i18n="orgDash.itemsLockedNote">Item names, categories and units are locked. To change this, close the request and post a new one.</p>
+              <p id="req-locked-note" class="mt-1 text-[0.8125rem] leading-5 text-muted" x-show="locked" data-i18n="orgDash.itemsLockedNote">Item names, categories and units are locked. To change this, close the request and post a new one.</p>
               <button id="req-items" type="button" class="btn btn-secondary" x-show="!locked" @click="addItem()" data-i18n="orgDash.addItem">+ Add item</button>
             </fieldset>
 
@@ -716,7 +717,7 @@
             </div>
             <div class="grid gap-4 sm:grid-cols-3">
               <template x-for="column in columns" :key="column.value">
-                <section :id="`board-col-${column.value}`" class="min-w-0 space-y-3 rounded-lg bg-canvas p-3"
+                <section :id="`board-col-${column.value}`" class="min-w-0 space-y-3 rounded-lg border-[1.5px] border-edge bg-surface p-3"
                   :class="boardTab === column.value ? '' : 'max-md:hidden'" :aria-labelledby="`board-${column.value}-heading`">
                   <h3 :id="`board-${column.value}-heading`" tabindex="-1" class="card-title flex items-center justify-between gap-2">
                     <span x-text="column.label"></span>
@@ -729,14 +730,14 @@
                         <button type="button" class="link text-left font-bold break-words" @click="openTimeline(offer, $event)" aria-haspopup="dialog"
                           :aria-label="$t('tracker.seeTimelineFor', { item: what(offer) })" x-text="what(offer)"></button>
                         <p class="text-sm text-muted break-words" x-text="$t('orgDash.forRequest', { title: offer.item.request.title })"></p>
-                        <p class="text-sm break-words">
+                        <p class="text-[0.8125rem] leading-5 break-words">
                           <span x-text="offer.donor ? (offer.donor.full_name || $t('admin.nameNotGiven')) : $t('admin.deletedAccount')"></span>
                           <span class="text-muted" x-text="'· ' + (offer.status === 'delivered'
                             ? $t('orgDash.deliveredOn', { date: formatDate(offer.delivered_at ?? offer.updated_at) })
                             : $t('orgDash.offeredAgo', { when: timeAgo(offer.created_at) }))"></span>
                         </p>
-                        <p class="flex items-start gap-2 text-sm text-primary" x-show="offer.item.category === 'food' && offer.food_safety_confirmed">
-                          <i class="ph ph-check-circle mt-1 size-4 shrink-0" aria-hidden="true"></i>
+                        <p class="flex items-start gap-1.5 text-[0.8125rem] leading-5 text-primary" x-show="offer.item.category === 'food' && offer.food_safety_confirmed">
+                          <i class="ph ph-check-circle mt-0.5 size-4 shrink-0" aria-hidden="true"></i>
                           <span data-i18n="orgDash.foodConfirmed">Donor confirmed the food is sealed, unopened and not expired.</span>
                         </p>
                         <div class="flex flex-wrap gap-2 pt-1" x-show="offer.status === 'pending'">
@@ -1004,8 +1005,8 @@
             <template x-for="event in (tab === 'active' ? activeEvents : history.items)" :key="event.id">
               <li class="card flex flex-col gap-3">
                 <div class="flex flex-wrap items-center gap-2">
-                  <span :class="badges.approval[event.approval].className" x-text="badges.approval[event.approval].label"></span>
-                  <span :class="eventTimingBadge(event).className" x-text="eventTimingBadge(event).label"></span>
+                  <span class="badge-sm" :class="badges.approval[event.approval].className" x-text="badges.approval[event.approval].label"></span>
+                  <span class="badge-sm" :class="eventTimingBadge(event).className" x-text="eventTimingBadge(event).label"></span>
                 </div>
                 <div class="min-w-0">
                   <h3 class="card-title break-words" x-text="event.title"></h3>
@@ -1166,7 +1167,7 @@
                         <li class="space-y-2 rounded-md bg-canvas p-3 text-sm">
                           <div class="flex flex-wrap items-center justify-between gap-2">
                             <p class="font-bold break-words" x-text="application.volunteer?.full_name || $t('admin.nameNotGiven')"></p>
-                            <span :class="badges[application.status].className" x-text="badges[application.status].label"></span>
+                            <span class="badge-sm" :class="badges[application.status].className" x-text="badges[application.status].label"></span>
                           </div>
                           <dl class="grid grid-cols-[max-content_1fr] gap-x-3 gap-y-1">
                             <dt class="text-muted" data-i18n="field.phone">Phone</dt>

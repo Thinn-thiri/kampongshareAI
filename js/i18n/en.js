@@ -1397,6 +1397,7 @@ const I18N_EN = {
     consentText: "Please confirm the privacy consent and that you're 18 or older on your profile page.",
     loadingEvents: "Loading events…",
     noEvents: "No upcoming events right now. Please check back soon.",
+    allApplied: "You've applied to every upcoming event. Your places are in My applications.",
     youStatus: "You: {status}",
     applyTo: "Apply to {event}",
     apply: "Apply",

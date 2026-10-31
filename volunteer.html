@@ -215,14 +215,20 @@
           <img src="/img/pinny-looking.svg" alt="" />
           <p data-i18n="volunteer.noEvents">No upcoming events right now. Please check back soon.</p>
         </div>
+        <!-- every upcoming event already has your application: point to My applications -->
+        <div class="empty" x-show="!loadingEvents && !eventsError && events.length > 0 && findEvents.length === 0" x-cloak>
+          <img src="/img/pinny-looking.svg" alt="" />
+          <p data-i18n="volunteer.allApplied">You've applied to every upcoming event. Your places are in My applications.</p>
+          <a href="#applications" class="btn btn-secondary" data-i18n="volunteer.myApplications">My applications</a>
+        </div>
 
         <div class="grid gap-4 sm:grid-cols-2 lg:grid-cols-3" x-show="!loadingEvents && !eventsError">
-          <template x-for="event in events" :key="event.id">
+          <template x-for="event in findEvents" :key="event.id">
             <article class="card flex flex-col gap-3">
               <div class="flex flex-wrap items-center gap-2">
-                <span class="badge" :class="spots(event) === 0 ? 'badge-danger' : 'badge-info'" x-text="spotsText(event)"></span>
+                <span class="badge badge-sm" :class="spots(event) === 0 ? 'badge-danger' : 'badge-info'" x-text="spotsText(event)"></span>
                 <template x-if="applicationFor(event.id)">
-                  <span :class="badges[applicationFor(event.id).status].className" x-text="$t('volunteer.youStatus', { status: badges[applicationFor(event.id).status].label })"></span>
+                  <span class="badge-sm" :class="badges[applicationFor(event.id).status].className" x-text="$t('volunteer.youStatus', { status: badges[applicationFor(event.id).status].label })"></span>
                 </template>
               </div>
               <div class="min-w-0">
@@ -309,7 +315,7 @@
                       x-text="application.event ? `${formatEventTime(application.event.starts_at, application.event.ends_at)} · ${application.event.location_name ?? ''}` : ''"></p>
                     <p class="text-sm text-primary" x-text="application.event?.organization?.name"></p>
                   </div>
-                  <span :class="badges[application.status].className" x-text="badges[application.status].label"></span>
+                  <span class="badge-sm" :class="badges[application.status].className" x-text="badges[application.status].label"></span>
                 </div>
                 <div x-data="tracker(() => trackerFor(application))"></div>
                 <div class="flex flex-wrap items-center gap-3">
@@ -350,7 +356,7 @@
                     <p class="text-sm text-muted" x-text="applicationEndedText(application)"></p>
                   </div>
                   <div class="flex flex-wrap items-center gap-3">
-                    <span :class="badges[application.status].className" x-text="badges[application.status].label"></span>
+                    <span class="badge-sm" :class="badges[application.status].className" x-text="badges[application.status].label"></span>
                   <button type="button" class="btn btn-secondary" x-show="application.status === 'withdrawn' && application.event && isActiveEvent(application.event)"
                     :disabled="busyId === application.id || cannotApply || (application.event && spots({ id: application.event_id, volunteers_needed: application.event.volunteers_needed }) === 0)"
                     @click="applyAgain(application)">

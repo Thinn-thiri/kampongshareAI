@@ -151,6 +151,14 @@ document.addEventListener("alpine:init", () => {
       }
     },
 
+    /** Find events: only events you haven't applied to, or withdrew from (you can apply again). */
+    get findEvents() {
+      return this.events.filter((event) => {
+        const application = this.applicationFor(event.id);
+        return !application || application.status === "withdrawn";
+      });
+    },
+
     get activeApplications() {
       return this.applications.filter(isActiveApplication);
     },
@@ -317,6 +325,10 @@ document.addEventListener("alpine:init", () => {
         toast(t("volunteer.applied"));
         this.applyEventId = null;
         await this.reloadAll();
+        // the event moves to My applications, so its card is gone: keep keyboard focus on the list's heading
+        const heading = document.getElementById("events-heading");
+        heading?.setAttribute("tabindex", "-1");
+        heading?.focus();
       } catch (error) {
         this.applyError = friendlyError(error);
       } finally {
