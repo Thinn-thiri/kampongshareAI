@@ -243,9 +243,9 @@
                             <p :class="mine(message) ? 'message-mine' : 'message-theirs'"><span class="sr-only"
                               x-text="mine(message) ? $t('messages.youSaid') : $t('messages.theySaid', { name: otherName(current) })"></span><span x-text="bubbleText(message)" :lang="bubbleLang(message)"></span></p>
                             <!-- automatic translation: what is shown, and a way to the original -->
-                            <div class="flex flex-wrap items-center text-sm text-muted" x-show="translationNote(message)">
+                            <div class="flex flex-wrap items-center text-[0.8125rem] leading-5 text-muted" x-show="translationNote(message)">
                               <template x-if="translationNote(message) === 'translated'">
-                                <button type="button" class="btn btn-quiet min-h-11 min-w-11 gap-1 px-2 text-sm" @click="toggleOriginal(message)">
+                                <button type="button" class="btn btn-quiet min-h-11 min-w-11 gap-1 px-2 text-[0.8125rem] font-normal" @click="toggleOriginal(message)">
                                   <i class="ph ph-translate size-3.5" aria-hidden="true"></i>
                                   <span x-text="showOriginal[message.id] ? $t('messages.seeTranslation') : $t('messages.seeOriginal')"></span>
                                 </button>
@@ -253,9 +253,9 @@
                               <span class="px-1 py-1" x-show="translationNote(message) === 'pending'" data-i18n="messages.translating">Translating…</span>
                               <span class="px-1 py-1" x-show="translationNote(message) === 'unavailable'" data-i18n="messages.translationUnavailable">Translation unavailable</span>
                             </div>
-                            <div class="flex items-center gap-1 text-sm text-muted" :class="mine(message) ? 'justify-end' : ''">
+                            <div class="flex items-center gap-1 text-[0.8125rem] leading-5 text-muted" :class="mine(message) ? 'justify-end' : ''">
                               <span x-text="timeOf(message.created_at)"></span>
-                              <button type="button" class="btn btn-quiet min-h-11 px-2 text-sm" x-show="!mine(message)" @click="report(message)"
+                              <button type="button" class="btn btn-quiet min-h-11 gap-1 px-2 text-[0.8125rem] font-normal" x-show="!mine(message)" @click="report(message)"
                                 aria-label="Report this message" data-i18n-attr="aria-label:messages.reportMessage">
                                 <i class="ph ph-flag size-3.5" aria-hidden="true"></i>
                                 <span data-i18n="messages.report">Report</span>
@@ -277,7 +277,7 @@
                 <!-- the label and the Enter / Shift+Enter hint are for screen readers; the box stops at 1,000 characters -->
                 <label for="message-input" class="sr-only" data-i18n="messages.label">Your message</label>
                 <div class="flex items-end gap-2">
-                  <textarea id="message-input" placeholder="e.g. Hi! When can I drop off the rice?" data-i18n-attr="placeholder:messages.placeholder" class="input input-oneline" rows="1" :maxlength="maxLength" x-model="draft"
+                  <textarea id="message-input" placeholder="e.g. Hi! When can I drop off the rice?" data-i18n-attr="placeholder:messages.placeholder" class="input input-oneline message-text" rows="1" :maxlength="maxLength" x-model="draft"
                     @keydown="onKeydown($event)" :disabled="Boolean(cannotSend)" :aria-invalid="sendError ? 'true' : null"
                     aria-describedby="message-hint message-error"></textarea>
                   <!-- icon only (its name is "Send"); disabled until there's something to send -->
