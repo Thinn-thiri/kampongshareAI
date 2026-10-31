@@ -185,22 +185,25 @@
           <h3 id="match-heading" class="card-title" data-i18n="match.title">What can you give?</h3>
           <span class="badge badge-ai" data-i18n="common.aiSuggested">AI-suggested</span>
         </div>
-        <form class="max-w-2xl space-y-4" novalidate @submit.prevent="search">
-          <div>
-            <label for="match-text" class="label" data-i18n="match.label">Tell us what you have</label>
-            <textarea id="match-text" class="input input-ruled" rows="2" maxlength="300" x-model="text"
-              placeholder="e.g. 5 bags of rice, baby diapers" data-i18n-attr="placeholder:match.placeholder"
-              :aria-invalid="error ? 'true' : null" aria-describedby="match-help match-count match-error"></textarea>
-            <div class="flex items-start gap-3">
-              <p id="match-help" class="helper-text" data-i18n="donor.matchHelp">We'll suggest the requests that need it most. Please don't include your name or phone number.</p>
-              <p id="match-count" class="counter" :class="text.length >= 300 ? 'counter-limit' : ''" x-text="`${text.length} / 300`"></p>
+        <form novalidate @submit.prevent="search">
+          <label for="match-text" class="label" data-i18n="match.label">Tell us what you have</label>
+          <!-- the text box fills the card; Find matches sits beside it on wider screens, under it on phones -->
+          <div class="flex flex-col gap-3 sm:flex-row sm:items-start">
+            <div class="min-w-0 flex-1">
+              <textarea id="match-text" class="input input-oneline block" rows="1" maxlength="300" x-model="text" @keydown.enter.prevent="search"
+                placeholder="e.g. 5 bags of rice, baby diapers" data-i18n-attr="placeholder:match.placeholder"
+                :aria-invalid="error ? 'true' : null" aria-describedby="match-help match-count match-error"></textarea>
+              <div class="flex items-start gap-3">
+                <p id="match-help" class="helper-text" data-i18n="donor.matchHelp">We'll suggest the requests that need it most. Please don't include your name or phone number.</p>
+                <p id="match-count" class="counter" :class="text.length >= 300 ? 'counter-limit' : ''" x-text="`${text.length} / 300`"></p>
+              </div>
+              <p id="match-error" class="field-error" x-show="error" x-text="error"></p>
             </div>
-            <p id="match-error" class="field-error" x-show="error" x-text="error"></p>
+            <button type="submit" class="btn btn-primary sm:shrink-0" :disabled="busy">
+              <span class="spinner" x-show="busy" x-cloak aria-hidden="true"></span>
+              <span x-text="busy ? $t('match.finding') : $t('match.find')">Find matches</span>
+            </button>
           </div>
-          <button type="submit" class="btn btn-primary" :disabled="busy">
-            <span class="spinner" x-show="busy" x-cloak aria-hidden="true"></span>
-            <span x-text="busy ? $t('match.finding') : $t('match.find')">Find matches</span>
-          </button>
         </form>
 
         <div aria-live="polite" class="space-y-4">

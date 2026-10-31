@@ -432,6 +432,12 @@ html.theme-changing * {
   }
 
   /* search: pill shape, magnifier, board-tinted */
+  /* a text box that starts one line tall (48px, the same as the button beside it) and grows with longer text;
+     Enter sends it */
+  .input-oneline {
+    @apply max-h-40 resize-none py-2;
+    field-sizing: content;
+  }
   .search-field {
     @apply relative;
   }
