@@ -84,6 +84,36 @@ function withSavedValues(options, saved) {
 
 document.addEventListener("alpine:init", () => {
   const Alpine = /** @type {any} */ (window).Alpine;
+  // "Password" card: a new password for the person who is logged in (js/auth.js updatePassword)
+  Alpine.data("changePassword", () => ({
+    password: "",
+    confirm: "",
+    /** @type {{ password?: string, confirm?: string }} */
+    errors: {},
+    error: "",
+    busy: false,
+
+    async submit() {
+      this.error = "";
+      this.errors = validateNewPassword(this.password, this.confirm);
+      if (this.errors.password || this.errors.confirm) {
+        document.getElementById(this.errors.password ? "pf-new-password" : "pf-confirm-password")?.focus();
+        return;
+      }
+      this.busy = true;
+      try {
+        await updatePassword(this.password);
+        this.password = "";
+        this.confirm = "";
+        toast(t("reset.changed"));
+      } catch (error) {
+        this.error = friendlyError(error);
+      } finally {
+        this.busy = false;
+      }
+    },
+  }));
+
   Alpine.data("profilePage", () => ({
     /** @type {Profile | null} */
     profile: null,

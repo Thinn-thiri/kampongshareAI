@@ -360,6 +360,8 @@ const I18N_MS = {
       eventHasApplicants: "Sukarelawan sudah memohon, jadi acara ini tidak boleh dipadam — batalkannya.",
       requestNoDelete: "Permintaan ini tidak boleh dipadam lagi — tutupnya.",
     },
+    samePassword: "Kata laluan baharu mesti berbeza daripada kata laluan semasa.",
+    reauthNeeded: "Demi keselamatan, sila log masuk semula, kemudian tukar kata laluan anda.",
   },
 
   viewer: {
@@ -572,6 +574,7 @@ const I18N_MS = {
     create: "Buat akaun",
     missing: "Sila masukkan e-mel dan kata laluan anda.",
     noProfile: "Kami tidak dapat memuatkan butiran akaun anda. Sila cuba lagi.",
+    forgot: "Lupa kata laluan?",
   },
 
   signup: {
@@ -729,6 +732,7 @@ const I18N_MS = {
       events: "Acara",
       logIn: "Log masuk",
       privacy: "Notis Privasi",
+      forgotPassword: "Lupa kata laluan",
     },
     q: {
       how_donate: {
@@ -785,7 +789,7 @@ const I18N_MS = {
       },
       account_password: {
         label: "Saya terlupa kata laluan",
-        answer: "Laman ini belum boleh menetapkan semula kata laluan, dan kata laluan tidak boleh ditukar di laman ini. Sila e-mel kami menggunakan alamat dalam Notis Privasi, dan kami akan membantu anda masuk semula.",
+        answer: "Tekan \"Lupa kata laluan?\" di halaman Log masuk dan masukkan e-mel anda. Kami akan menghantar pautan untuk memilih kata laluan baharu; ia boleh digunakan sekali, dalam masa 1 jam. Sudah log masuk? Anda boleh menukar kata laluan di Profil anda.",
       },
       account_change: {
         label: "Bagaimana saya menukar butiran saya?",
@@ -1528,6 +1532,8 @@ const I18N_MS = {
     withdrawConfirm: "Tarik balik persetujuan",
     keepConsent: "Kekalkan persetujuan saya",
     consentWithdrawn: "Persetujuan anda telah ditarik balik.",
+    passwordTitle: "Kata laluan",
+    passwordIntro: "Pilih kata laluan baharu untuk log masuk.",
   },
 
   messages: {
@@ -1781,5 +1787,38 @@ const I18N_MS = {
     text: "Pinny sudah cari di mana-mana. Pautan itu mungkin lama, atau halaman sudah berpindah.",
     title: "Kami tidak dapat mencari halaman itu",
     pageTitle: "Halaman tidak dijumpai · KampongShare",
+  },
+  forgot: {
+    pageTitle: "Lupa kata laluan · KampongShare",
+    title: "Lupa kata laluan anda?",
+    intro: "Masukkan e-mel yang anda gunakan semasa mendaftar. Kami akan menghantar pautan untuk memilih kata laluan baharu.",
+    email: "E-mel",
+    submit: "Hantar pautan",
+    busy: "Sedang menghantar…",
+    missing: "Sila masukkan e-mel anda.",
+    sentTitle: "Semak e-mel anda",
+    sent: "Jika ada akaun untuk {email}, kami telah menghantar pautan untuk menetapkan semula kata laluan anda. Pautan ini sah selama 1 jam.",
+    sentHelp: "Tidak menerimanya? Semak folder spam, atau hantar semula selepas seminit.",
+    again: "Hantar semula",
+    back: "Kembali ke Log masuk",
+  },
+  reset: {
+    pageTitle: "Pilih kata laluan baharu · KampongShare",
+    title: "Pilih kata laluan baharu",
+    intro: "Pilih kata laluan yang tidak anda gunakan di tempat lain.",
+    checking: "Sedang menyemak pautan anda…",
+    expiredTitle: "Pautan ini telah tamat tempoh atau sudah digunakan",
+    expired: "Pautan hanya boleh digunakan sekali, dalam masa 1 jam. Minta pautan baharu.",
+    newLink: "Hantar pautan baharu",
+    password: "Kata laluan baharu",
+    confirm: "Sahkan kata laluan baharu",
+    help: "Sekurang-kurangnya 8 aksara.",
+    errMatch: "Kedua-dua kata laluan tidak sama.",
+    submit: "Simpan kata laluan baharu",
+    busy: "Sedang menyimpan…",
+    doneTitle: "Kata laluan telah ditukar",
+    done: "Anda telah log masuk dengan kata laluan baharu.",
+    continue: "Teruskan",
+    changed: "Kata laluan telah ditukar",
   },
 };

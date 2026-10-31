@@ -296,6 +296,48 @@
               </button>
             </form>
 
+            <!-- Password: choose a new one (the email link on "Forgot password?" is for people who can't log in) -->
+            <form class="card space-y-4" novalidate x-data="changePassword" @submit.prevent="submit" aria-labelledby="password-heading">
+              <div>
+                <h2 id="password-heading" class="card-title" data-i18n="profile.passwordTitle">Password</h2>
+                <p class="mt-1 text-sm text-muted" data-i18n="profile.passwordIntro">Choose a new password for logging in.</p>
+              </div>
+              <div>
+                <label for="pf-new-password" class="label" data-i18n="reset.password">New password</label>
+                <div class="password-field" x-data="passwordToggle">
+                  <input id="pf-new-password" class="input" type="password" :type="shown ? 'text' : 'password'" x-ref="input" autocomplete="new-password" x-model="password"
+                    :aria-invalid="errors.password ? 'true' : null" aria-describedby="pf-new-password-help pf-new-password-err" />
+                  <button type="button" class="password-toggle" @mousedown.prevent @click="toggle($event)" aria-controls="pf-new-password"
+                    aria-label="Show password" :aria-label="shown ? $t('ui.hidePassword') : $t('ui.showPassword')" :aria-pressed="shown ? 'true' : 'false'">
+                    <span x-show="!shown"><i class="ph ph-eye size-5" aria-hidden="true"></i></span>
+                    <span x-show="shown" x-cloak><i class="ph ph-eye-slash size-5" aria-hidden="true"></i></span>
+                  </button>
+                </div>
+                <p id="pf-new-password-help" class="helper-text" data-i18n="reset.help">At least 8 characters.</p>
+                <p id="pf-new-password-err" class="field-error" x-show="errors.password" x-text="errors.password"></p>
+              </div>
+              <div>
+                <label for="pf-confirm-password" class="label" data-i18n="reset.confirm">Confirm new password</label>
+                <div class="password-field" x-data="passwordToggle">
+                  <input id="pf-confirm-password" class="input" type="password" :type="shown ? 'text' : 'password'" x-ref="input" autocomplete="new-password" x-model="confirm"
+                    :aria-invalid="errors.confirm ? 'true' : null" aria-describedby="pf-confirm-password-err" />
+                  <button type="button" class="password-toggle" @mousedown.prevent @click="toggle($event)" aria-controls="pf-confirm-password"
+                    aria-label="Show password" :aria-label="shown ? $t('ui.hidePassword') : $t('ui.showPassword')" :aria-pressed="shown ? 'true' : 'false'">
+                    <span x-show="!shown"><i class="ph ph-eye size-5" aria-hidden="true"></i></span>
+                    <span x-show="shown" x-cloak><i class="ph ph-eye-slash size-5" aria-hidden="true"></i></span>
+                  </button>
+                </div>
+                <p id="pf-confirm-password-err" class="field-error" x-show="errors.confirm" x-text="errors.confirm"></p>
+              </div>
+              <div role="alert">
+                <p class="note-danger" x-show="error" x-text="error"></p>
+              </div>
+              <button type="submit" class="btn btn-secondary w-full sm:w-auto" :disabled="busy">
+                <span class="spinner" x-show="busy" x-cloak aria-hidden="true"></span>
+                <span x-text="busy ? $t('reset.busy') : $t('reset.submit')">Save new password</span>
+              </button>
+            </form>
+
             <!-- 4. Consent (REQUIREMENTS.md 4.2) -->
             <section class="card space-y-3" aria-labelledby="consent-heading">
               <h2 id="consent-heading" class="card-title" data-i18n="profile.privacyTitle">Privacy &amp; consent</h2>

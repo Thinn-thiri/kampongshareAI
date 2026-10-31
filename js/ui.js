@@ -655,7 +655,9 @@ function friendlyError(error) {
 
   if (lower.includes("invalid login credentials")) return t("errors.loginMismatch");
   if (lower.includes("already registered") || err.code === "user_already_exists") return t("errors.alreadyRegistered");
+  if (err.code === "same_password" || lower.includes("should be different from the old password")) return t("errors.samePassword");
   if (lower.includes("password") && (lower.includes("at least") || err.code === "weak_password")) return t("errors.weakPassword");
+  if (err.code === "reauthentication_needed" || lower.includes("auth session missing")) return t("errors.reauthNeeded");
   if (lower.includes("email not confirmed")) return t("errors.emailNotConfirmed");
   if (lower.includes("invalid format") || (lower.includes("email address") && lower.includes("invalid"))) return t("errors.invalidEmail");
   if (lower.includes("rate limit") || err.status === 429) return t("errors.rateLimit");

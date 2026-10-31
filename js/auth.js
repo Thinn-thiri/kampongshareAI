@@ -191,6 +191,46 @@ async function logIn(email, password) {
   profileRequest = null;
 }
 
+/** Where the "reset your password" email link opens. */
+const RESET_PASSWORD_PATH = "/reset-password.html";
+
+/**
+ * Emails a link to choose a new password. The answer is the same whether or not the account exists,
+ * so the page never tells anyone who has an account.
+ * @param {string} email
+ * @returns {Promise<void>}
+ */
+async function sendPasswordReset(email) {
+  if (!sb) throw new Error("Supabase not configured"); // i18n-ignore (developer message; shown via friendlyError)
+  const { error } = await sb.auth.resetPasswordForEmail(email, { redirectTo: location.origin + RESET_PASSWORD_PATH });
+  if (error) throw error;
+}
+
+/**
+ * Sets a new password for the person who is logged in (or arrived from a reset link).
+ * @param {string} password
+ * @returns {Promise<void>}
+ */
+async function updatePassword(password) {
+  if (!sb) throw new Error("Supabase not configured"); // i18n-ignore (developer message; shown via friendlyError)
+  const { error } = await sb.auth.updateUser({ password });
+  if (error) throw error;
+}
+
+/**
+ * The same password rules as sign-up (at least 8 characters) plus "both boxes match".
+ * @param {string} password
+ * @param {string} confirm
+ * @returns {{ password?: string, confirm?: string }} translated messages, empty when fine
+ */
+function validateNewPassword(password, confirm) {
+  /** @type {{ password?: string, confirm?: string }} */
+  const errors = {};
+  if (password.length < 8) errors.password = t("signup.errPassword");
+  else if (password !== confirm) errors.confirm = t("reset.errMatch");
+  return errors;
+}
+
 /**
  * Sends visitors who aren't logged in to the login page, then back here afterwards.
  * @returns {void}

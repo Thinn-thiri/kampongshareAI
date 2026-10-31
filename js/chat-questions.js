@@ -136,7 +136,10 @@ const CHAT_QUESTIONS = [
     id: "account_password",
     group: "account",
     show: everyone,
-    links: [{ labelKey: "chat.link.privacy", href: "/privacy.html" }],
+    links: [
+      { labelKey: "chat.link.forgotPassword", href: "/forgot-password.html" },
+      { labelKey: "chat.link.myProfile", href: "/profile.html" },
+    ],
     followUps: ["account_login", "account_change"],
   },
   {

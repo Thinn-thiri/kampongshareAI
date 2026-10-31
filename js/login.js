@@ -43,5 +43,14 @@ document.addEventListener("alpine:init", () => {
         this.busy = false;
       }
     },
+
+    /** "Forgot password?": carry the typed email over without putting it in the URL (REQUIREMENTS.md 4.5). */
+    rememberEmail() {
+      try {
+        sessionStorage.setItem("ks-reset-email", this.email.trim());
+      } catch {
+        // storage blocked: the next page simply starts empty
+      }
+    },
   }));
 });

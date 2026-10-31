@@ -361,6 +361,8 @@ const I18N_EN = {
       eventHasApplicants: "Volunteers have applied, so this event can't be deleted — cancel it instead.",
       requestNoDelete: "This request can't be deleted any more — close it instead.",
     },
+    samePassword: "Your new password must be different from your current one.",
+    reauthNeeded: "For your safety, please log in again, then change your password.",
   },
 
   viewer: {
@@ -573,6 +575,7 @@ const I18N_EN = {
     create: "Create an account",
     missing: "Please enter your email and password.",
     noProfile: "We couldn't load your account details. Please try again.",
+    forgot: "Forgot password?",
   },
 
   signup: {
@@ -729,6 +732,7 @@ const I18N_EN = {
       events: "Events",
       logIn: "Log in",
       privacy: "Privacy Notice",
+      forgotPassword: "Forgot password",
     },
     q: {
       how_donate: {
@@ -785,7 +789,7 @@ const I18N_EN = {
       },
       account_password: {
         label: "I forgot my password",
-        answer: "The site can't reset passwords yet, and there's no way to change your password on the site. Please email us using the address in the Privacy Notice, and we'll help you get back in.",
+        answer: "Press \"Forgot password?\" on the Log in page and enter your email. We'll send you a link to choose a new password; it works once, for 1 hour. Already logged in? You can change your password on your Profile.",
       },
       account_change: {
         label: "How do I change my details?",
@@ -1528,6 +1532,8 @@ const I18N_EN = {
     withdrawConfirm: "Withdraw consent",
     keepConsent: "Keep my consent",
     consentWithdrawn: "Your consent was withdrawn.",
+    passwordTitle: "Password",
+    passwordIntro: "Choose a new password for logging in.",
   },
 
   messages: {
@@ -1781,5 +1787,38 @@ const I18N_EN = {
     text: "Pinny looked everywhere. The link may be old, or the page has moved.",
     title: "We can't find that page",
     pageTitle: "Page not found · KampongShare",
+  },
+  forgot: {
+    pageTitle: "Forgot password · KampongShare",
+    title: "Forgot your password?",
+    intro: "Enter the email you signed up with. We'll send you a link to choose a new password.",
+    email: "Email",
+    submit: "Send reset link",
+    busy: "Sending…",
+    missing: "Please enter your email.",
+    sentTitle: "Check your email",
+    sent: "If there's an account for {email}, we've sent a link to reset your password. It works for 1 hour.",
+    sentHelp: "Didn't get it? Check your spam folder, or send it again in a minute.",
+    again: "Send again",
+    back: "Back to Log in",
+  },
+  reset: {
+    pageTitle: "Choose a new password · KampongShare",
+    title: "Choose a new password",
+    intro: "Pick a password you don't use anywhere else.",
+    checking: "Checking your link…",
+    expiredTitle: "This link has expired or was already used",
+    expired: "Reset links work once, for 1 hour. Ask for a new one.",
+    newLink: "Send a new link",
+    password: "New password",
+    confirm: "Confirm new password",
+    help: "At least 8 characters.",
+    errMatch: "The two passwords don't match.",
+    submit: "Save new password",
+    busy: "Saving…",
+    doneTitle: "Password changed",
+    done: "You're logged in with your new password.",
+    continue: "Continue",
+    changed: "Password changed",
   },
 };

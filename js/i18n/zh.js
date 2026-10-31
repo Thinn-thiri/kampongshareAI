@@ -360,6 +360,8 @@ const I18N_ZH = {
       eventHasApplicants: "已经有志愿者报名，所以无法删除这个活动——请改为取消活动。",
       requestNoDelete: "这个需求已无法删除——请改为关闭。",
     },
+    samePassword: "新密码不能和现在的密码一样。",
+    reauthNeeded: "为了安全，请重新登录后再更改密码。",
   },
 
   viewer: {
@@ -572,6 +574,7 @@ const I18N_ZH = {
     create: "创建账户",
     missing: "请输入您的电邮和密码。",
     noProfile: "无法加载您的账户资料。请重试。",
+    forgot: "忘记密码？",
   },
 
   signup: {
@@ -729,6 +732,7 @@ const I18N_ZH = {
       events: "活动",
       logIn: "登录",
       privacy: "隐私声明",
+      forgotPassword: "忘记密码",
     },
     q: {
       how_donate: {
@@ -785,7 +789,7 @@ const I18N_ZH = {
       },
       account_password: {
         label: "我忘记了密码",
-        answer: "网站目前还无法重设密码，也不能在网站上更改密码。请用隐私声明里的电邮地址联系我们，我们会帮您重新登录。",
+        answer: "在登录页面按“忘记密码？”，然后输入你的电子邮件。我们会发送一个链接让你设置新密码，链接只能用一次，并在 1 小时内有效。已经登录了？你可以在个人资料里更改密码。",
       },
       account_change: {
         label: "我要怎么更改我的资料？",
@@ -1528,6 +1532,8 @@ const I18N_ZH = {
     withdrawConfirm: "撤回同意",
     keepConsent: "保留我的同意",
     consentWithdrawn: "您的同意已撤回。",
+    passwordTitle: "密码",
+    passwordIntro: "设置一个新的登录密码。",
   },
 
   messages: {
@@ -1781,5 +1787,38 @@ const I18N_ZH = {
     text: "Pinny 到处都找过了。这个链接可能已过时，或页面已搬走。",
     title: "找不到这个页面",
     pageTitle: "找不到页面 · KampongShare",
+  },
+  forgot: {
+    pageTitle: "忘记密码 · KampongShare",
+    title: "忘记密码了吗？",
+    intro: "请输入你注册时用的电子邮件。我们会发送一个链接，让你设置新密码。",
+    email: "电子邮件",
+    submit: "发送重设链接",
+    busy: "正在发送…",
+    missing: "请输入你的电子邮件。",
+    sentTitle: "请查看你的电子邮件",
+    sent: "如果 {email} 有账户，我们已经发送了重设密码的链接。链接在 1 小时内有效。",
+    sentHelp: "没收到？请看看垃圾邮件，或者一分钟后再发送一次。",
+    again: "再发送一次",
+    back: "返回登录",
+  },
+  reset: {
+    pageTitle: "设置新密码 · KampongShare",
+    title: "设置新密码",
+    intro: "请选一个你在其他地方没用过的密码。",
+    checking: "正在检查你的链接…",
+    expiredTitle: "这个链接已过期或已被使用",
+    expired: "重设链接只能用一次，并在 1 小时内有效。请重新申请一个。",
+    newLink: "发送新链接",
+    password: "新密码",
+    confirm: "确认新密码",
+    help: "至少 8 个字符。",
+    errMatch: "两次输入的密码不一样。",
+    submit: "保存新密码",
+    busy: "正在保存…",
+    doneTitle: "密码已更改",
+    done: "你已经用新密码登录。",
+    continue: "继续",
+    changed: "密码已更改",
   },
 };
