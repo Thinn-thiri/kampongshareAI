@@ -189,7 +189,7 @@
             <p data-i18n="org.noRequests">Nothing pinned here yet.</p>
             <a href="/needs.html" class="btn btn-secondary" data-i18n="org.browseAll">Browse all needs</a>
           </div>
-          <div class="notice-grid" x-show="requests.length">
+          <div class="notice-grid notice-tilt" x-show="requests.length">
             <template x-for="request in requests" :key="request.id">
               <article class="notice">
                 <div class="flex flex-wrap items-center justify-between gap-2">

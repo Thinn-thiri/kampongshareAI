@@ -134,7 +134,7 @@ All text must exist in **English, 中文 and BM** (see the Languages section in 
 
 - **Paper:** surface colour, radius 6 px, a soft 1.5 px `edge` border, very light shadow.
 - **Shows only three facts plus urgency:** what, how much is left, when it ends, and a small urgency badge ("82 · High urgency"; just "High urgency" before it's scored; "Why this score?" is in the details). Everything else is in the details.
-- **Tilt (max 0.8°, alternating):** only in the home page's "Most needed" section. Everywhere else it's straight.
+- **Tilt (max 0.8°, alternating):** on every noticeboard of open requests (home "Most needed", Browse needs, donor Find needs, organization pages and the organization's own requests). Expired notices and loading skeletons stay straight.
 - **Hover/focus:** straightens, lifts 2 px, and the pin shadow shrinks (150 ms). No movement with reduced motion.
 - **Past deadline:** no pin, muted text, and the label "Deadline passed" instead of the button.
 
@@ -186,7 +186,7 @@ Every field follows the same anatomy:
 - **Search:** the same rectangle (10 px corners) as other text boxes, with a magnifier icon and a board-tinted background.
 - **Filter bars** (e.g. Browse needs): one slim row with no box around it: search, then the pickers, all with a plain white (surface) background. Each picker's first choice names it ("All categories", "Any urgency"), so the labels are kept only for screen readers. The result count sits underneath.
 - **Quantity:** large − and + buttons (48 px) either side of the number, never past the remaining amount.
-- **Checkboxes and radios:** 24 px, green tick or dot, label clickable. **Dropdowns:** custom chevron, the same as text boxes.
+- **Checkboxes and radios:** 20 px (18 px inside a pill), green tick or dot, label clickable. **Pills** (days, interests, skills): 40 px tall, 14 px text. **Dropdowns:** custom chevron, the same as text boxes.
 - **Password:** eye button inside the right edge (Step 15.1).
 - **One column of fields**, in the order people think. Group related fields with a section title, not boxes.
 

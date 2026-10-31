@@ -218,7 +218,7 @@
       </template>
 
       <!-- Requests: pinned notices, straight (the tilt is only on the home page) -->
-      <div class="notice-grid" x-show="!loading && !error && filtered.length" x-cloak>
+      <div class="notice-grid notice-tilt" x-show="!loading && !error && filtered.length" x-cloak>
         <template x-for="request in filtered" :key="request.id">
           <article class="notice">
             <div class="flex flex-wrap items-center justify-between gap-2">

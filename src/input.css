@@ -529,7 +529,7 @@ html.theme-changing * {
     @apply flex cursor-pointer items-start gap-3 rounded-md border-[1.5px] border-field-border bg-surface p-4 hover:border-ink has-checked:border-primary has-checked:bg-primary-soft has-focus-visible:outline-3 has-focus-visible:outline-offset-2 has-focus-visible:outline-primary;
   }
   .check-pill {
-    @apply inline-flex min-h-11 cursor-pointer items-center gap-2 rounded-full border-[1.5px] border-field-border bg-surface px-4 text-sm hover:border-ink has-checked:border-primary has-checked:bg-primary-soft has-checked:font-bold has-checked:text-primary has-focus-visible:outline-3 has-focus-visible:outline-offset-2 has-focus-visible:outline-primary;
+    @apply inline-flex min-h-10 cursor-pointer items-center gap-1.5 rounded-full border-[1.5px] border-field-border bg-surface px-3 text-[0.875rem] leading-5 hover:border-ink has-checked:border-primary has-checked:bg-primary-soft has-checked:font-bold has-checked:text-primary has-focus-visible:outline-3 has-focus-visible:outline-offset-2 has-focus-visible:outline-primary;
   }
 
   /* on / off switch (<input type="checkbox" role="switch">), inside a label at least 44px tall */
@@ -601,6 +601,11 @@ html.theme-changing * {
   .chip {
     @apply inline-flex min-h-11 items-center rounded-full border-[1.5px] border-field-border bg-surface px-4 text-sm text-ink hover:border-ink aria-pressed:border-primary aria-pressed:bg-primary-soft aria-pressed:font-bold aria-pressed:text-primary;
   }
+  /* a smaller chip (quick reasons in dialogs); still 44px tall to tap */
+  .chip-sm {
+    @apply px-3;
+    font-size: 0.8125rem;
+  }
 
   /* menus (account, settings, More ⋯) */
   .menu {
@@ -611,6 +616,18 @@ html.theme-changing * {
   }
   .menu-item > i {
     font-size: 1.25rem;
+  }
+  /* a smaller menu (the conversation's ⋯ menu): narrower, 14px text, smaller icons; items stay 44px tall */
+  .menu-sm {
+    @apply w-48;
+  }
+  .menu-sm .menu-item {
+    @apply gap-2 px-2.5;
+    font-size: 0.875rem;
+    line-height: 1.25rem;
+  }
+  .menu-sm .menu-item > i {
+    font-size: 1rem;
   }
   .menu-item-danger {
     @apply text-danger;
@@ -642,6 +659,10 @@ html.theme-changing * {
   /* dialogs (native <dialog>): a question for a title, one sentence, then Cancel and the action */
   .dialog {
     @apply m-auto w-[calc(100%-2rem)] max-w-md rounded-lg border-[1.5px] border-edge bg-surface p-6 text-ink shadow-md backdrop:bg-overlay;
+  }
+  /* a compact dialog (the reason dialog: report, reject, close, cancel): narrower, less padding */
+  .dialog-compact {
+    @apply max-w-sm p-5;
   }
   /* details panel (native <dialog>): full screen on phones, a sheet on the right on wider screens */
   .side-panel {
@@ -1023,10 +1044,10 @@ input[type="radio"]:not(.sr-only) {
   display: inline-grid;
   place-content: center;
   flex-shrink: 0;
-  width: 1.5rem;
-  height: 1.5rem;
+  width: 1.25rem;
+  height: 1.25rem;
   border: 1.5px solid var(--color-field-border);
-  border-radius: 6px;
+  border-radius: 5px;
   background: var(--color-surface);
   cursor: pointer;
 }
@@ -1036,8 +1057,8 @@ input[type="radio"]:not(.sr-only) {
 input[type="checkbox"]:not(.switch, .sr-only)::before,
 input[type="radio"]:not(.sr-only)::before {
   content: "";
-  width: 1rem;
-  height: 1rem;
+  width: 0.8125rem;
+  height: 0.8125rem;
   scale: 0;
 }
 input[type="checkbox"]:not(.switch, .sr-only):checked {
@@ -1061,6 +1082,11 @@ input[type="radio"]:not(.sr-only)::before {
 input[type="checkbox"]:not(.switch, .sr-only):checked::before,
 input[type="radio"]:not(.sr-only):checked::before {
   scale: 1;
+}
+/* the box inside a pill (days, interests, skills) is a little smaller still */
+.check-pill > input[type="checkbox"]:not(.switch, .sr-only) {
+  width: 1.125rem;
+  height: 1.125rem;
 }
 input[type="checkbox"]:focus-visible,
 input[type="radio"]:focus-visible {

@@ -203,7 +203,7 @@
                     @click="open = !open" aria-label="Conversation options" data-i18n-attr="aria-label:messages.options">
                     <i class="ph ph-dots-three-vertical size-5" aria-hidden="true"></i>
                   </button>
-                  <div id="conversation-menu" class="menu" x-show="open" x-cloak>
+                  <div id="conversation-menu" class="menu menu-sm" x-show="open" x-cloak>
                     <button type="button" class="menu-item gap-2" :disabled="blocking" @click="open = false; toggleBlock()">
                       <i class="ph ph-prohibit size-4" aria-hidden="true"></i>
                       <span x-text="blockedByMe ? $t('messages.unblock') : $t('messages.block')"></span>

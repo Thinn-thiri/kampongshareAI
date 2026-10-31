@@ -230,31 +230,31 @@ function reasonDialog(message, options = {}) {
     initialValue = "",
   } = options;
   const dialog = document.createElement("dialog");
-  dialog.className = "dialog";
+  dialog.className = "dialog dialog-compact";
   dialog.setAttribute("aria-labelledby", "reason-dialog-title");
   const chips = quickReasons.length
-    ? `<div class="mt-4 flex flex-wrap gap-2" role="group" aria-label="${escapeHtml(t("ui.quickReasons"))}">${quickReasons
-        .map((reason) => `<button type="button" class="chip" data-reason="${escapeHtml(reason)}" aria-pressed="false">${escapeHtml(reason)}</button>`)
+    ? `<div class="mt-3 flex flex-wrap gap-2" role="group" aria-label="${escapeHtml(t("ui.quickReasons"))}">${quickReasons
+        .map((reason) => `<button type="button" class="chip chip-sm" data-reason="${escapeHtml(reason)}" aria-pressed="false">${escapeHtml(reason)}</button>`)
         .join("")}</div>`
     : "";
   dialog.innerHTML = `
     <form method="dialog" novalidate>
-      <h2 id="reason-dialog-title" class="card-title">${escapeHtml(title)}</h2>
-      <p class="mt-2 text-muted">${escapeHtml(message)}</p>
-      ${warning ? `<p class="mt-3 note-warning">${escapeHtml(warning)}</p>` : ""}
+      <h2 id="reason-dialog-title" class="card-title text-base">${escapeHtml(title)}</h2>
+      <p class="mt-1 text-[0.875rem] leading-5 text-muted">${escapeHtml(message)}</p>
+      ${warning ? `<p class="mt-3 note-warning p-3 text-[0.875rem] leading-5">${escapeHtml(warning)}</p>` : ""}
       ${chips}
-      <div class="mt-4">
-        <label for="reason-dialog-input" class="label">${escapeHtml(label)}${
+      <div class="mt-3">
+        <label for="reason-dialog-input" class="label text-[0.875rem]">${escapeHtml(label)}${
           required ? '' : ` <span class="font-normal text-muted">${escapeHtml(t("common.optional"))}</span>`
         }</label>
-        <textarea id="reason-dialog-input" class="input py-2" rows="3" maxlength="${maxLength}" ${required ? "required" : ""}
+        <textarea id="reason-dialog-input" class="input bg-surface py-2 text-[1rem] leading-6 sm:text-[0.9375rem] sm:leading-[1.375rem]" rows="2" maxlength="${maxLength}" ${required ? "required" : ""}
           aria-describedby="reason-dialog-count reason-dialog-error"></textarea>
-        <p id="reason-dialog-count" class="helper-text">${escapeHtml(t("ui.reasonCount", { count: 0, max: maxLength }))}</p>
+        <p id="reason-dialog-count" class="mt-1 text-right text-[0.8125rem] leading-5 text-muted tabular-nums">${escapeHtml(t("ui.reasonCount", { count: 0, max: maxLength }))}</p>
         <p id="reason-dialog-error" class="field-error" hidden>${escapeHtml(t("ui.reasonRequired"))}</p>
       </div>
-      <div class="mt-6 flex flex-col-reverse gap-3 sm:flex-row sm:justify-end">
-        <button class="btn btn-secondary" value="cancel" formnovalidate>${escapeHtml(cancelText)}</button>
-        <button class="${danger ? "btn btn-danger" : "btn btn-primary"}" value="confirm">${escapeHtml(confirmText)}</button>
+      <div class="mt-4 flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
+        <button class="btn btn-secondary btn-sm" value="cancel" formnovalidate>${escapeHtml(cancelText)}</button>
+        <button class="${danger ? "btn btn-danger btn-sm" : "btn btn-primary btn-sm"}" value="confirm">${escapeHtml(confirmText)}</button>
       </div>
     </form>`;
   document.body.append(dialog);

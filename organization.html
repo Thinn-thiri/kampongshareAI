@@ -587,7 +587,7 @@
           </div>
 
           <!-- List -->
-          <div class="notice-grid" x-show="!loading && !loadError && activeRequests.length">
+          <div class="notice-grid notice-tilt" x-show="!loading && !loadError && activeRequests.length">
             <template x-for="request in activeRequests" :key="request.id">
               <article class="notice">
                 <div class="flex flex-wrap items-center gap-2">

@@ -282,7 +282,7 @@
           <img src="/img/pinny-looking.svg" alt="" />
           <p x-text="filterText ? $t('donor.requestNotOpen') : $t('donor.noOpenRequests')"></p>
         </div>
-        <div class="notice-grid" x-show="!loadingRequests && !requestsError && shownRequests.length" x-cloak>
+        <div class="notice-grid notice-tilt" x-show="!loadingRequests && !requestsError && shownRequests.length" x-cloak>
           <template x-for="request in shownRequests" :key="request.id">
             <article class="notice">
               <div class="flex flex-wrap items-center justify-between gap-2">
