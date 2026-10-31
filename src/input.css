@@ -714,10 +714,10 @@ html.theme-changing * {
     @apply fixed inset-0 m-0 h-dvh max-h-none w-full max-w-none overflow-hidden bg-surface p-0 text-ink shadow-md backdrop:bg-overlay sm:inset-auto sm:right-6 sm:bottom-6 sm:h-[600px] sm:max-h-[calc(100dvh-3rem)] sm:w-[400px] sm:rounded-lg;
   }
   .chat-bubble-bot {
-    @apply max-w-[90%] rounded-lg rounded-tl-sm bg-canvas-hover px-4 py-2 text-base text-ink;
+    @apply max-w-[90%] rounded-lg rounded-tl-sm bg-canvas-hover px-3.5 py-2 text-[0.875rem] leading-5 text-ink;
   }
   .chat-bubble-user {
-    @apply max-w-[85%] rounded-lg rounded-tr-sm bg-primary px-4 py-2 text-base text-on-primary;
+    @apply max-w-[85%] rounded-lg rounded-tr-sm bg-primary px-3.5 py-2 text-[0.9375rem] leading-[1.375rem] text-on-primary;
   }
 
   /* ---------- messages.html ---------- */

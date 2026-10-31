@@ -125,11 +125,11 @@ const CHAT_MARKUP = `
   </button>
 
   <dialog id="chat-panel" class="chat-panel" aria-labelledby="chat-title" @close="onClosed()" @click="if ($event.target === $el) closeChat()">
-    <div class="flex h-full flex-col">
+    <div class="flex h-full flex-col text-[0.9375rem] leading-[1.375rem]">
       <div class="flex items-center justify-between gap-2 border-b border-line px-4 py-3">
         <h2 id="chat-title" class="section-title text-base" data-i18n="chat.title">Ask KampongShare</h2>
         <div class="flex items-center gap-1">
-          <button type="button" class="btn btn-quiet px-3 text-sm" x-show="messages.length" @click="startOver()" data-i18n="chat.startOver">Start over</button>
+          <button type="button" class="btn btn-quiet min-h-11 px-3 text-[0.875rem]" x-show="messages.length" @click="startOver()" data-i18n="chat.startOver">Start over</button>
           <button type="button" class="icon-btn" aria-label="Close chat" data-i18n-attr="aria-label:chat.close" @click="closeChat()">
             <i class="ph ph-x size-5" aria-hidden="true"></i>
           </button>
@@ -153,7 +153,7 @@ const CHAT_MARKUP = `
                       <p class="font-bold break-words" x-text="item.name"></p>
                       <p class="text-sm text-muted" x-text="$t('chat.stillNeeded', { count: item.quantity_remaining, unit: item.unit })"></p>
                       <p class="text-sm break-words" x-text="[item.request?.title, item.request?.organization?.name].filter(Boolean).join(' · ')"></p>
-                      <a class="btn btn-secondary mt-2 min-h-11 px-3 text-sm" x-show="offerHrefFor(item.id)" :href="offerHrefFor(item.id)"
+                      <a class="btn btn-secondary mt-2 min-h-11 px-3 text-[0.8125rem]" x-show="offerHrefFor(item.id)" :href="offerHrefFor(item.id)"
                         :aria-label="$t('chat.offerItem', { item: item.name })" data-i18n="common.offer">Offer</a>
                     </li>
                   </template>
@@ -164,13 +164,13 @@ const CHAT_MARKUP = `
                       <p class="font-bold break-words" x-text="event.title"></p>
                       <p class="text-sm text-muted" x-text="formatDate(event.starts_at, true)"></p>
                       <p class="text-sm break-words" x-text="[event.location_name, event.organization?.name].filter(Boolean).join(' · ')"></p>
-                      <a class="btn btn-secondary mt-2 min-h-11 px-3 text-sm" :href="'/event.html?id=' + event.id" :aria-label="$t('chat.viewEvent', { event: event.title })" data-i18n="events.viewEvent">View event</a>
+                      <a class="btn btn-secondary mt-2 min-h-11 px-3 text-[0.8125rem]" :href="'/event.html?id=' + event.id" :aria-label="$t('chat.viewEvent', { event: event.title })" data-i18n="events.viewEvent">View event</a>
                     </li>
                   </template>
                 </ul>
                 <div class="mt-2 flex flex-wrap gap-2" x-show="message.links?.length">
                   <template x-for="link in (message.links || [])" :key="link.href">
-                    <a class="btn btn-secondary min-h-11 px-3 text-sm" :href="link.href" x-text="link.labelKey ? $t(link.labelKey) : link.label"></a>
+                    <a class="btn btn-secondary min-h-11 px-3 text-[0.8125rem]" :href="link.href" x-text="link.labelKey ? $t(link.labelKey) : link.label"></a>
                   </template>
                 </div>
               </div>
@@ -182,10 +182,10 @@ const CHAT_MARKUP = `
         <div class="space-y-3 pt-1" x-show="!busy">
           <template x-for="group in chipGroups" :key="group.key">
             <div>
-              <p class="mb-2 text-sm font-bold text-muted" x-show="group.titleKey" x-text="group.titleKey ? $t(group.titleKey) : ''"></p>
+              <p class="mb-2 text-[0.8125rem] leading-5 font-bold text-muted" x-show="group.titleKey" x-text="group.titleKey ? $t(group.titleKey) : ''"></p>
               <div class="flex flex-wrap gap-2">
                 <template x-for="chip in group.chips" :key="chip.key">
-                  <button type="button" class="chip text-left" @click="tap(chip)" x-text="chipLabel(chip)"></button>
+                  <button type="button" class="chip chip-sm text-left" @click="tap(chip)" x-text="chipLabel(chip)"></button>
                 </template>
               </div>
             </div>
@@ -197,19 +197,17 @@ const CHAT_MARKUP = `
       <form class="border-t border-line px-4 pt-3" @submit.prevent="send()" novalidate>
         <label for="chat-input" class="sr-only" data-i18n="chat.inputLabel">Ask about KampongShare</label>
         <div class="flex gap-2">
-          <input id="chat-input" class="input input-busy" type="text" maxlength="300" autocomplete="off" placeholder="Ask about KampongShare…" data-i18n-attr="placeholder:chat.placeholder"
-            x-model="draft" :readonly="busy" aria-describedby="chat-input-hint chat-input-count" />
+          <input id="chat-input" class="input input-busy message-text" type="text" maxlength="300" autocomplete="off" placeholder="Ask about KampongShare…" data-i18n-attr="placeholder:chat.placeholder"
+            x-model="draft" :readonly="busy" aria-describedby="chat-input-hint" />
           <button type="submit" class="btn btn-primary size-12 shrink-0 px-0" :disabled="busy || !draft.trim()" aria-label="Send question" data-i18n-attr="aria-label:chat.send">
             <i class="ph ph-paper-plane-right size-5" aria-hidden="true"></i>
           </button>
         </div>
-        <div class="mt-1 flex justify-between gap-2 text-sm text-muted">
-          <span id="chat-input-hint" data-i18n="chat.hint">I can only answer questions about KampongShare.</span>
-          <span id="chat-input-count" class="tabular-nums" :class="draft.length >= 300 ? 'counter-limit' : ''" x-text="draft.length + ' / 300'"></span>
-        </div>
+        <!-- the hint is for screen readers; the box stops at 300 characters -->
+        <span id="chat-input-hint" class="sr-only" data-i18n="chat.hint">I can only answer questions about KampongShare.</span>
       </form>
 
-      <p class="px-4 pt-2 pb-3 text-sm text-muted">
+      <p class="px-4 pt-2 pb-3 text-[0.8125rem] leading-5 text-muted">
         <span data-i18n="chat.cantFind">Can't find your question? See</span> <a class="link" href="/#how-heading" data-i18n="chat.howItWorks">How it works</a>
         · <a class="link" href="/privacy.html" data-i18n="common.privacyNotice">Privacy Notice</a>
       </p>
