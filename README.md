@@ -35,7 +35,7 @@ You need [Node.js](https://nodejs.org) (LTS) and Git.
 
 To see every shared component, open http://localhost:8888/styleguide.html.
 
-**Demo data:** `node scripts/seed.js` fills the database with fictional demo accounts, organizations, requests, events and offers, then prints the demo logins. It runs only once: it stops if the demo accounts already exist.
+**Demo data:** set `DEMO_PASSWORD` in `.env`, then `npm run seed` builds a fictional demo world (15 accounts, 16 requests, about 28 offers in every state, 15 events, volunteering, messages in English, Malay and Chinese, and one reported message), acting as each user so every database rule applies. It writes `DEMO.md` with the logins, where to find each situation and a 3-minute demo route. It runs once; to start again, run `supabase/reset_data_keep_admins.sql` in the Supabase SQL Editor (it keeps admin accounts). `npm run seed -- --dry-run` checks the demo data without touching the database.
 
 `npm run build` makes the minified CSS. Netlify runs it automatically when deploying.
 

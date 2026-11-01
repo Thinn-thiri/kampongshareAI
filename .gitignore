@@ -6,3 +6,5 @@ css/style.css
 .netlify
 supabase/.temp
 supabase/.branches
+# demo guide written by scripts/seed.js
+DEMO.md

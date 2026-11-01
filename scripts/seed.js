@@ -1,170 +1,446 @@
 // @ts-check
-// Fills the database with FICTIONAL demo data for the hackathon demo (REQUIREMENTS.md 4.9):
-// made-up names, @example.com emails, clearly fake phone numbers (9000 00xx / 6000 00xx),
-// real Singapore area names and approximate public locations only.
-// Run with: node scripts/seed.js   (runs once — it stops if the demo accounts already exist)
-// Uses the service role key from .env and never prints it.
+// Fills a freshly reset database with a FICTIONAL demo world for the hackathon (REQUIREMENTS.md 4.9):
+// made-up people and organizations, @example.com emails, clearly fake phone numbers (9000 00xx),
+// real Singapore area names and approximate, public, area-level locations only.
+//
+// How it works
+// - Accounts are created with the service role (auth.admin.createUser) with the same user_metadata
+//   the sign-up form sends, so the database's sign-up trigger builds each profile.
+// - Every NORMAL action (posting, offering, accepting, delivering, applying, approving volunteers,
+//   withdrawing, tasks, messages, reports) is done AS THAT USER: each one signs in with the anon key,
+//   so every database rule and trigger applies exactly as in the app.
+// - The service role is used only for admin steps (approving or rejecting organizations, requests,
+//   events and volunteer accounts) and, AFTER the normal actions, to move dates into the past
+//   (event times, a deadline, "offered 6 days ago"). Step times such as accepted_at are never
+//   written: the database sets them.
+// - Requests are scored with the app's own formula (netlify/lib/score.js); the AI writes the
+//   explanation when NVIDIA_API_KEY is set.
+//
+// Run:   npm run seed               (needs SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, SUPABASE_ANON_KEY and
+//                                    DEMO_PASSWORD in .env — the password is never printed)
+//        npm run seed -- --dry-run  (checks the demo data below without touching the database)
+// It runs once: if any non-admin @example.com account exists it stops. To start again, run
+// supabase/reset_data_keep_admins.sql in the Supabase SQL Editor first.
 
-import { readFileSync, existsSync } from "node:fs";
+import { readFileSync, existsSync, writeFileSync } from "node:fs";
 import { createClient } from "@supabase/supabase-js";
+import { loadRequest, scoreAndSave } from "../netlify/lib/score.js";
+import { scoreRequest } from "../netlify/lib/urgency.js";
 
-const DEMO_PASSWORD = "DemoPass123!";
-const MARKER_EMAIL = "demo.donor1@example.com";
+// ===========================================================================================
+// The demo world (all fictional)
+// ===========================================================================================
 
-// ---------------------------------------------------------------------------
-// Demo content (all fictional)
-// ---------------------------------------------------------------------------
+/**
+ * @typedef {{ key: string, email: string, name: string, phone: string, kind: 'organization' | 'individual',
+ *   roles?: string[], area?: string, postal?: string, volunteer?: Record<string, unknown>, show: string }} Person
+ */
 
-/** @typedef {{ key: string, email: string, name: string, phone: string, area?: string, postal?: string, roles?: string[], role?: string, volunteer?: Record<string, unknown> }} DemoAccount */
-
-/** @type {DemoAccount[]} */
-const ACCOUNTS = [
-  { key: "donor1", email: "demo.donor1@example.com", name: "Aisha Tan", phone: "90000001", area: "Tampines", roles: ["donor"] },
-  { key: "donor2", email: "demo.donor2@example.com", name: "Ravi Kumar", phone: "90000002", area: "Jurong West", roles: ["donor"] },
-  {
-    key: "volunteer1", email: "demo.volunteer1@example.com", name: "Mei Ling Goh", phone: "90000003", area: "Toa Payoh", roles: ["volunteer"],
-    volunteer: { available_days: ["sat", "sun"], available_times: ["morning"], interests: ["food distribution", "elderly care"], skills: ["first aid"], matching_opt_in: true },
-  },
-  {
-    key: "both1", email: "demo.both1@example.com", name: "Daniel Lim", phone: "90000004", area: "Woodlands", roles: ["donor", "volunteer"],
-    volunteer: { available_days: ["wed", "sat"], available_times: ["afternoon"], interests: ["children and education"], skills: ["tutoring", "driving"], matching_opt_in: false },
-  },
-  { key: "org1", email: "demo.org1@example.com", name: "Farah Ismail", phone: "90000011", role: "organization" },
-  { key: "org2", email: "demo.org2@example.com", name: "Kevin Ong", phone: "90000012", role: "organization" },
-  { key: "org3", email: "demo.org3@example.com", name: "Priya Nair", phone: "90000013", role: "organization" },
-  { key: "org4", email: "demo.org4@example.com", name: "Jason Teo", phone: "90000014", role: "organization" },
+/** @type {Person[]} */
+const PEOPLE = [
+  // organization accounts (the person who runs it; the organization itself is in ORGANIZATIONS)
+  { key: "pantry", email: "tampines.pantry@example.com", name: "Joanne Teo", phone: "90000001", kind: "organization",
+    show: "Tampines Kampung Pantry: offers board (accept, deliver), chats with Siti and Ahmad (Malay), a closed request" },
+  { key: "hearts", email: "jurong.hearts@example.com", name: "Kelvin Goh", phone: "90000002", kind: "organization",
+    show: "Jurong Hearts Community Hub: 5 applications to approve (E12), an event ended but not completed (E3), a rejected offer" },
+  { key: "circle", email: "toapayoh.care@example.com", name: "Mary Lee", phone: "90000003", kind: "organization",
+    show: "Toa Payoh Care Circle: a request past its deadline in “Needs your action”, an event happening now, Chinese messages" },
+  { key: "woodlands", email: "woodlands.neighbours@example.com", name: "Suresh Pillai", phone: "90000004", kind: "organization",
+    show: "Woodlands Neighbours Network: an event waiting for approval, a rejected request, the test “suspicious message”" },
+  { key: "bedok", email: "bedok.bright@example.com", name: "Hafiz Rahim", phone: "90000005", kind: "organization",
+    show: "Bedok Bright Futures Club: an organization waiting for admin approval (everything else is locked)" },
+  // individuals
+  { key: "siti", email: "siti.rahman@example.com", name: "Siti Rahman", phone: "90000006", kind: "individual",
+    roles: ["donor"], area: "Tampines", postal: "521201",
+    show: "Donor: accepted offer with drop-off, delivered stamps, a pending offer past its deadline, chat with the pantry" },
+  { key: "daniel", email: "daniel.tan@example.com", name: "Daniel Tan", phone: "90000007", kind: "individual",
+    roles: ["donor"], area: "Jurong West", postal: "640501",
+    show: "Donor: a rejected offer (and the reply in Messages), a cancelled offer, reported a suspicious message" },
+  { key: "ahmad", email: "ahmad.ismail@example.com", name: "Ahmad Ismail", phone: "90000008", kind: "individual",
+    roles: ["donor"], area: "Bedok", postal: "460210",
+    show: "Donor who writes in Malay: the pantry sees his messages translated" },
+  { key: "kavitha", email: "kavitha.raj@example.com", name: "Kavitha Raj", phone: "90000009", kind: "individual",
+    roles: ["donor"], area: "Clementi", postal: "120301",
+    show: "Brand-new donor with no activity: every empty state (no offers, no messages)" },
+  { key: "priya", email: "priya.nair@example.com", name: "Priya Nair", phone: "90000010", kind: "individual",
+    roles: ["volunteer"], area: "Tampines", postal: "521305",
+    volunteer: { available_days: ["sat", "sun"], available_times: ["morning"], interests: ["food_distribution", "elderly_care"], skills: ["driving"], matching_opt_in: true },
+    show: "Volunteer: confirmed places on full events, tasks (some done), two completed events" },
+  { key: "marcus", email: "marcus.lim@example.com", name: "Marcus Lim", phone: "90000011", kind: "individual",
+    roles: ["volunteer"], area: "Toa Payoh", postal: "310190",
+    volunteer: { available_days: ["mon", "tue", "wed", "thu", "fri"], available_times: ["evening"], interests: ["elderly_care", "events_and_outreach"], skills: ["first_aid"], matching_opt_in: false },
+    show: "Volunteer: pending, withdrawn and cancelled-event applications, an event happening now" },
+  { key: "farah", email: "farah.aziz@example.com", name: "Farah Aziz", phone: "90000012", kind: "individual",
+    roles: ["volunteer"], area: "Woodlands", postal: "731888",
+    volunteer: { available_days: ["sat", "sun"], available_times: ["morning", "afternoon"], interests: ["environment", "packing_and_sorting"], skills: ["lifting_and_moving"], matching_opt_in: true },
+    show: "Volunteer: took the last spot on a full event (E10), a cancelled event" },
+  { key: "jason", email: "jason.koh@example.com", name: "Jason Koh", phone: "90000013", kind: "individual",
+    roles: ["volunteer"], area: "Jurong West", postal: "640735",
+    volunteer: { available_days: ["wed", "sat"], available_times: ["afternoon"], interests: ["children_and_education"], skills: ["tutoring", "it_support"], matching_opt_in: false },
+    show: "Volunteer: a rejected application (E6), an event that ended yesterday" },
+  { key: "weiling", email: "weiling.chen@example.com", name: "Wei Ling Chen", phone: "90000014", kind: "individual",
+    roles: ["donor", "volunteer"], area: "Ang Mo Kio", postal: "560215",
+    volunteer: { available_days: ["sat"], available_times: ["morning", "afternoon"], interests: ["children_and_education", "food_distribution"], skills: ["languages"], matching_opt_in: true },
+    show: "Donor and volunteer who writes in Chinese: switch between Donating and Volunteering" },
+  { key: "ravi", email: "ravi.kumar@example.com", name: "Ravi Kumar", phone: "90000015", kind: "individual",
+    roles: ["donor", "volunteer"], area: "Toa Payoh", postal: "310215",
+    volunteer: { available_days: ["sun"], available_times: ["morning"], interests: ["packing_and_sorting"], skills: ["cooking", "driving"], matching_opt_in: true },
+    show: "Donor and volunteer: many offers in different states, an event happening now, a completed event" },
 ];
 
-/** Approximate, public, area-level locations (no unit numbers). */
+/**
+ * Approximate, public, area-level locations (no unit numbers).
+ * @typedef {{ key: string, name: string, description: string, address: string, postal: string,
+ *   phone: string, lat: number, lng: number, approve: boolean }} Org
+ */
+/** @type {Org[]} */
 const ORGANIZATIONS = [
-  {
-    key: "tampines", owner: "org1", name: "Tampines Kampong Pantry", phone: "60000001",
-    address: "Tampines Central, near Tampines Hub, Singapore", latitude: 1.3536, longitude: 103.9447,
-    description: "A neighbourhood food pantry run by residents. We pack weekly grocery bags for families who need a little help.",
-  },
-  {
-    key: "westside", owner: "org2", name: "Westside Family Support", phone: "60000002",
-    address: "Jurong West Street 52 area, Jurong West, Singapore", latitude: 1.3404, longitude: 103.709,
-    description: "We support young families in Jurong West with baby supplies, household basics and school-going essentials.",
-  },
-  {
-    key: "toapayoh", owner: "org3", name: "Toa Payoh Seniors Circle", phone: "60000003",
-    address: "Toa Payoh Central, Toa Payoh, Singapore", latitude: 1.3343, longitude: 103.85,
-    description: "Volunteers who visit and support seniors living alone — with hygiene kits, warm bedding and friendly company.",
-  },
-  {
-    key: "woodlands", owner: "org4", name: "Woodlands Kids Learning Hub", phone: "60000004",
-    address: "Woodlands Avenue 6 area, Woodlands, Singapore", latitude: 1.436, longitude: 103.7865,
-    description: "Free after-school study space for primary school children, with books, stationery and healthy snacks.",
-  },
+  { key: "pantry", name: "Tampines Kampung Pantry", phone: "90000021", postal: "521201",
+    address: "Tampines Street 21 area, Tampines, Singapore", lat: 1.3545, lng: 103.9432, approve: true,
+    description: "A resident-run food pantry. Every Saturday we pack grocery bags for about 40 families in Tampines." },
+  { key: "hearts", name: "Jurong Hearts Community Hub", phone: "90000022", postal: "640501",
+    address: "Jurong West Street 52 area, Jurong West, Singapore", lat: 1.3496, lng: 103.7186, approve: true,
+    description: "We help young families in Jurong West settle in: baby supplies, household basics and a children's reading corner." },
+  { key: "circle", name: "Toa Payoh Care Circle", phone: "90000023", postal: "310190",
+    address: "Toa Payoh Lorong 1 area, Toa Payoh, Singapore", lat: 1.3366, lng: 103.8472, approve: true,
+    description: "Neighbours who visit seniors living alone, with hygiene supplies, warm bedding and a friendly chat." },
+  { key: "woodlands", name: "Woodlands Neighbours Network", phone: "90000024", postal: "731888",
+    address: "Woodlands Avenue 6 area, Woodlands, Singapore", lat: 1.4363, lng: 103.7862, approve: true,
+    description: "Volunteers who keep Woodlands green and friendly: clean-ups, a community garden and help for families nearby." },
+  { key: "bedok", name: "Bedok Bright Futures Club", phone: "90000025", postal: "460210",
+    address: "Bedok North Street 1 area, Bedok, Singapore", lat: 1.3274, lng: 103.9301, approve: false,
+    description: "Free weekend tuition and school supplies for primary school children in Bedok." },
 ];
 
-/** @typedef {{ name: string, category: string, unit: string, needed: number }} DemoItem */
-/** @typedef {{ key: string, org: string, title: string, description: string, urgency: string, days: number | null, dropoff: string, items: DemoItem[] }} DemoRequest */
-
-/** @type {DemoRequest[]} */
+/**
+ * @typedef {{ key: string, name: string, category: string, unit: string, qty: number }} Item
+ * @typedef {{ key: string, org: string, title: string, description: string, urgency: 'low' | 'medium' | 'high' | 'critical',
+ *   deadline: number, dropoff: string, items: Item[], postedDaysAgo: number,
+ *   review: 'approve' | 'wait' | 'reject', adminNote?: string, close?: string, moveDeadlineTo?: number, situation: string }} Req
+ */
+const DROPOFF = {
+  pantry: "Void deck of Blk 201 Tampines St 21, Saturdays 9am–12pm (next to the letter boxes).",
+  hearts: "Jurong West Street 52 activity room, weekdays 10am–6pm.",
+  circle: "Toa Payoh Lorong 1 senior activity centre, weekdays 10am–5pm.",
+  woodlands: "Woodlands Avenue 6 community garden shed, weekends 8am–12pm.",
+};
+/** @type {Req[]} */
 const REQUESTS = [
-  // Tampines Kampong Pantry
-  { key: "t-groceries", org: "tampines", title: "Weekly grocery bags for 40 families", urgency: "high", days: 6,
-    description: "Our pantry shelves are running low before the school holidays. Every bag feeds a family for about a week.",
-    dropoff: "Tampines Central community room, weekdays 10am–5pm. Please call ahead for large drop-offs.",
-    items: [{ name: "Rice 5kg", category: "food", unit: "bags", needed: 40 }, { name: "Cooking oil 2L", category: "food", unit: "bottles", needed: 30 }, { name: "Canned sardines", category: "food", unit: "cans", needed: 120 }] },
-  { key: "t-breakfast", org: "tampines", title: "Breakfast items for school-going kids", urgency: "medium", days: 14,
-    description: "Simple breakfast packs so children don't start the school day hungry.",
-    dropoff: "Tampines Central community room, weekdays 10am–5pm.",
-    items: [{ name: "Wholemeal bread", category: "food", unit: "loaves", needed: 50 }, { name: "Oat cereal", category: "food", unit: "boxes", needed: 40 }] },
-  { key: "t-hygiene", org: "tampines", title: "Hygiene packs for new families", urgency: "low", days: 30,
-    description: "Welcome packs for families who have just moved into rental flats in the area.",
-    dropoff: "Tampines Central community room, Saturdays 9am–12pm.",
-    items: [{ name: "Toothpaste", category: "hygiene", unit: "tubes", needed: 60 }, { name: "Bath soap", category: "hygiene", unit: "bars", needed: 80 }] },
-  { key: "t-festive", org: "tampines", title: "Festive hampers for seniors", urgency: "medium", days: null,
-    description: "Small festive hampers to bring some cheer to seniors living on their own.",
-    dropoff: "Tampines Central community room, weekdays 10am–5pm.",
-    items: [{ name: "Biscuit tins", category: "food", unit: "tins", needed: 30 }, { name: "Instant noodles (5-pack)", category: "food", unit: "packs", needed: 40 }] },
-
-  // Westside Family Support
-  { key: "w-baby", org: "westside", title: "Baby essentials for young families", urgency: "critical", days: 3,
-    description: "Several new parents in our programme are running out of diapers and formula this week.",
-    dropoff: "Jurong West community centre lobby, weekdays 9am–6pm.",
-    items: [{ name: "Diapers size M", category: "baby", unit: "packs", needed: 30 }, { name: "Baby milk powder", category: "baby", unit: "tins", needed: 20 }, { name: "Baby wipes", category: "baby", unit: "packs", needed: 40 }] },
-  { key: "w-household", org: "westside", title: "Household basics for a fresh start", urgency: "high", days: 10,
-    description: "Families moving into empty flats need the basics to set up their homes.",
-    dropoff: "Jurong West community centre lobby, weekdays 9am–6pm.",
-    items: [{ name: "Cooking pots", category: "household", unit: "pieces", needed: 15 }, { name: "Bed sheets (single)", category: "household", unit: "sets", needed: 25 }] },
-  { key: "w-uniforms", org: "westside", title: "School shoes and uniforms", urgency: "medium", days: 21,
-    description: "New or gently used school shoes and uniforms for the new term.",
-    dropoff: "Jurong West community centre lobby, Saturdays 10am–1pm.",
-    items: [{ name: "School shoes (children's sizes)", category: "clothing", unit: "pairs", needed: 30 }, { name: "School socks", category: "clothing", unit: "packs", needed: 40 }] },
-  { key: "w-cleaning", org: "westside", title: "Cleaning supplies", urgency: "low", days: 40,
-    description: "Cleaning supplies for our shared family room and for families who need them at home.",
-    dropoff: "Jurong West community centre lobby, weekdays 9am–6pm.",
-    items: [{ name: "Laundry detergent", category: "household", unit: "bottles", needed: 30 }, { name: "Floor cleaner", category: "household", unit: "bottles", needed: 20 }] },
-
-  // Toa Payoh Seniors Circle
-  { key: "p-care", org: "toapayoh", title: "Care kits for seniors living alone", urgency: "critical", days: 5,
-    description: "Monthly care kits for seniors we visit. Some have limited mobility and can't shop easily.",
-    dropoff: "Toa Payoh Central activity centre, weekdays 9am–5pm.",
-    items: [{ name: "Adult diapers", category: "hygiene", unit: "packs", needed: 25 }, { name: "Wet wipes", category: "hygiene", unit: "packs", needed: 40 }] },
-  { key: "p-bedding", org: "toapayoh", title: "Warm bedding for the rainy season", urgency: "high", days: 12,
-    description: "Blankets and pillows for seniors whose bedding is old and worn out.",
-    dropoff: "Toa Payoh Central activity centre, weekdays 9am–5pm.",
-    items: [{ name: "Blankets", category: "household", unit: "pieces", needed: 30 }, { name: "Pillows", category: "household", unit: "pieces", needed: 20 }] },
-  { key: "p-nutrition", org: "toapayoh", title: "Nutritious food for seniors", urgency: "medium", days: 18,
-    description: "Easy-to-prepare, healthy food for seniors on a tight budget.",
-    dropoff: "Toa Payoh Central activity centre, Tuesdays and Thursdays 10am–4pm.",
-    items: [{ name: "Oats", category: "food", unit: "packs", needed: 40 }, { name: "Low-sugar milk powder", category: "food", unit: "tins", needed: 25 }] },
-  { key: "p-clothes", org: "toapayoh", title: "Comfortable clothes for seniors", urgency: "low", days: null,
-    description: "Clean, comfortable everyday clothes in adult sizes M to XL.",
-    dropoff: "Toa Payoh Central activity centre, weekdays 9am–5pm.",
-    items: [{ name: "Cotton T-shirts (adult)", category: "clothing", unit: "pieces", needed: 40 }] },
-
-  // Woodlands Kids Learning Hub
-  { key: "k-books", org: "woodlands", title: "Back-to-school stationery", urgency: "high", days: 8,
-    description: "Stationery for the children in our study programme before the new school term.",
-    dropoff: "Woodlands Avenue 6 learning hub, weekdays 2pm–7pm.",
-    items: [{ name: "Exercise books", category: "education", unit: "books", needed: 120 }, { name: "Colour pencils (12-pack)", category: "education", unit: "packs", needed: 50 }, { name: "School bags", category: "education", unit: "bags", needed: 20 }] },
-  { key: "k-snacks", org: "woodlands", title: "Healthy after-school snacks", urgency: "medium", days: 15,
-    description: "Snacks for 30 children who come straight from school to study with us.",
-    dropoff: "Woodlands Avenue 6 learning hub, weekdays 2pm–7pm.",
-    items: [{ name: "Packet drinks (no added sugar)", category: "food", unit: "cartons", needed: 60 }, { name: "Crackers", category: "food", unit: "packs", needed: 60 }] },
-  { key: "k-readers", org: "woodlands", title: "Storybooks for our reading corner", urgency: "low", days: 45,
-    description: "English and Mother Tongue storybooks for children aged 7 to 12.",
-    dropoff: "Woodlands Avenue 6 learning hub, Saturdays 10am–1pm.",
-    items: [{ name: "Children's storybooks", category: "education", unit: "books", needed: 80 }] },
+  { key: "R1", org: "pantry", urgency: "medium", deadline: 7, postedDaysAgo: 12, review: "approve", dropoff: DROPOFF.pantry,
+    situation: "Fully covered: everything promised, nothing delivered yet (no more offers needed)",
+    title: "Breakfast cereal and milk for the Saturday bags",
+    description: "A simple breakfast in every grocery bag helps the children start the school week well.",
+    items: [{ key: "cereal", name: "Breakfast cereal 500g", category: "food", unit: "boxes", qty: 20 }, { key: "milk", name: "UHT milk 1L", category: "food", unit: "cartons", qty: 24 }] },
+  { key: "R2", org: "pantry", urgency: "medium", deadline: 5, postedDaysAgo: 13, review: "approve", dropoff: DROPOFF.pantry,
+    situation: "Fulfilled: everything delivered (in History; donors see Delivered stamps)",
+    title: "Instant noodles for the weekend food bank",
+    description: "Quick meals for students and shift workers who drop by on weekends.",
+    items: [{ key: "noodles", name: "Instant noodles (5-pack)", category: "food", unit: "packs", qty: 10 }] },
+  { key: "R3", org: "hearts", urgency: "high", deadline: 10, postedDaysAgo: 11, review: "approve", dropoff: DROPOFF.hearts,
+    situation: "Partly covered: 6 of 10 bags (some accepted, some delivered)",
+    title: "Rice for families in Jurong West",
+    description: "Ten families on our list have run out of rice this month.",
+    items: [{ key: "rice", name: "Rice 5kg", category: "food", unit: "bags", qty: 10 }] },
+  { key: "R4", org: "pantry", urgency: "critical", deadline: 2, postedDaysAgo: 3, review: "approve", dropoff: DROPOFF.pantry,
+    situation: "Urgent, nothing offered yet, deadline in 2 days (tops “Most needed”)",
+    title: "Adult diapers for bedbound seniors",
+    description: "Several seniors on our grocery list are bedbound, and their families are struggling with the cost of adult diapers.",
+    items: [{ key: "adult", name: "Adult diapers (size L)", category: "hygiene", unit: "packs", qty: 40 }] },
+  { key: "R5", org: "woodlands", urgency: "low", deadline: 0, postedDaysAgo: 6, review: "approve", dropoff: DROPOFF.woodlands,
+    situation: "Deadline is today",
+    title: "Exercise books for the homework club",
+    description: "Our homework club starts a new term tomorrow. Any lined exercise books help.",
+    items: [{ key: "books", name: "Exercise books", category: "education", unit: "books", qty: 60 }] },
+  { key: "R6", org: "circle", urgency: "high", deadline: 5, moveDeadlineTo: -1, postedDaysAgo: 14, review: "approve", dropoff: DROPOFF.circle,
+    situation: "Past its deadline (yesterday) with a pending offer (“Needs your action”)",
+    title: "Warm blankets for the monsoon season",
+    description: "Older flats get cold and damp at night during the monsoon season.",
+    items: [{ key: "blankets", name: "Fleece blankets", category: "household", unit: "pieces", qty: 25 }] },
+  { key: "R7", org: "pantry", urgency: "low", deadline: 14, postedDaysAgo: 10, review: "approve", dropoff: DROPOFF.pantry,
+    close: "Got enough from a school drive",
+    situation: "Closed with a reason; its waiting offer shows “Request closed”",
+    title: "Rice for Deepavali hampers",
+    description: "Extra rice for the festive hampers we pack with the residents' committee.",
+    items: [{ key: "rice10", name: "Rice 10kg", category: "food", unit: "bags", qty: 15 }] },
+  { key: "R8", org: "hearts", urgency: "medium", deadline: 10, postedDaysAgo: 1, review: "wait", dropoff: DROPOFF.hearts,
+    situation: "Waiting for admin approval",
+    title: "Umbrellas and raincoats for our home-visit volunteers",
+    description: "Our volunteers walk between blocks in all weather during the monsoon season.",
+    items: [{ key: "umbrellas", name: "Umbrellas", category: "other", unit: "pieces", qty: 20 }, { key: "raincoats", name: "Raincoats", category: "other", unit: "pieces", qty: 10 }] },
+  { key: "R9", org: "woodlands", urgency: "medium", deadline: 10, postedDaysAgo: 4, review: "reject", adminNote: "Please add how many families this helps",
+    dropoff: DROPOFF.woodlands, situation: "Rejected by the admin, with a note",
+    title: "Gardening tools for the community garden",
+    description: "For our garden.",
+    items: [{ key: "gloves", name: "Garden gloves", category: "other", unit: "pairs", qty: 20 }, { key: "trowels", name: "Hand trowels", category: "other", unit: "pieces", qty: 10 }] },
+  { key: "R10", org: "hearts", urgency: "high", deadline: 7, postedDaysAgo: 9, review: "approve", dropoff: DROPOFF.hearts,
+    situation: "Three items: one fully covered, one partly covered, one with no offers yet",
+    title: "Starter kits for families moving into rental flats",
+    description: "Families moving into empty rental flats need the basics to set up home.",
+    items: [{ key: "bedsheets", name: "Bedsheets (single)", category: "household", unit: "sets", qty: 20 },
+      { key: "pots", name: "Cooking pots", category: "household", unit: "pieces", qty: 15 },
+      { key: "ricecookers", name: "Rice cookers", category: "household", unit: "pieces", qty: 6 }] },
+  { key: "R11", org: "woodlands", urgency: "medium", deadline: 9, postedDaysAgo: 5, review: "approve", dropoff: DROPOFF.woodlands,
+    situation: "Linked to event E11 (the event's Donate button opens it)",
+    title: "Water and litter pickers for the Woodlands clean-up day",
+    description: "Bottled water for our clean-up volunteers, and litter pickers so everyone can help.",
+    items: [{ key: "water", name: "Bottled water 1.5L", category: "food", unit: "bottles", qty: 48 }, { key: "pickers", name: "Litter pickers", category: "other", unit: "pieces", qty: 20 }] },
+  { key: "R12", org: "pantry", urgency: "medium", deadline: 4, postedDaysAgo: 8, review: "approve", dropoff: DROPOFF.pantry,
+    situation: "Open, deadline in 4 days",
+    title: "Cooking oil and canned food",
+    description: "Staples that keep well, for families who can't come every week.",
+    items: [{ key: "oil", name: "Cooking oil 2L", category: "food", unit: "bottles", qty: 20 }, { key: "sardines", name: "Canned sardines", category: "food", unit: "cans", qty: 40 }] },
+  { key: "R13", org: "hearts", urgency: "high", deadline: 7, postedDaysAgo: 7, review: "approve", dropoff: DROPOFF.hearts,
+    situation: "Open, deadline in 7 days (baby items)",
+    title: "Diapers and milk powder for young families",
+    description: "Five new families joined us this month, three with babies under one year old.",
+    items: [{ key: "diapers", name: "Diapers (size L)", category: "baby", unit: "packs", qty: 30 }, { key: "milk", name: "Milk powder 800g", category: "baby", unit: "tins", qty: 12 }] },
+  { key: "R14", org: "pantry", urgency: "medium", deadline: 10, postedDaysAgo: 9, review: "approve", dropoff: DROPOFF.pantry,
+    situation: "Open, deadline in 10 days",
+    title: "Hygiene kits for seniors living alone",
+    description: "We add a small hygiene kit to every grocery bag that goes to a senior living alone.",
+    items: [{ key: "toothpaste", name: "Toothpaste", category: "hygiene", unit: "tubes", qty: 30 }, { key: "soap", name: "Bath soap", category: "hygiene", unit: "bars", qty: 30 }] },
+  { key: "R15", org: "hearts", urgency: "low", deadline: 14, postedDaysAgo: 10, review: "approve", dropoff: DROPOFF.hearts,
+    situation: "Open, deadline in 14 days (education items)",
+    title: "Storybooks and exercise books for our reading corner",
+    description: "Our Saturday reading corner is growing. Children aged 6 to 10 come every week.",
+    items: [{ key: "storybooks", name: "Children's storybooks", category: "education", unit: "books", qty: 50 }, { key: "exercise", name: "Exercise books", category: "education", unit: "books", qty: 100 }] },
+  { key: "R16", org: "circle", urgency: "low", deadline: 21, postedDaysAgo: 6, review: "approve", dropoff: DROPOFF.circle,
+    situation: "Open, deadline in 21 days (clothing)",
+    title: "Comfortable clothes for seniors",
+    description: "Soft, loose clothes that are easy to put on. New or gently used, washed and in good condition.",
+    items: [{ key: "tshirts", name: "T-shirts (M, L)", category: "clothing", unit: "pieces", qty: 30 }, { key: "pants", name: "Track pants", category: "clothing", unit: "pieces", qty: 20 }] },
 ];
 
-/** @type {{ org: string, title: string, description: string, location: string, days: number, start: string, end: string, needed: number, request?: string }[]} */
-const EVENTS = [
-  { org: "tampines", title: "Food Packing Morning", days: 9, start: "09:00", end: "12:00", needed: 8, request: "t-groceries",
-    location: "Tampines Central community room", description: "Help us sort donations and pack grocery bags for 40 families. No experience needed — we'll show you how." },
-  { org: "toapayoh", title: "Senior Home Visits", days: 12, start: "14:00", end: "17:00", needed: 6,
-    location: "Toa Payoh Central activity centre", description: "Visit seniors in pairs, deliver care kits and spend some time chatting. A short briefing is given before we start." },
-  { org: "woodlands", title: "Back-to-School Book Drive", days: 20, start: "10:00", end: "13:00", needed: 10, request: "k-books",
-    location: "Woodlands Avenue 6 learning hub", description: "Sort and wrap stationery packs for our students, then help with a fun reading session." },
-  { org: "westside", title: "Community Clothing Sort", days: 28, start: "09:30", end: "12:30", needed: 4,
-    location: "Jurong West community centre", description: "Sort donated school shoes and uniforms by size so families can pick what fits." },
-];
-
-/** Offers: inserted as pending, then moved to their final status (so the item totals update). */
+/**
+ * @typedef {{ donor: string, item: string, qty: number, message?: string, final: 'pending' | 'accepted' | 'delivered' | 'rejected' | 'cancelled',
+ *   rejectNote?: string, daysAgo: number }} Offer
+ * item is "<request key>.<item key>". Offers on a request that gets closed should be 'pending' (they become "Request closed").
+ */
+/** @type {Offer[]} */
 const OFFERS = [
-  { donor: "donor1", request: "t-groceries", item: "Rice 5kg", quantity: 10, status: "delivered", message: "Dropping off on Saturday morning." },
-  { donor: "donor2", request: "w-baby", item: "Diapers size M", quantity: 8, status: "delivered", message: null },
-  { donor: "donor1", request: "p-care", item: "Adult diapers", quantity: 5, status: "accepted", message: "I can bring them after work on Tuesday." },
-  { donor: "both1", request: "k-books", item: "Exercise books", quantity: 30, status: "accepted", message: null },
-  { donor: "donor2", request: "t-groceries", item: "Cooking oil 2L", quantity: 6, status: "pending", message: null },
-  { donor: "both1", request: "w-baby", item: "Baby milk powder", quantity: 2, status: "pending", message: "Unopened tins, expiry next year." },
-  { donor: "donor1", request: "k-books", item: "Colour pencils (12-pack)", quantity: 10, status: "rejected", message: null },
-  { donor: "donor2", request: "p-bedding", item: "Blankets", quantity: 3, status: "cancelled", message: null },
+  { donor: "ravi", item: "R1.cereal", qty: 20, final: "accepted", daysAgo: 6 },
+  { donor: "weiling", item: "R1.milk", qty: 24, final: "accepted", daysAgo: 5 },
+  { donor: "siti", item: "R2.noodles", qty: 6, final: "delivered", daysAgo: 10 },
+  { donor: "ahmad", item: "R2.noodles", qty: 4, final: "delivered", daysAgo: 9 },
+  { donor: "daniel", item: "R3.rice", qty: 4, final: "delivered", daysAgo: 8 },
+  { donor: "ravi", item: "R3.rice", qty: 2, final: "accepted", daysAgo: 3 },
+  { donor: "siti", item: "R6.blankets", qty: 5, final: "pending", daysAgo: 3, message: "I can bring them on a weekday evening." },
+  { donor: "ravi", item: "R6.blankets", qty: 8, final: "accepted", daysAgo: 7 },
+  { donor: "weiling", item: "R7.rice10", qty: 3, final: "pending", daysAgo: 4 },
+  { donor: "ahmad", item: "R10.bedsheets", qty: 12, final: "delivered", daysAgo: 7 },
+  { donor: "daniel", item: "R10.bedsheets", qty: 8, final: "accepted", daysAgo: 4 },
+  { donor: "weiling", item: "R10.pots", qty: 5, final: "accepted", daysAgo: 3 },
+  { donor: "ravi", item: "R11.water", qty: 24, final: "delivered", daysAgo: 4 },
+  { donor: "ahmad", item: "R12.oil", qty: 6, final: "pending", daysAgo: 1, message: "Saya boleh hantar pada hari Sabtu." },
+  { donor: "siti", item: "R12.sardines", qty: 12, final: "delivered", daysAgo: 6 },
+  { donor: "weiling", item: "R12.oil", qty: 4, final: "delivered", daysAgo: 7 },
+  { donor: "weiling", item: "R13.milk", qty: 5, final: "pending", daysAgo: 2 },
+  { donor: "daniel", item: "R13.diapers", qty: 10, final: "delivered", daysAgo: 6 },
+  { donor: "siti", item: "R13.diapers", qty: 5, final: "accepted", daysAgo: 2 },
+  { donor: "siti", item: "R14.soap", qty: 10, final: "accepted", daysAgo: 3, message: "I can drop them off on Saturday morning." },
+  { donor: "ahmad", item: "R14.toothpaste", qty: 10, final: "delivered", daysAgo: 8 },
+  { donor: "ravi", item: "R14.toothpaste", qty: 6, final: "pending", daysAgo: 1 },
+  { donor: "daniel", item: "R15.storybooks", qty: 20, final: "rejected", daysAgo: 7,
+    rejectNote: "Thank you, Daniel! Our corner only takes books in English or Malay for now — we've sent you a message." },
+  { donor: "siti", item: "R15.exercise", qty: 30, final: "delivered", daysAgo: 9 },
+  { donor: "daniel", item: "R16.pants", qty: 2, final: "cancelled", daysAgo: 5 },
+  { donor: "ravi", item: "R16.tshirts", qty: 10, final: "accepted", daysAgo: 4 },
+  { donor: "weiling", item: "R16.pants", qty: 6, final: "delivered", daysAgo: 5 },
+  { donor: "ahmad", item: "R16.tshirts", qty: 5, final: "pending", daysAgo: 1 },
 ];
 
+/**
+ * start: days from today when created (everything starts in the future, except 'now'); moveTo: where the
+ * event's times are moved afterwards (days from today, negative = past).
+ * @typedef {{ key: string, org: string, title: string, description: string, place: string, lat: number, lng: number,
+ *   start: number | 'now', time: string, hours: number, needed: number, linkRequest?: string, moveTo?: number,
+ *   review: 'approve' | 'wait' | 'reject', adminNote?: string, complete?: string, cancel?: string, situation: string }} DemoEvent
+ */
+/** @type {DemoEvent[]} */
+const EVENTS = [
+  { key: "E1", org: "pantry", start: 2, moveTo: -14, time: "09:00", hours: 3, needed: 6, review: "approve", complete: "120 food packs for 40 families",
+    situation: "Completed 14 days ago, with an outcome and finished tasks",
+    title: "Weekend food distribution", place: "Void deck, Blk 201 Tampines St 21", lat: 1.3543, lng: 103.9425,
+    description: "Hand out grocery bags to the families on our list." },
+  { key: "E2", org: "circle", start: 3, moveTo: -7, time: "10:00", hours: 3, needed: 6, review: "approve", complete: "Visited 18 seniors living alone and fixed 4 broken fans",
+    situation: "Completed 7 days ago (Ravi and Priya took part)",
+    title: "Befriender home visits", place: "Toa Payoh Lorong 1 senior activity centre", lat: 1.3369, lng: 103.8476,
+    description: "Visit seniors who live alone, in pairs. A short briefing comes first; no experience needed." },
+  { key: "E3", org: "hearts", start: 4, moveTo: -1, time: "14:00", hours: 3, needed: 5, review: "approve",
+    situation: "Ended yesterday but not marked completed (“Needs your action”)",
+    title: "Reading corner open day", place: "Jurong West Street 52 activity room", lat: 1.3499, lng: 103.7181,
+    description: "Read aloud with the children and help them pick books to borrow." },
+  { key: "E4", org: "woodlands", start: 5, time: "08:00", hours: 3, needed: 8, review: "approve", cancel: "Heavy rain forecast",
+    situation: "Cancelled after volunteers were approved",
+    title: "Park connector clean-up", place: "Woodlands Waterfront park connector", lat: 1.4484, lng: 103.7798,
+    description: "Pick up litter along the park connector. Gloves and bags provided." },
+  { key: "E5", org: "circle", start: "now", time: "", hours: 4, needed: 4, review: "approve",
+    situation: "Happening now (started an hour ago)",
+    title: "Tea and chat with seniors", place: "Toa Payoh Lorong 1 senior activity centre", lat: 1.3363, lng: 103.8469,
+    description: "An afternoon of kopi, kueh and board games with the seniors we visit." },
+  { key: "E6", org: "pantry", start: 2, time: "09:00", hours: 3, needed: 3, review: "approve",
+    situation: "In 2 days and full (3 of 3), one application rejected",
+    title: "Rice packing morning", place: "Void deck, Blk 201 Tampines St 21", lat: 1.3541, lng: 103.9427,
+    description: "Pack rice and oil into grocery bags for 40 families. Gloves and aprons provided." },
+  { key: "E7", org: "hearts", start: 3, time: "09:30", hours: 3, needed: 4, review: "approve",
+    situation: "In 3 days, one spot left (3 of 4)",
+    title: "Saturday food packing", place: "Jurong West Street 52 activity room", lat: 1.3494, lng: 103.7192,
+    description: "Pack food bags with us, then help drive them to families in the nearby blocks." },
+  { key: "E8", org: "woodlands", start: 5, time: "08:30", hours: 3, needed: 10, review: "approve",
+    situation: "In 5 days, many spots left (2 of 10)",
+    title: "Community garden planting day", place: "Woodlands Avenue 6 community garden", lat: 1.4357, lng: 103.7871,
+    description: "Plant vegetables and herbs that our families can harvest next month." },
+  { key: "E9", org: "circle", start: 6, time: "15:00", hours: 2, needed: 5, review: "approve",
+    situation: "In 6 days, no applications yet",
+    title: "Christmas card making with seniors", place: "Toa Payoh Lorong 1 senior activity centre", lat: 1.3367, lng: 103.8480,
+    description: "Make and write Christmas cards together with the seniors." },
+  { key: "E10", org: "pantry", start: 8, time: "14:00", hours: 3, needed: 2, review: "approve",
+    situation: "In 8 days and full (Farah took the last spot; Marcus withdrew earlier)",
+    title: "Grocery bag delivery run", place: "Tampines Street 21 community room", lat: 1.3548, lng: 103.9439,
+    description: "Deliver grocery bags to families who can't come down to collect them. Drivers especially welcome." },
+  { key: "E11", org: "woodlands", start: 9, time: "08:00", hours: 4, needed: 12, review: "approve", linkRequest: "R11",
+    situation: "In 9 days, linked to request R11 (Donate opens it)",
+    title: "Woodlands clean-up day", place: "Woodlands Avenue 6 neighbourhood park", lat: 1.4371, lng: 103.7855,
+    description: "Our big clean-up of the neighbourhood park and nearby blocks. Families welcome." },
+  { key: "E12", org: "hearts", start: 11, time: "10:00", hours: 3, needed: 8, review: "approve",
+    situation: "In 11 days, 5 applications waiting for the organization",
+    title: "Back-to-school book wrapping", place: "Jurong West Street 52 activity room", lat: 1.3501, lng: 103.7178,
+    description: "Wrap and label donated textbooks so every child starts the school year ready." },
+  { key: "E13", org: "circle", start: 13, time: "10:00", hours: 2, needed: 4, review: "approve",
+    situation: "In 13 days, half full (2 of 4), Marcus waiting",
+    title: "Grocery shopping with seniors", place: "Toa Payoh Central supermarket", lat: 1.3327, lng: 103.8478,
+    description: "Accompany seniors on their monthly grocery trip and help carry the bags home." },
+  { key: "E14", org: "woodlands", start: 10, time: "09:00", hours: 3, needed: 6, review: "wait",
+    situation: "Waiting for admin approval",
+    title: "Bicycle repair workshop", place: "Woodlands Avenue 6 void deck", lat: 1.4360, lng: 103.7868,
+    description: "Fix bicycles for families who rely on them to get to school and work." },
+  { key: "E15", org: "pantry", start: 12, time: "16:00", hours: 2, needed: 4, review: "reject", adminNote: "Please add the exact meeting point",
+    situation: "Rejected by the admin, with a note",
+    title: "Pop-up toy swap", place: "Tampines", lat: 1.3530, lng: 103.9450,
+    description: "Bring a toy, take a toy." },
+];
+
+/**
+ * Applications are done in this order; the organization decides right after each one.
+ * @typedef {{ volunteer: string, event: string, final: 'pending' | 'approved' | 'rejected' | 'withdrawn', message?: string, daysAgo: number }} Application
+ */
+/** @type {Application[]} */
 const APPLICATIONS = [
-  { volunteer: "volunteer1", event: "Food Packing Morning", status: "pending", message: "Free on weekend mornings — happy to help pack." },
-  { volunteer: "both1", event: "Back-to-School Book Drive", status: "approved", message: "I tutor primary school kids and can help with the reading session." },
+  { volunteer: "priya", event: "E1", final: "approved", daysAgo: 18 },
+  { volunteer: "farah", event: "E1", final: "approved", daysAgo: 17 },
+  { volunteer: "ravi", event: "E2", final: "approved", daysAgo: 11 },
+  { volunteer: "priya", event: "E2", final: "approved", daysAgo: 10 },
+  { volunteer: "jason", event: "E3", final: "approved", daysAgo: 6 },
+  { volunteer: "weiling", event: "E3", final: "approved", daysAgo: 5 },
+  { volunteer: "farah", event: "E4", final: "approved", daysAgo: 5 },
+  { volunteer: "marcus", event: "E4", final: "approved", daysAgo: 4 },
+  { volunteer: "marcus", event: "E5", final: "approved", daysAgo: 3 },
+  { volunteer: "ravi", event: "E5", final: "approved", daysAgo: 2 },
+  { volunteer: "jason", event: "E6", final: "rejected", daysAgo: 4, message: "I can only stay until 10am." },
+  { volunteer: "priya", event: "E6", final: "approved", daysAgo: 4, message: "I can also drive bags to the blocks after." },
+  { volunteer: "farah", event: "E6", final: "approved", daysAgo: 3 },
+  { volunteer: "ravi", event: "E6", final: "approved", daysAgo: 3 },
+  { volunteer: "priya", event: "E7", final: "approved", daysAgo: 5 },
+  { volunteer: "weiling", event: "E7", final: "approved", daysAgo: 4 },
+  { volunteer: "jason", event: "E7", final: "approved", daysAgo: 3 },
+  { volunteer: "farah", event: "E8", final: "approved", daysAgo: 2 },
+  { volunteer: "jason", event: "E8", final: "approved", daysAgo: 2 },
+  { volunteer: "marcus", event: "E10", final: "withdrawn", daysAgo: 6 },
+  { volunteer: "priya", event: "E10", final: "approved", daysAgo: 5 },
+  { volunteer: "farah", event: "E10", final: "approved", daysAgo: 2 },
+  { volunteer: "jason", event: "E11", final: "approved", daysAgo: 2 },
+  { volunteer: "priya", event: "E12", final: "pending", daysAgo: 3 },
+  { volunteer: "marcus", event: "E12", final: "pending", daysAgo: 3, message: "I'm free after 6pm on weekdays, but Saturdays work too." },
+  { volunteer: "farah", event: "E12", final: "pending", daysAgo: 2 },
+  { volunteer: "jason", event: "E12", final: "pending", daysAgo: 2, message: "I tutor P1 kids, happy to help with labels." },
+  { volunteer: "weiling", event: "E12", final: "pending", daysAgo: 1 },
+  { volunteer: "ravi", event: "E13", final: "approved", daysAgo: 3 },
+  { volunteer: "weiling", event: "E13", final: "approved", daysAgo: 2 },
+  { volunteer: "marcus", event: "E13", final: "pending", daysAgo: 1 },
 ];
 
-// ---------------------------------------------------------------------------
+/**
+ * @typedef {{ event: string, volunteer: string, title: string, description?: string, dueDays: number, time: string, done: boolean }} Task
+ * dueDays counts from today and should match the event's final date.
+ */
+/** @type {Task[]} */
+const TASKS = [
+  { event: "E1", volunteer: "priya", title: "Hand out food packs at table 1", dueDays: -14, time: "09:00", done: true },
+  { event: "E1", volunteer: "farah", title: "Carry rice bags from the van", dueDays: -14, time: "08:45", done: true },
+  { event: "E2", volunteer: "ravi", title: "Bring spare parts for the fans", dueDays: -7, time: "10:00", done: true },
+  { event: "E5", volunteer: "marcus", title: "Set up the tables and kettles", dueDays: 0, time: "14:00", done: true },
+  { event: "E6", volunteer: "priya", title: "Pack rice bags at station 2", dueDays: 2, time: "09:00", done: false },
+  { event: "E6", volunteer: "farah", title: "Label bags with the family numbers", dueDays: 2, time: "09:00", done: true },
+  { event: "E7", volunteer: "priya", title: "Drive food packs to Blk 501–505", description: "Car park B. We'll load the boot for you.", dueDays: 3, time: "11:30", done: false },
+  { event: "E7", volunteer: "weiling", title: "Welcome families at the door", description: "Help Chinese-speaking aunties and uncles find their bags.", dueDays: 3, time: "09:30", done: false },
+  { event: "E10", volunteer: "farah", title: "Load the bags into the van", dueDays: 8, time: "14:00", done: false },
+  { event: "E13", volunteer: "ravi", title: "Push the trolleys at the supermarket", dueDays: 13, time: "10:00", done: false },
+];
+
+/**
+ * @typedef {{ from: 'person' | 'org', body: string }} Line
+ * @typedef {{ person: string, org: string, topic: string, lines: Line[], hoursAgo: number, report?: { line: number, reason: string } }} Chat
+ */
+/** @type {Chat[]} */
+const CHATS = [
+  { person: "siti", org: "pantry", topic: "About: Hygiene kits for seniors living alone", hoursAgo: 50, lines: [
+    { from: "person", body: "Hi! I've offered 10 bars of soap. Can I drop them off this Saturday morning?" },
+    { from: "org", body: "Thank you, Siti! Saturday 9am–12pm works. Please come to the void deck at Blk 201, next to the letter boxes." },
+    { from: "person", body: "Great. Is it okay if my husband brings them instead?" },
+    { from: "org", body: "Of course! Just tell our volunteer it's for Tampines Kampung Pantry." },
+    { from: "person", body: "Will do. See you on Saturday!" },
+  ] },
+  { person: "ahmad", org: "pantry", topic: "About: Cooking oil and canned food", hoursAgo: 20, lines: [
+    { from: "person", body: "Selamat pagi. Saya mahu menderma 6 botol minyak masak. Bila saya boleh hantar?" },
+    { from: "org", body: "Good morning, Ahmad! Thank you. You can drop them off on Saturday between 9am and 12pm at the void deck of Blk 201." },
+    { from: "person", body: "Baik, terima kasih. Saya akan datang pada pagi Sabtu bersama anak saya." },
+    { from: "org", body: "See you then! We'll accept your offer once we've checked our stock." },
+  ] },
+  { person: "weiling", org: "circle", topic: "About: Comfortable clothes for seniors", hoursAgo: 40, lines: [
+    { from: "person", body: "你好！我已经送了6条运动裤。请问你们还需要别的东西吗？" },
+    { from: "org", body: "Hi Wei Ling, thank you so much! The seniors are very happy with them. We still need warm blankets if you can help." },
+    { from: "person", body: "好的，我这个星期会再带几条毯子过来。" },
+    { from: "org", body: "Wonderful, thank you! We're open on weekdays from 10am to 5pm." },
+  ] },
+  { person: "priya", org: "hearts", topic: "About: Saturday food packing", hoursAgo: 30, lines: [
+    { from: "person", body: "Hi! I'm confirmed for Saturday food packing. Should I bring anything?" },
+    { from: "org", body: "Hi Priya! Just comfortable shoes and a water bottle. We'll provide gloves and aprons." },
+    { from: "person", body: "Noted, thanks. I can also drive the packs to the blocks afterwards." },
+    { from: "org", body: "That would be a big help. We've added it to your tasks." },
+  ] },
+  { person: "daniel", org: "hearts", topic: "About: Storybooks and exercise books for our reading corner", hoursAgo: 70, lines: [
+    { from: "person", body: "Hi, I saw my storybook offer was declined. Did I do something wrong?" },
+    { from: "org", body: "Not at all, Daniel! Your books are in Chinese, and our volunteers can only read with the children in English or Malay for now." },
+    { from: "org", body: "Toa Payoh Care Circle runs a Chinese reading group — they may love them." },
+    { from: "person", body: "That makes sense. I'll check with them. Thanks for explaining!" },
+  ] },
+  { person: "daniel", org: "woodlands", topic: "Test: suspicious message", hoursAgo: 12, report: { line: 1, reason: "Asked for money" }, lines: [
+    { from: "person", body: "Hi, do you collect old school bags? I have a few in good condition." },
+    { from: "org", body: "Yes! But first please transfer a $50 admin fee to 9000 0099 by PayNow so we can book a collection slot." },
+    { from: "person", body: "Donations on KampongShare are always free, so I won't be paying a fee." },
+  ] },
+];
+
+// ===========================================================================================
 // Helpers
-// ---------------------------------------------------------------------------
+// ===========================================================================================
+
+const SG = "Asia/Singapore";
+const DAY = 24 * 60 * 60 * 1000;
+const HOUR = 60 * 60 * 1000;
+const DRY_RUN = process.argv.includes("--dry-run");
+
+/** The step being worked on, for the error message. */
+let currentStep = "starting";
+/** @param {string} name */
+function step(name) {
+  currentStep = name;
+  console.log(`\n▸ ${name}`);
+}
+/** @param {string} text */
+function done(text) {
+  console.log(`  ✓ ${text}`);
+}
 
 /**
  * Reads NAME=value lines from .env (tolerates spaces, quotes and # comments).
@@ -183,259 +459,606 @@ function readEnv() {
 }
 
 /**
- * Today + n days as YYYY-MM-DD (local date).
+ * Today + n days in Singapore, as YYYY-MM-DD (deadlines are whole Singapore days, REQUIREMENTS.md 11).
  * @param {number} n
  * @returns {string}
  */
-function dateIn(n) {
-  const date = new Date();
-  date.setDate(date.getDate() + n);
-  return date.toLocaleDateString("en-CA");
+function sgDate(n) {
+  return new Date(Date.now() + n * DAY).toLocaleDateString("en-CA", { timeZone: SG });
 }
 
 /**
- * A Singapore-time timestamp n days from today at HH:MM.
+ * A Singapore time n days from today, as an ISO string with the +08:00 offset.
  * @param {number} n
- * @param {string} time
+ * @param {string} time "HH:MM"
  * @returns {string}
  */
 function sgTime(n, time) {
-  return `${dateIn(n)}T${time}:00+08:00`;
+  return `${sgDate(n)}T${time}:00+08:00`;
 }
 
-/** What was created so far, for the summary or a failure message. */
-const created = { accounts: 0, organizations: 0, requests: 0, items: 0, events: 0, offers: 0, applications: 0 };
+/**
+ * Hours from now (negative = in the past), as an ISO string.
+ * @param {number} hours
+ * @returns {string}
+ */
+function hoursFromNow(hours) {
+  return new Date(Date.now() + hours * HOUR).toISOString();
+}
 
 /**
- * Throws a readable error when a Supabase call fails.
+ * The start and end of an event that starts n days from today ('now' = an hour ago).
+ * @param {DemoEvent} e
+ * @param {number | 'now'} day
+ */
+function eventTimes(e, day) {
+  const startsAt = day === "now" ? hoursFromNow(-1) : sgTime(day, e.time);
+  return { starts_at: startsAt, ends_at: new Date(new Date(startsAt).getTime() + e.hours * HOUR).toISOString() };
+}
+
+/** @param {number} ms */
+const pause = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+
+/**
+ * Throws a clear error when a Supabase call failed; returns its data otherwise.
  * @template T
- * @param {{ data: T, error: { message: string } | null }} result
+ * @param {{ data: T, error: { message: string } | null } | { data: any, error: any }} result
  * @param {string} what
  * @returns {NonNullable<T>}
  */
-function check(result, what) {
+function must(result, what) {
   if (result.error) throw new Error(`${what}: ${result.error.message}`);
-  if (result.data == null) throw new Error(`${what}: nothing returned`);
+  if (result.data == null) throw new Error(`${what}: nothing came back`);
   return /** @type {NonNullable<T>} */ (result.data);
 }
 
-// ---------------------------------------------------------------------------
-// Seed
-// ---------------------------------------------------------------------------
+/**
+ * For updates with .select("id"): no row changed means the database didn't allow it.
+ * @param {{ data: unknown[] | null, error: { message: string } | null }} result
+ * @param {string} what
+ */
+function changed(result, what) {
+  const rows = must(result, what);
+  if (!Array.isArray(rows) || rows.length === 0) throw new Error(`${what}: the database didn't change anything (not allowed?)`);
+}
+
+/** @param {string} key @returns {Person} */
+function person(key) {
+  const found = PEOPLE.find((p) => p.key === key);
+  if (!found) throw new Error(`Unknown person "${key}" in the demo data`);
+  return found;
+}
+/** @param {string} key @returns {Org} */
+function org(key) {
+  const found = ORGANIZATIONS.find((o) => o.key === key);
+  if (!found) throw new Error(`Unknown organization "${key}" in the demo data`);
+  return found;
+}
+/** @param {string} key @returns {Req} */
+function req(key) {
+  const found = REQUESTS.find((r) => r.key === key);
+  if (!found) throw new Error(`Unknown request "${key}" in the demo data`);
+  return found;
+}
+/** @param {string} key @returns {DemoEvent} */
+function ev(key) {
+  const found = EVENTS.find((e) => e.key === key);
+  if (!found) throw new Error(`Unknown event "${key}" in the demo data`);
+  return found;
+}
+/** @param {string} ref "<request key>.<item key>" */
+function splitItem(ref) {
+  const [requestKey, itemKey] = ref.split(".");
+  const request = req(requestKey);
+  const item = request.items.find((i) => i.key === itemKey);
+  if (!item) throw new Error(`Unknown item "${ref}" in the demo data`);
+  return { request, item };
+}
+
+// ===========================================================================================
+// Dry run: checks the demo data above (no database, no .env needed)
+// ===========================================================================================
 
 /**
- * Creates the demo accounts and data once, then prints the demo logins.
- * @returns {Promise<void>}
+ * Works out what the database will hold after the seed, and checks every promised situation.
+ * @returns {{ problems: string[], expectedScores: { key: string, score: number }[] }}
  */
-async function main() {
-  const env = readEnv();
-  if (!env.SUPABASE_URL || !env.SUPABASE_SERVICE_ROLE_KEY) {
-    console.log("Missing SUPABASE_URL or SUPABASE_SERVICE_ROLE_KEY in .env — add them first (see README).");
-    process.exitCode = 1;
-    return;
-  }
-  const db = createClient(env.SUPABASE_URL.replace(/\/+$/, ""), env.SUPABASE_SERVICE_ROLE_KEY, {
-    auth: { persistSession: false, autoRefreshToken: false },
-  });
-
-  // 1. Run once only: stop if any demo account already exists.
+function checkDemoData() {
   /** @type {string[]} */
-  const existingEmails = [];
-  for (let page = 1; ; page++) {
-    const { data, error } = await db.auth.admin.listUsers({ page, perPage: 1000 });
-    if (error) throw new Error(`Checking existing accounts: ${error.message}`);
-    existingEmails.push(...data.users.map((u) => (u.email ?? "").toLowerCase()));
-    if (data.users.length < 1000) break;
+  const problems = [];
+  /** @param {boolean} ok @param {string} label */
+  const expect = (ok, label) => {
+    if (!ok) problems.push(label);
+  };
+
+  expect(PEOPLE.length === 15, `15 accounts (found ${PEOPLE.length})`);
+  for (const o of ORGANIZATIONS) expect(PEOPLE.some((p) => p.key === o.key && p.kind === "organization"), `${o.name} has an account`);
+  const categories = new Set(REQUESTS.filter((r) => r.review === "approve").flatMap((r) => r.items.map((i) => i.category)));
+  for (const c of ["food", "clothing", "hygiene", "household", "baby", "education", "other"]) expect(categories.has(c), `an approved request uses category ${c}`);
+
+  // offers → what each item will have (committed = accepted + delivered, received = delivered)
+  /** @type {Record<string, { committed: number, received: number }>} */
+  const totals = {};
+  /** @type {Set<string>} */
+  const active = new Set();
+  for (const o of OFFERS) {
+    const { request, item } = splitItem(o.item);
+    expect(request.review === "approve", `offer on ${o.item}: the request is approved`);
+    expect(Boolean(person(o.donor).roles?.includes("donor")), `${o.donor} can donate`);
+    const t = (totals[o.item] ??= { committed: 0, received: 0 });
+    if (o.final === "accepted" || o.final === "delivered") t.committed += o.qty;
+    if (o.final === "delivered") t.received += o.qty;
+    expect(t.committed <= item.qty, `${o.item}: promised no more than needed`);
+    if (o.final === "pending" || o.final === "accepted") {
+      const k = `${o.donor}|${o.item}`;
+      expect(!active.has(k), `${o.donor} has only one active offer on ${o.item}`);
+      active.add(k);
+    }
   }
-  if (existingEmails.includes(MARKER_EMAIL) || existingEmails.some((e) => e.startsWith("demo.") && e.endsWith("@example.com"))) {
-    console.log("Demo data already seeded — nothing was changed.");
-    console.log("(To start again, run supabase/reset_database.sql and the migrations in the Supabase SQL Editor, then this script.)");
-    process.exitCode = 1;
+  /** @param {string} ref */
+  const tot = (ref) => totals[ref] ?? { committed: 0, received: 0 };
+  /** @param {Req} r */
+  const allRemaining = (r) => r.items.map((i) => i.qty - tot(`${r.key}.${i.key}`).committed);
+
+  expect(allRemaining(req("R1")).every((n) => n === 0) && req("R1").items.every((i) => tot(`R1.${i.key}`).received === 0), "R1 fully covered, nothing delivered");
+  expect(req("R2").items.every((i) => tot(`R2.${i.key}`).received >= i.qty), "R2 everything delivered (fulfilled)");
+  const r3 = tot("R3.rice");
+  expect(r3.committed === 6 && r3.received > 0 && r3.received < 6, "R3 6 of 10, some accepted and some delivered");
+  expect(!OFFERS.some((o) => o.item.startsWith("R4.")) && req("R4").deadline === 2 && req("R4").urgency === "critical", "R4 urgent, no offers, 2 days");
+  expect(req("R5").deadline === 0, "R5 deadline today");
+  expect(req("R6").moveDeadlineTo === -1 && OFFERS.some((o) => o.item.startsWith("R6.") && o.final === "pending"), "R6 past deadline with a pending offer");
+  expect(Boolean(req("R7").close) && OFFERS.some((o) => o.item.startsWith("R7.") && o.final === "pending"), "R7 closed with a pending offer");
+  expect(req("R8").review === "wait" && req("R8").org === "hearts", "R8 waiting, from Jurong Hearts");
+  expect(req("R9").review === "reject" && Boolean(req("R9").adminNote), "R9 rejected with a note");
+  const r10 = allRemaining(req("R10"));
+  expect(r10.filter((n) => n === 0).length === 1 && r10.filter((n, i) => n > 0 && n < req("R10").items[i].qty).length === 1 && r10.filter((n, i) => n === req("R10").items[i].qty).length === 1, "R10 one item full, one partial, one empty");
+  expect(ev("E11").linkRequest === "R11" && ev("E11").org === req("R11").org, "E11 linked to R11 of the same organization");
+  expect(REQUESTS.length === 16, `16 requests (found ${REQUESTS.length})`);
+  expect(REQUESTS.every((r) => r.org !== "bedok"), "requests come from organizations 1–4");
+
+  const offerStates = new Set(OFFERS.map((o) => /** @type {string} */ (o.final)));
+  for (const s of ["pending", "accepted", "delivered", "rejected", "cancelled"]) expect(offerStates.has(s), `an offer is ${s}`);
+  expect(OFFERS.filter((o) => o.final === "delivered").length >= 8, "at least 8 delivered offers");
+  for (const d of ["siti", "ahmad", "weiling"]) expect(OFFERS.some((o) => o.donor === d && o.final === "pending"), `${d} has a pending offer`);
+  expect(OFFERS.some((o) => o.donor === "daniel" && o.final === "rejected") && OFFERS.some((o) => o.donor === "daniel" && o.final === "cancelled"), "Daniel has a rejected and a cancelled offer");
+
+  // events and applications
+  expect(EVENTS.length === 15, `15 events (found ${EVENTS.length})`);
+  for (const a of APPLICATIONS) {
+    expect(Boolean(person(a.volunteer).roles?.includes("volunteer")), `${a.volunteer} can volunteer`);
+    expect(ev(a.event).review === "approve", `application to ${a.event}: the event is approved`);
+  }
+  /** @param {string} key @param {string} state */
+  const count = (key, state) => APPLICATIONS.filter((a) => a.event === key && a.final === state).length;
+  for (const e of EVENTS) expect(!e.needed || count(e.key, "approved") <= e.needed, `${e.key}: no more approved than places`);
+  expect(count("E6", "approved") === 3 && ev("E6").needed === 3 && APPLICATIONS.some((a) => a.event === "E6" && a.volunteer === "jason" && a.final === "rejected"), "E6 full (3 of 3) with Jason rejected");
+  expect(ev("E7").needed - count("E7", "approved") === 1, "E7 one spot left");
+  expect(ev("E8").needed === 10 && count("E8", "approved") === 2, "E8 2 of 10");
+  expect(!APPLICATIONS.some((a) => a.event === "E9"), "E9 no applications");
+  expect(count("E10", "approved") === ev("E10").needed && APPLICATIONS.some((a) => a.event === "E10" && a.volunteer === "marcus" && a.final === "withdrawn"), "E10 full, Marcus withdrew");
+  const e10 = APPLICATIONS.filter((a) => a.event === "E10" && a.final === "approved");
+  expect(e10[e10.length - 1]?.volunteer === "farah", "E10 Farah took the last spot");
+  expect(count("E12", "pending") === 5, "E12 5 pending applications");
+  expect(count("E13", "approved") * 2 === ev("E13").needed && APPLICATIONS.some((a) => a.event === "E13" && a.volunteer === "marcus" && a.final === "pending"), "E13 half full, Marcus pending");
+  expect(["E1", "E2"].every((k) => Boolean(ev(k).complete)) && ev("E1").moveTo === -14 && ev("E2").moveTo === -7, "E1 and E2 completed 14 and 7 days ago");
+  expect(APPLICATIONS.some((a) => a.event === "E2" && a.volunteer === "ravi" && a.final === "approved") && APPLICATIONS.some((a) => a.event === "E2" && a.volunteer === "priya" && a.final === "approved"), "E2 Ravi and Priya took part");
+  expect(ev("E3").moveTo === -1 && !ev("E3").complete, "E3 ended yesterday, not completed");
+  expect(Boolean(ev("E4").cancel) && count("E4", "approved") > 0, "E4 cancelled with approved volunteers");
+  expect(ev("E5").start === "now", "E5 happening now");
+  expect(ev("E14").review === "wait" && ev("E14").org === "woodlands", "E14 waiting, from Woodlands");
+  expect(ev("E15").review === "reject" && Boolean(ev("E15").adminNote), "E15 rejected with a note");
+  const appStates = new Set(APPLICATIONS.map((a) => /** @type {string} */ (a.final)));
+  for (const s of ["pending", "approved", "rejected", "withdrawn"]) expect(appStates.has(s), `an application is ${s}`);
+  for (const t of TASKS) expect(APPLICATIONS.some((a) => a.event === t.event && a.volunteer === t.volunteer && a.final === "approved"), `task "${t.title}": the volunteer is approved for ${t.event}`);
+  expect(TASKS.filter((t) => t.event === "E1").every((t) => t.done), "E1 tasks are done");
+
+  // Kavitha has no activity at all
+  expect(!OFFERS.some((o) => o.donor === "kavitha") && !APPLICATIONS.some((a) => a.volunteer === "kavitha") && !CHATS.some((c) => c.person === "kavitha"), "Kavitha has no activity");
+  // messages
+  for (const c of CHATS) expect(org(c.org).approve, `chat with ${c.org}: the organization is approved`);
+  const started = CHATS.reduce((acc, c) => ({ ...acc, [c.person]: (acc[c.person] ?? 0) + 1 }), /** @type {Record<string, number>} */ ({}));
+  expect(Object.values(started).every((n) => n <= 5), "nobody starts more than 5 conversations a day");
+  expect(CHATS.some((c) => c.report && c.topic.startsWith("Test:")), "the reported message is in a “Test:” conversation");
+
+  // expected "Most needed" order with the app's formula (open requests that aren't past their deadline)
+  const expectedScores = REQUESTS.filter((r) => r.review === "approve" && !r.close && !(r.moveDeadlineTo !== undefined && r.moveDeadlineTo < 0))
+    .filter((r) => !r.items.every((i) => tot(`${r.key}.${i.key}`).received >= i.qty))
+    .map((r) => ({
+      key: r.key,
+      score: scoreRequest({ deadline: sgDate(r.deadline), urgency: r.urgency, items: r.items.map((i) => ({ quantity_needed: i.qty, quantity_remaining: i.qty - tot(`${r.key}.${i.key}`).committed })) }).score,
+    }))
+    .sort((a, b) => b.score - a.score);
+  expect(expectedScores[0]?.key === "R4" && expectedScores[0].score > (expectedScores[1]?.score ?? 0), "R4 tops “Most needed” on its own");
+  return { problems, expectedScores };
+}
+
+// ===========================================================================================
+// The seed
+// ===========================================================================================
+
+async function main() {
+  const { problems, expectedScores } = checkDemoData();
+  if (DRY_RUN) {
+    console.log(`Accounts ${PEOPLE.length} · requests ${REQUESTS.length} · offers ${OFFERS.length} · events ${EVENTS.length} · applications ${APPLICATIONS.length} · tasks ${TASKS.length} · conversations ${CHATS.length}`);
+    console.log(`Expected “Most needed”: ${expectedScores.slice(0, 4).map((s) => `${s.key} ${s.score}`).join(" · ")}`);
+    if (problems.length) {
+      console.log(`\n${problems.length} problem(s):\n- ${problems.join("\n- ")}`);
+      process.exitCode = 1;
+    } else {
+      const guide = demoGuide(); // builds DEMO.md's text (not saved) so a broken reference shows up now
+      console.log(`Every promised situation checks out; DEMO.md would have ${guide.split("\n").length} lines. Nothing was written.`);
+    }
     return;
   }
 
-  console.log("\nSeeding fictional demo data…\n");
+  // ---------- 0. setup
+  step("Checking .env and the demo data");
+  if (problems.length) throw new Error(`the demo data has problems:\n- ${problems.join("\n- ")}`);
+  const env = readEnv();
+  const missing = ["SUPABASE_URL", "SUPABASE_SERVICE_ROLE_KEY", "SUPABASE_ANON_KEY", "DEMO_PASSWORD"].filter((name) => !env[name]);
+  if (missing.length) throw new Error(`missing in .env: ${missing.join(", ")} (the values are never printed)`);
+  if (env.DEMO_PASSWORD.length < 8) throw new Error("DEMO_PASSWORD in .env must be at least 8 characters");
+  const url = env.SUPABASE_URL.replace(/\/+$/, "");
+  const noSession = { auth: { persistSession: false, autoRefreshToken: false } };
+  const admin = createClient(url, env.SUPABASE_SERVICE_ROLE_KEY, noSession);
+  done("ok");
 
-  // 2. Accounts (the database builds each profile from user_metadata).
-  /** @type {Record<string, string>} account key → user id */
-  const userIds = {};
-  for (const account of ACCOUNTS) {
-    const metadata = {
-      full_name: account.name,
-      phone: account.phone,
-      privacy_consent: true,
-      age_confirmed: true,
-      ...(account.role ? { role: account.role } : { roles: account.roles, area: account.area }),
-      ...(account.volunteer ?? {}),
-    };
-    const result = await db.auth.admin.createUser({
-      email: account.email,
-      password: DEMO_PASSWORD,
-      email_confirm: true,
-      user_metadata: metadata,
-    });
-    userIds[account.key] = check(result, `Creating ${account.email}`).user.id;
-    created.accounts++;
-  }
-  // Demo volunteers are approved straight away (new volunteers normally wait for an admin).
-  const volunteerIds = ACCOUNTS.filter((a) => a.roles?.includes("volunteer")).map((a) => userIds[a.key]);
-  check(
-    await db.from("profiles").update({ volunteer_approval: "approved" }).in("id", volunteerIds).select("id"),
-    "Approving the demo volunteer accounts",
-  );
-  console.log(`  ✓ ${created.accounts} demo accounts (demo volunteers approved)`);
-
-  // 3. Organizations (approved straight away).
-  /** @type {Record<string, string>} org key → organization id */
-  const orgIds = {};
-  for (const org of ORGANIZATIONS) {
-    const row = check(
-      await db
-        .from("organizations")
-        .insert({
-          owner_id: userIds[org.owner],
-          name: org.name,
-          description: org.description,
-          address: org.address,
-          phone: org.phone,
-          latitude: org.latitude,
-          longitude: org.longitude,
-          approval: "approved",
-        })
-        .select("id")
-        .single(),
-      `Creating ${org.name}`,
-    );
-    orgIds[org.key] = row.id;
-    created.organizations++;
-  }
-  console.log(`  ✓ ${created.organizations} approved organizations`);
-
-  // 4. Open requests and their items.
-  /** @type {Record<string, { id: string, items: Record<string, { id: string, category: string }> }>} */
-  const requests = {};
-  for (const request of REQUESTS) {
-    const row = check(
-      await db
-        .from("donation_requests")
-        .insert({
-          organization_id: orgIds[request.org],
-          title: request.title,
-          description: request.description,
-          urgency: request.urgency,
-          deadline: request.days == null ? null : dateIn(request.days),
-          dropoff_instructions: request.dropoff,
-          status: "open",
-        })
-        .select("id")
-        .single(),
-      `Creating request "${request.title}"`,
-    );
-    const items = check(
-      await db
-        .from("request_items")
-        .insert(request.items.map((item) => ({ request_id: row.id, name: item.name, category: item.category, unit: item.unit, quantity_needed: item.needed })))
-        .select("id, name, category"),
-      `Adding items to "${request.title}"`,
-    );
-    requests[request.key] = { id: row.id, items: Object.fromEntries(items.map((i) => [i.name, { id: i.id, category: i.category }])) };
-    created.requests++;
-    created.items += items.length;
-  }
-  console.log(`  ✓ ${created.requests} open requests with ${created.items} items`);
-
-  // 5. Approved upcoming events.
-  /** @type {Record<string, string>} event title → event id */
-  const eventIds = {};
-  for (const event of EVENTS) {
-    const org = /** @type {(typeof ORGANIZATIONS)[number]} */ (ORGANIZATIONS.find((o) => o.key === event.org));
-    const row = check(
-      await db
-        .from("events")
-        .insert({
-          organization_id: orgIds[event.org],
-          title: event.title,
-          description: event.description,
-          location_name: event.location,
-          latitude: org.latitude,
-          longitude: org.longitude,
-          starts_at: sgTime(event.days, event.start),
-          ends_at: sgTime(event.days, event.end),
-          volunteers_needed: event.needed,
-          donation_request_id: event.request ? requests[event.request].id : null,
-          approval: "approved",
-          status: "upcoming",
-        })
-        .select("id")
-        .single(),
-      `Creating event "${event.title}"`,
-    );
-    eventIds[event.title] = row.id;
-    created.events++;
-  }
-  console.log(`  ✓ ${created.events} approved upcoming events`);
-
-  // 6. Offers: insert as pending, then move to the final status so item totals update.
-  for (const offer of OFFERS) {
-    const item = requests[offer.request].items[offer.item];
-    if (!item) throw new Error(`Offer setup: no item "${offer.item}"`);
-    const row = check(
-      await db
-        .from("donation_offers")
-        .insert({
-          request_item_id: item.id,
-          donor_id: userIds[offer.donor],
-          quantity: offer.quantity,
-          message: offer.message,
-          food_safety_confirmed: item.category === "food",
-        })
-        .select("id")
-        .single(),
-      `Creating an offer for ${offer.item}`,
-    );
-    const steps = offer.status === "delivered" ? ["accepted", "delivered"] : offer.status === "pending" ? [] : [offer.status];
-    for (const status of steps) {
-      check(await db.from("donation_offers").update({ status }).eq("id", row.id).select("id"), `Setting an offer to ${status}`);
+  step("Making sure the database hasn't been seeded yet");
+  // admin accounts may use @example.com too (they survive the reset), so they don't count
+  const admins = new Set(must(await admin.from("profiles").select("id").eq("role", "admin"), "listing admins").map((row) => row.id));
+  for (let page = 1; ; page++) {
+    const { users } = must(await admin.auth.admin.listUsers({ page, perPage: 1000 }), "listing accounts");
+    if (users.some((u) => !admins.has(u.id) && u.email?.toLowerCase().endsWith("@example.com"))) {
+      console.log("\nAlready seeded — run supabase/reset_data_keep_admins.sql first (Supabase SQL Editor), then run this again.");
+      process.exitCode = 1;
+      return;
     }
-    created.offers++;
+    if (users.length < 1000) break;
   }
-  console.log(`  ✓ ${created.offers} offers (delivered, accepted, pending, rejected, cancelled)`);
+  done("no demo accounts yet");
 
-  // 7. Volunteer applications.
-  for (const application of APPLICATIONS) {
-    check(
-      await db
-        .from("volunteer_applications")
-        .insert({ event_id: eventIds[application.event], volunteer_id: userIds[application.volunteer], message: application.message, status: application.status })
-        .select("id"),
-      `Creating an application for ${application.event}`,
+  /** @type {Map<string, string>} person key → user id */
+  const userId = new Map();
+  /** @type {Map<string, import('@supabase/supabase-js').SupabaseClient>} person key → signed-in client */
+  const clients = new Map();
+  /**
+   * A client signed in as this demo person (anon key, so every database rule applies).
+   * @param {string} key
+   */
+  async function as(key) {
+    const existing = clients.get(key);
+    if (existing) return existing;
+    const client = createClient(url, env.SUPABASE_ANON_KEY, noSession);
+    must(await client.auth.signInWithPassword({ email: person(key).email, password: env.DEMO_PASSWORD }), `signing in as ${person(key).name}`);
+    clients.set(key, client);
+    return client;
+  }
+  /** @param {Map<string, string>} map @param {string} key */
+  const id = (map, key) => /** @type {string} */ (map.get(key));
+
+  // ---------- 1. accounts
+  step(`Creating ${PEOPLE.length} accounts`);
+  for (const p of PEOPLE) {
+    /** @type {Record<string, unknown>} */
+    const data = { full_name: p.name, phone: p.phone, privacy_consent: true, age_confirmed: true };
+    if (p.kind === "organization") data.role = "organization";
+    else Object.assign(data, { roles: p.roles, area: p.area, postal_code: p.postal }, p.volunteer ?? {});
+    const created = must(
+      await admin.auth.admin.createUser({ email: p.email, password: env.DEMO_PASSWORD, email_confirm: true, user_metadata: data }),
+      `creating ${p.email}`,
     );
-    created.applications++;
+    userId.set(p.key, created.user.id);
   }
-  console.log(`  ✓ ${created.applications} volunteer applications`);
+  done(PEOPLE.map((p) => p.name).join(", "));
 
-  // 8. Demo logins.
-  console.log("\nDone! Demo logins (all fictional, same password):\n");
-  /** @type {Record<string, string>} */
-  const describe = {
-    donor1: "Donor (Tampines)",
-    donor2: "Donor (Jurong West)",
-    volunteer1: "Volunteer (Toa Payoh)",
-    both1: "Donor + volunteer (Woodlands)",
-    org1: "Organization — Tampines Kampong Pantry",
-    org2: "Organization — Westside Family Support",
-    org3: "Organization — Toa Payoh Seniors Circle",
-    org4: "Organization — Woodlands Kids Learning Hub",
+  step("Admin: approving the volunteer accounts");
+  const volunteers = PEOPLE.filter((p) => p.roles?.includes("volunteer"));
+  for (const v of volunteers) changed(await admin.from("profiles").update({ volunteer_approval: "approved" }).eq("id", id(userId, v.key)).select("id"), `approving volunteer ${v.name}`);
+  done(volunteers.map((v) => v.name).join(", "));
+
+  // ---------- 2. organizations
+  step("Organizations create their profiles");
+  /** @type {Map<string, string>} organization key → id */
+  const orgId = new Map();
+  for (const o of ORGANIZATIONS) {
+    const row = must(
+      await (await as(o.key)).from("organizations").insert({ name: o.name, description: o.description, address: o.address, postal_code: o.postal, phone: o.phone, latitude: o.lat, longitude: o.lng }).select("id").single(),
+      `${o.name} creating its profile`,
+    );
+    orgId.set(o.key, row.id);
+  }
+  done(`${ORGANIZATIONS.length} organizations, waiting for approval`);
+
+  step("Admin: approving organizations");
+  for (const o of ORGANIZATIONS.filter((x) => x.approve)) changed(await admin.from("organizations").update({ approval: "approved" }).eq("id", id(orgId, o.key)).select("id"), `approving ${o.name}`);
+  done(`approved ${ORGANIZATIONS.filter((x) => x.approve).length}; ${ORGANIZATIONS.filter((x) => !x.approve).map((x) => x.name).join(", ")} is still waiting`);
+
+  // ---------- 3. requests
+  step("Organizations post donation requests");
+  /** @type {Map<string, string>} */
+  const requestId = new Map();
+  /** @type {Map<string, string>} "<request>.<item>" → item id */
+  const itemId = new Map();
+  for (const r of REQUESTS) {
+    const client = await as(r.org);
+    const row = must(
+      await client.from("donation_requests").insert({
+        organization_id: id(orgId, r.org), title: r.title, description: r.description, urgency: r.urgency,
+        deadline: sgDate(r.deadline), dropoff_instructions: r.dropoff,
+      }).select("id").single(),
+      `${r.key} "${r.title}"`,
+    );
+    requestId.set(r.key, row.id);
+    const items = must(
+      await client.from("request_items").insert(r.items.map((i) => ({ request_id: row.id, name: i.name, category: i.category, unit: i.unit, quantity_needed: i.qty }))).select("id,name"),
+      `${r.key} items`,
+    );
+    for (const i of r.items) itemId.set(`${r.key}.${i.key}`, /** @type {string} */ (items.find((x) => x.name === i.name)?.id));
+  }
+  done(`${REQUESTS.length} requests with ${itemId.size} items`);
+
+  step("Admin: reviewing requests");
+  for (const r of REQUESTS.filter((x) => x.review !== "wait")) {
+    const change = r.review === "reject" ? { status: "rejected", admin_note: r.adminNote } : { status: "open" };
+    changed(await admin.from("donation_requests").update(change).eq("id", id(requestId, r.key)).select("id"), `reviewing ${r.key}`);
+  }
+  done(REQUESTS.map((r) => `${r.key} ${r.review === "approve" ? "open" : r.review === "wait" ? "waiting" : "rejected"}`).join(" · "));
+
+  // ---------- 4. offers
+  step("Donors make offers");
+  /** @type {string[]} */
+  const offerIds = [];
+  for (const o of OFFERS) {
+    const { item } = splitItem(o.item);
+    const row = must(
+      await (await as(o.donor)).from("donation_offers").insert({ request_item_id: id(itemId, o.item), quantity: o.qty, message: o.message ?? null, food_safety_confirmed: item.category === "food" }).select("id").single(),
+      `${person(o.donor).name} offering ${o.qty} ${item.unit} of ${item.name} (${o.item})`,
+    );
+    offerIds.push(row.id);
+  }
+  done(`${OFFERS.length} offers, all waiting`);
+
+  step("Organizations accept, reject and mark offers delivered; a donor cancels");
+  for (const [index, o] of OFFERS.entries()) {
+    const { request } = splitItem(o.item);
+    const offer = offerIds[index];
+    const what = `${o.final}: ${person(o.donor).name} on ${o.item}`;
+    const orgClient = await as(request.org);
+    if (o.final === "accepted" || o.final === "delivered") {
+      changed(await orgClient.from("donation_offers").update({ status: "accepted" }).eq("id", offer).select("id"), what);
+      if (o.final === "delivered") changed(await orgClient.from("donation_offers").update({ status: "delivered" }).eq("id", offer).select("id"), what);
+    } else if (o.final === "rejected") {
+      changed(await orgClient.from("donation_offers").update({ status: "rejected", reject_note: o.rejectNote ?? null }).eq("id", offer).select("id"), what);
+    } else if (o.final === "cancelled") {
+      changed(await (await as(o.donor)).from("donation_offers").update({ status: "cancelled" }).eq("id", offer).select("id"), what);
+    }
+  }
+  const counts = OFFERS.reduce((acc, o) => ({ ...acc, [o.final]: (acc[o.final] ?? 0) + 1 }), /** @type {Record<string, number>} */ ({}));
+  done(Object.entries(counts).map(([s, n]) => `${n} ${s}`).join(", "));
+
+  step("Closing requests (their waiting offers become “Request closed”)");
+  for (const r of REQUESTS.filter((x) => x.close)) {
+    changed(await (await as(r.org)).from("donation_requests").update({ status: "closed", close_reason: r.close }).eq("id", id(requestId, r.key)).select("id"), `closing ${r.key}`);
+    done(`${r.key} closed: ${r.close}`);
+  }
+
+  // ---------- 5. events
+  step("Organizations post events");
+  /** @type {Map<string, string>} */
+  const eventId = new Map();
+  for (const e of EVENTS) {
+    const row = must(
+      await (await as(e.org)).from("events").insert({
+        organization_id: id(orgId, e.org), title: e.title, description: e.description, location_name: e.place, latitude: e.lat, longitude: e.lng,
+        ...eventTimes(e, e.start), volunteers_needed: e.needed, donation_request_id: e.linkRequest ? id(requestId, e.linkRequest) : null,
+      }).select("id").single(),
+      `${e.key} "${e.title}"`,
+    );
+    eventId.set(e.key, row.id);
+  }
+  done(`${EVENTS.length} events`);
+
+  step("Admin: reviewing events");
+  for (const e of EVENTS.filter((x) => x.review !== "wait")) {
+    const change = e.review === "reject" ? { approval: "rejected", admin_note: e.adminNote } : { approval: "approved" };
+    changed(await admin.from("events").update(change).eq("id", id(eventId, e.key)).select("id"), `reviewing ${e.key}`);
+  }
+  done(`approved ${EVENTS.filter((x) => x.review === "approve").length}, 1 waiting, 1 rejected`);
+
+  // ---------- 6. volunteering
+  step("Volunteers apply; organizations decide; a volunteer withdraws");
+  /** @type {string[]} */
+  const applicationIds = [];
+  for (const a of APPLICATIONS) {
+    const e = ev(a.event);
+    const row = must(
+      await (await as(a.volunteer)).from("volunteer_applications").insert({ event_id: id(eventId, a.event), message: a.message ?? null }).select("id").single(),
+      `${person(a.volunteer).name} applying to ${a.event}`,
+    );
+    applicationIds.push(row.id);
+    const what = `${a.final}: ${person(a.volunteer).name} on ${a.event}`;
+    if (a.final === "approved" || a.final === "rejected") {
+      changed(await (await as(e.org)).from("volunteer_applications").update({ status: a.final }).eq("id", row.id).select("id"), what);
+    } else if (a.final === "withdrawn") {
+      changed(await (await as(a.volunteer)).from("volunteer_applications").update({ status: "withdrawn" }).eq("id", row.id).select("id"), what);
+    }
+  }
+  done(`${APPLICATIONS.length} applications`);
+
+  step("Organizations assign tasks; volunteers tick some off");
+  for (const t of TASKS) {
+    const row = must(
+      await (await as(ev(t.event).org)).from("volunteer_tasks").insert({
+        event_id: id(eventId, t.event), volunteer_id: id(userId, t.volunteer), title: t.title, description: t.description ?? null, due_at: sgTime(t.dueDays, t.time),
+      }).select("id").single(),
+      `task "${t.title}"`,
+    );
+    if (t.done) changed(await (await as(t.volunteer)).from("volunteer_tasks").update({ status: "done" }).eq("id", row.id).select("id"), `${t.volunteer} finishing "${t.title}"`);
+  }
+  done(`${TASKS.length} tasks, ${TASKS.filter((t) => t.done).length} done`);
+
+  // ---------- 7. cancelled, past and completed events (after the applications)
+  step("Cancelling, moving into the past and completing events");
+  for (const e of EVENTS.filter((x) => x.cancel)) {
+    changed(await (await as(e.org)).from("events").update({ status: "cancelled", cancel_reason: e.cancel }).eq("id", id(eventId, e.key)).select("id"), `cancelling ${e.key}`);
+  }
+  for (const e of EVENTS.filter((x) => x.moveTo !== undefined)) {
+    changed(await admin.from("events").update(eventTimes(e, /** @type {number} */ (e.moveTo))).eq("id", id(eventId, e.key)).select("id"), `moving ${e.key} into the past`);
+  }
+  for (const e of EVENTS.filter((x) => x.complete)) {
+    changed(await (await as(e.org)).from("events").update({ status: "completed", outcome_summary: e.complete }).eq("id", id(eventId, e.key)).select("id"), `completing ${e.key}`);
+  }
+  done(EVENTS.filter((x) => x.cancel || x.moveTo !== undefined).map((e) => `${e.key} ${e.cancel ? "cancelled" : e.complete ? `completed ${-(e.moveTo ?? 0)} days ago` : "ended yesterday"}`).join(" · "));
+
+  // ---------- 8. messages
+  step("Messages (and one report)");
+  /** @type {{ chat: Chat, conversation: string, messages: string[] }[]} */
+  const conversations = [];
+  for (const c of CHATS) {
+    const conversation = /** @type {string} */ (must(await (await as(c.person)).rpc("start_conversation", { p_org_id: id(orgId, c.org), p_topic: c.topic }), `${person(c.person).name} messaging ${org(c.org).name}`));
+    /** @type {string[]} */
+    const messages = [];
+    for (const line of c.lines) {
+      const sender = line.from === "person" ? c.person : c.org;
+      const row = must(await (await as(sender)).from("messages").insert({ conversation_id: conversation, body: line.body }).select("id").single(), `a message from ${sender}`);
+      messages.push(row.id);
+      await pause(40); // keeps the order clear
+    }
+    if (c.report) must(await (await as(c.person)).from("message_reports").insert({ message_id: messages[c.report.line], reason: c.report.reason }).select("id").single(), `${person(c.person).name} reporting a message`);
+    conversations.push({ chat: c, conversation, messages });
+  }
+  done(`${CHATS.length} conversations, ${CHATS.reduce((n, c) => n + c.lines.length, 0)} messages, ${CHATS.filter((c) => c.report).length} report`);
+
+  // ---------- 9. dates in the past (admin), after the normal actions
+  step("Moving dates into the past");
+  for (const r of REQUESTS.filter((x) => x.moveDeadlineTo !== undefined)) {
+    changed(await admin.from("donation_requests").update({ deadline: sgDate(/** @type {number} */ (r.moveDeadlineTo)) }).eq("id", id(requestId, r.key)).select("id"), `moving ${r.key}'s deadline`);
+    done(`${r.key}'s deadline is now ${r.moveDeadlineTo === -1 ? "yesterday" : `${-(r.moveDeadlineTo ?? 0)} days ago`}`);
+  }
+  // natural "posted / offered / applied / sent" times; anything the database refuses is skipped, not fatal
+  let skipped = 0;
+  /** @param {string} table @param {string} rowId @param {Record<string, string>} change */
+  const backdate = async (table, rowId, change) => {
+    const { error } = await admin.from(table).update(change).eq("id", rowId);
+    if (error) skipped++;
   };
-  for (const account of ACCOUNTS) console.log(`  ${account.email.padEnd(30)} ${describe[account.key]}`);
-  console.log(`\n  Password for all: ${DEMO_PASSWORD}`);
-  console.log("  Admin: use your existing admin account.");
-  console.log("\nRun `node scripts/check-supabase.js` to see the new totals.\n");
+  for (const r of REQUESTS) await backdate("donation_requests", id(requestId, r.key), { created_at: hoursFromNow(-r.postedDaysAgo * 24 - 3) });
+  for (const [index, o] of OFFERS.entries()) await backdate("donation_offers", offerIds[index], { created_at: hoursFromNow(-Math.min(o.daysAgo, splitItem(o.item).request.postedDaysAgo - 1) * 24 - 2) });
+  for (const [index, a] of APPLICATIONS.entries()) await backdate("volunteer_applications", applicationIds[index], { created_at: hoursFromNow(-a.daysAgo * 24 - 1) });
+  for (const { chat, conversation, messages } of conversations) {
+    const times = messages.map((_, i) => hoursFromNow(-chat.hoursAgo + i * 0.75));
+    for (const [i, messageId] of messages.entries()) await backdate("messages", messageId, { created_at: times[i] });
+    await backdate("conversations", conversation, { created_at: times[0], last_message_at: times[times.length - 1] });
+  }
+  done(`posted, offered, applied and message times spread over the past two weeks${skipped ? ` (${skipped} left as they were)` : ""}`);
+
+  // ---------- 10. AI urgency scores (the app's formula)
+  step(`Scoring approved requests${env.NVIDIA_API_KEY ? " (with AI explanations)" : " (no NVIDIA key: plain explanations)"}`);
+  const deps = { env, fetch };
+  let withAi = 0;
+  /** @type {{ key: string, score: number }[]} */
+  const scores = [];
+  for (const r of REQUESTS.filter((x) => x.review === "approve")) {
+    const request = await loadRequest(id(requestId, r.key), deps);
+    if (!request) continue;
+    const result = await scoreAndSave(request, deps);
+    if (result.ai) withAi++;
+    if (!r.close && !(r.moveDeadlineTo !== undefined && r.moveDeadlineTo < 0) && request.status === "open") scores.push({ key: r.key, score: result.score });
+  }
+  scores.sort((a, b) => b.score - a.score);
+  done(`${REQUESTS.filter((x) => x.review === "approve").length} scored, ${withAi} with an AI explanation`);
+  done(`“Most needed”: ${scores.slice(0, 3).map((s) => `${s.key} (${s.score})`).join(", ")}`);
+  if (scores[0]?.key !== "R4") console.log("  ! R4 isn't first in “Most needed” — check its deadline and urgency.");
+
+  // ---------- 11. DEMO.md
+  step("Writing DEMO.md");
+  writeFileSync("DEMO.md", demoGuide());
+  done("DEMO.md (it's in .gitignore)");
+
+  console.log("\nDemo logins (password: DEMO_PASSWORD in .env)");
+  for (const p of PEOPLE) console.log(`  ${p.email.padEnd(34)} ${roleLabel(p)}`);
+  console.log("\nAll done. Open DEMO.md for where to find each situation and the 3-minute demo route.");
+}
+
+// ===========================================================================================
+// DEMO.md
+// ===========================================================================================
+
+/** @param {Person} p */
+function roleLabel(p) {
+  if (p.kind === "organization") return org(p.key).approve ? "Organization" : "Organization (waiting for approval)";
+  return (p.roles ?? []).map((r) => (r === "donor" ? "Donor" : "Volunteer")).join(" + ");
+}
+/** @param {string} key */
+const login = (key) => `${person(key).name} (\`${person(key).email}\`)`;
+/** @param {string} key */
+const orgLogin = (key) => `${org(key).name} (\`${person(key).email}\`)`;
+
+/** The demo guide written at the end (no password in it). @returns {string} */
+function demoGuide() {
+  const logins = PEOPLE.map((p) => `| ${p.kind === "organization" ? org(p.key).name : p.name} | \`${p.email}\` | ${roleLabel(p)} | ${p.show} |`);
+
+  /** @type {[string, string, string, string][]} situation, log in as, page, what you see */
+  const rows = [];
+  for (const r of REQUESTS) {
+    const where = r.review === "wait" || r.review === "reject" ? "Organization → Requests → History or Active" : "Organization → Requests (also Browse needs)";
+    rows.push([`${r.key}: ${r.situation}`, orgLogin(r.org), where, `“${r.title}”`]);
+  }
+  for (const e of EVENTS) {
+    rows.push([`${e.key}: ${e.situation}`, orgLogin(e.org), e.key === "E3" ? "Organization → Overview (Needs your action)" : "Organization → Events (Volunteers opens the list)", `“${e.title}”`]);
+  }
+  rows.push(
+    ["Offer: pending", login("siti"), "My offers → Active", "Blankets on R6 (deadline passed — waiting for the organization)"],
+    ["Offer: accepted, with drop-off", login("siti"), "My offers → Active, and Overview → Ready to drop off", "10 bars of soap (R14) with the drop-off address"],
+    ["Offer: delivered (stamp)", login("siti"), "My offers → History", "Delivered · Thank you! stamps"],
+    ["Offer: rejected, with a note", login("daniel"), "My offers → History, then Messages", "Storybooks (R15) and Jurong Hearts' reply"],
+    ["Offer: cancelled by the donor", login("daniel"), "My offers → History", "Track pants (R16)"],
+    ["Offer: “Request closed”", login("weiling"), "Donating → My offers → History", "Rice for Deepavali hampers (R7): Got enough from a school drive"],
+    ["Empty states", login("kavitha"), "Overview, My offers, Messages", "Pinny and “nothing here yet” messages"],
+    ["Two roles: Donating ↔ Volunteering", login("weiling"), "Top bar avatar menu", "Switch between the donor and volunteer dashboards"],
+    ["Translation from Malay", orgLogin("pantry"), "Messages → Ahmad Ismail", "Ahmad's messages in English, with See original"],
+    ["Translation from Chinese", orgLogin("circle"), "Messages → Wei Ling Chen", "Wei Ling's messages in English, with See original"],
+    ["Reported message", "Admin", "Browse → Reported", "“Asked for money” from Daniel (Test: suspicious message)"],
+    ["Organization waiting for approval", "Admin", "To review → Organizations", "Bedok Bright Futures Club"],
+    ["Request waiting for approval (R8)", "Admin", "To review → Requests", `“${req("R8").title}”`],
+    ["Event waiting for approval (E14)", "Admin", "To review → Events", `“${ev("E14").title}”`],
+    ["Applications waiting (E12)", orgLogin("hearts"), "Events → Back-to-school book wrapping → Volunteers", "5 people waiting: View, Approve or Reject"],
+  );
+  const situations = rows.map((r) => `| ${r.join(" | ")} |`);
+
+  return `# KampongShare demo
+
+Everything here is fictional, made by \`scripts/seed.js\`. To start again: run \`supabase/reset_data_keep_admins.sql\` in the Supabase SQL Editor, then \`npm run seed\`.
+
+## 1. Logins
+
+**Password for every demo account:** see \`DEMO_PASSWORD\` in \`.env\`.
+**Admin:** your own admin account.
+
+| Who | Email | Role | What to show |
+| --- | --- | --- | --- |
+${logins.join("\n")}
+
+## 2. Where to find each situation
+
+| Situation | Log in as | Page | What you see |
+| --- | --- | --- | --- |
+${situations.join("\n")}
+
+## 3. Three-minute demo route
+
+1. **Home page, logged out** (\`/\`): "Most needed" shows the pinned notices, with **${req("R4").title}** first. Scroll to **What can you give?**, type \`I have 5 bags of rice\` and press **Find matches**: AI-suggested matches with one-line reasons.
+2. **Log in as Siti** (\`${person("siti").email}\`): **Find needs** → on **${req("R4").title}** press **Offer** → in the panel, **Offer** → choose 5 → **Offer 5 packs**.
+3. **Log out, log in as Tampines Kampung Pantry** (\`${person("pantry").email}\`): **Offers** → the board (New · Accepted · Delivered) → Siti's offer is in **New** → **Accept offer** → it moves to **Accepted** → **Mark delivered**.
+4. **Log in as Siti again**: **My offers** → **History** shows **Delivered · Thank you!** (with Pinny the first time).
+5. **Back as Tampines Kampung Pantry**: the chat icon → **Messages** → **Ahmad Ismail**: his Malay messages appear in English (press **See original** to show the Malay).
+6. **Home page**: the **Upcoming events** map. Open **${ev("E6").title}** (full), **${ev("E7").title}** (one spot left) and **${ev("E5").title}** (happening now).
+7. **Log in as your admin**: **To review** → **Organizations** → **Bedok Bright Futures Club** → **Approve**. Then **Browse** → **Reported**: Daniel's "Asked for money" report → **Mark resolved**.
+`;
 }
 
 main().catch((error) => {
-  console.log(`\nSeeding stopped: ${error instanceof Error ? error.message : error}`);
-  console.log(`Already created: ${JSON.stringify(created)}`);
-  console.log("Nothing else was changed. To start again from a clean database, run supabase/reset_database.sql and the migrations in the Supabase SQL Editor.");
+  console.log(`\nStopped at step "${currentStep}": ${error instanceof Error ? error.message : String(error)}`);
+  console.log("Fix the problem, run supabase/reset_data_keep_admins.sql, then run the seed again.");
   process.exitCode = 1;
 });
