@@ -27,6 +27,7 @@
     <script src="/js/events.js"></script>
     <script src="/js/volunteering.js"></script>
     <script src="/js/volunteer-dashboard.js"></script>
+    <script src="/js/volunteer-match.js"></script>
     <script src="/js/chat-questions.js"></script>
     <script src="/js/chat.js"></script>
     <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3/dist/cdn.min.js"></script>
@@ -201,6 +202,125 @@
 
       <!-- ===================== Find events ===================== -->
       <section class="space-y-4" x-show="section === 'find'" x-cloak aria-labelledby="events-heading">
+        <!-- Find me where to help (REQUIREMENTS.md 4.6): one AI finds events, a second AI checks each one's written needs -->
+        <section class="card space-y-4" x-data="volunteerMatch" aria-labelledby="vm-heading">
+          <div class="flex flex-wrap items-center gap-2">
+            <h2 id="vm-heading" class="card-title" data-i18n="volMatch.title">Find me where to help</h2>
+            <span class="badge badge-ai" data-i18n="common.aiSuggested">AI-suggested</span>
+          </div>
+          <form novalidate @submit.prevent="search">
+            <label for="vm-text" class="label" data-i18n="volMatch.label">Tell us when you're free and what you like doing</label>
+            <div class="flex flex-col gap-3 sm:flex-row sm:items-start">
+              <div class="min-w-0 flex-1">
+                <textarea id="vm-text" class="input input-oneline block" rows="1" maxlength="300" x-model="text" @keydown.enter.prevent="search"
+                  :aria-invalid="error ? 'true' : null" aria-describedby="vm-help vm-count vm-error"></textarea>
+                <div class="flex items-start gap-3">
+                  <p id="vm-help" class="helper-text" data-i18n="match.help">Please don't include your name or phone number.</p>
+                  <p id="vm-count" class="counter" :class="text.length >= 300 ? 'counter-limit' : ''" x-text="`${text.length} / 300`"></p>
+                </div>
+                <p id="vm-error" class="field-error" x-show="error" x-text="error"></p>
+              </div>
+              <button type="submit" class="btn btn-primary sm:shrink-0" :disabled="busy">
+                <span class="spinner" x-show="busy" x-cloak aria-hidden="true"></span>
+                <span x-text="busy ? $t('volMatch.finding') : $t('volMatch.find')">Find events</span>
+              </button>
+            </div>
+          </form>
+          <!-- two examples that fill the box -->
+          <div class="space-y-2">
+            <p class="text-sm text-muted" data-i18n="volMatch.examplesLabel">For example:</p>
+            <div class="flex flex-wrap gap-2">
+              <template x-for="key in examples" :key="key">
+                <button type="button" class="chip chip-sm" @click="useExample(key)" x-text="$t(key)"></button>
+              </template>
+            </div>
+          </div>
+          <!-- only when the person allowed their availability, interests and skills to be used for matching -->
+          <div class="flex flex-wrap items-center gap-3" x-show="canUseProfile" x-cloak>
+            <button type="button" class="btn btn-secondary" :disabled="busy" @click="searchProfile()">
+              <i class="ph ph-user-circle size-6" aria-hidden="true"></i><span data-i18n="volMatch.useProfile">Use my profile</span>
+            </button>
+            <p class="text-sm text-muted" data-i18n="volMatch.profileNote">Sends your days, times, interests, skills and area, never your name or contact details.</p>
+          </div>
+
+          <div aria-live="polite" class="space-y-4">
+            <p class="note-warning" x-show="status === 'rate_limited'" x-cloak data-i18n="match.rateLimited">You've tried a lot of matches — please wait a minute.</p>
+            <p class="note-danger" x-show="status === 'error'" x-cloak data-i18n="volMatch.failed">We couldn't reach the matching service. Check your connection and try again.</p>
+            <p class="note-warning" x-show="status === 'no_consent'" x-cloak data-i18n="volMatch.noConsent">Turn on matching in your profile to use it, or type when you're free instead.</p>
+            <div class="note-warning flex flex-wrap items-center gap-3" x-show="status === 'unchecked'" x-cloak>
+              <p class="flex min-w-0 flex-1 items-start gap-2"><i class="ph ph-warning-circle mt-0.5 size-5 shrink-0" aria-hidden="true"></i><span data-i18n="volMatch.unchecked">We couldn't check right now. Please try again.</span></p>
+              <button type="button" class="btn btn-secondary btn-sm" :disabled="busy" @click="retry()" data-i18n="match.tryAgain">Try again</button>
+            </div>
+            <div class="space-y-5" x-show="status === 'ok'" x-cloak>
+              <!-- 1. Events that fit you: every one checked by the second AI -->
+              <section class="space-y-3" aria-labelledby="vm-fit-heading" x-show="fits.length">
+                <div class="flex flex-wrap items-center gap-2 rounded-md bg-primary-soft px-3 py-2">
+                  <h3 id="vm-fit-heading" class="font-bold text-primary" data-i18n="volMatch.fitTitle">Events that fit you</h3>
+                  <span class="badge badge-success badge-sm"><span data-i18n="match.checkedByAi">Checked by AI ✓</span></span>
+                </div>
+                <ul class="grid gap-4 sm:grid-cols-2">
+                  <template x-for="e in fits" :key="e.event_id">
+                    <li class="flex flex-col gap-2 rounded-lg border-[1.5px] border-edge bg-canvas p-4">
+                      <p class="font-bold break-words" x-text="e.title"></p>
+                      <p class="text-sm text-primary break-words" x-text="e.organization"></p>
+                      <p class="text-sm text-muted" x-text="whenText(e)"></p>
+                      <p class="text-sm text-muted break-words" x-show="e.place" x-text="e.place"></p>
+                      <p class="text-sm tabular-nums" x-text="spotsWords(e)"></p>
+                      <p class="text-sm break-words" x-show="e.why"><span class="sr-only" data-i18n="volMatch.whyLabel">Why it fits:</span> <span x-text="e.why"></span></p>
+                      <p class="text-sm text-muted" x-show="applied(e)" data-i18n="volMatch.applied">You've applied — see My applications.</p>
+                      <button type="button" class="btn btn-primary mt-auto self-start" x-show="!applied(e)" :disabled="cannotApply" @click="apply(e)"
+                        :aria-label="$t('volunteer.applyTo', { event: e.title })" data-i18n="volunteer.apply">Apply</button>
+                    </li>
+                  </template>
+                </ul>
+              </section>
+
+              <!-- 2. Needs your answer: it depends on something the person didn't say -->
+              <section class="space-y-3 rounded-md bg-warning-soft p-4" aria-labelledby="vm-ask-heading" x-show="questions.length">
+                <h3 id="vm-ask-heading" class="flex items-center gap-2 font-bold text-warning"><i class="ph ph-question size-5 shrink-0" aria-hidden="true"></i><span data-i18n="match.askTitle">Needs your answer</span></h3>
+                <ul class="space-y-4">
+                  <template x-for="q in questions" :key="q.event_id + q.question">
+                    <li class="space-y-2 text-sm text-ink">
+                      <p class="text-muted break-words" x-text="$t('volMatch.askFor', { event: q.title, when: whenText(q) })"></p>
+                      <p class="font-bold break-words" x-text="q.question"></p>
+                      <div class="flex flex-wrap gap-2" role="group" :aria-label="q.question">
+                        <button type="button" class="btn btn-secondary btn-sm" :disabled="busy" @click="answer(q, 'yes')" data-i18n="match.yes">Yes</button>
+                        <button type="button" class="btn btn-secondary btn-sm" :disabled="busy" @click="answer(q, 'no')" data-i18n="match.no">No</button>
+                      </div>
+                      <details x-show="q.reason">
+                        <summary class="link inline-flex min-h-11 cursor-pointer items-center" data-i18n="match.why">Why?</summary>
+                        <p class="break-words" x-text="q.reason"></p>
+                      </details>
+                    </li>
+                  </template>
+                </ul>
+              </section>
+
+              <!-- 3. Not a fit: a clear conflict with a written need, with the reason -->
+              <section class="space-y-3 rounded-md bg-danger-soft p-4" aria-labelledby="vm-not-heading" x-show="notFit.length">
+                <h3 id="vm-not-heading" class="flex items-center gap-2 font-bold text-danger"><i class="ph ph-prohibit size-5 shrink-0" aria-hidden="true"></i><span data-i18n="volMatch.notFitTitle">Not a fit</span></h3>
+                <ul class="space-y-3 text-sm text-ink">
+                  <template x-for="n in notFit" :key="n.event_id">
+                    <li class="flex items-start gap-2">
+                      <i class="ph ph-prohibit mt-0.5 size-5 shrink-0 text-danger" aria-hidden="true"></i>
+                      <div class="min-w-0">
+                        <p class="break-words" x-text="n.need ? $t('volMatch.notFitLine', { event: n.title, need: n.need }) : $t('volMatch.notFitPlain', { event: n.title })"></p>
+                        <details x-show="n.reason">
+                          <summary class="link inline-flex min-h-11 cursor-pointer items-center" data-i18n="match.why">Why?</summary>
+                          <p class="break-words" x-text="n.reason"></p>
+                        </details>
+                      </div>
+                    </li>
+                  </template>
+                </ul>
+              </section>
+
+              <p class="note" x-show="!fits.length && !questions.length && !notFit.length" data-i18n="volMatch.none">No events fit that right now. Try other days, or look through the events below.</p>
+              <p class="text-sm text-muted" x-show="fits.length || questions.length || notFit.length" data-i18n="volMatch.checkedNote">One AI finds events for you; a second AI checks each one against what the event says it needs. You decide where to help.</p>
+            </div>
+          </div>
+        </section>
+
         <h2 id="events-heading" class="section-title" data-i18n="volunteer.upcomingEvents">Upcoming events</h2>
 
         <div class="grid gap-4 sm:grid-cols-2 lg:grid-cols-3" x-show="loadingEvents" role="status"><span class="sr-only" data-i18n="volunteer.loadingEvents">Loading events…</span>
@@ -224,7 +344,7 @@
 
         <div class="grid gap-4 sm:grid-cols-2 lg:grid-cols-3" x-show="!loadingEvents && !eventsError">
           <template x-for="event in findEvents" :key="event.id">
-            <article class="card flex flex-col gap-3">
+            <article class="card flex flex-col gap-3 scroll-mt-24" :id="`event-${event.id}`">
               <div class="flex flex-wrap items-center gap-2">
                 <span class="badge badge-sm" :class="spots(event) === 0 ? 'badge-danger' : 'badge-info'" x-text="spotsText(event)"></span>
                 <template x-if="applicationFor(event.id)">

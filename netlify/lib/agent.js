@@ -10,7 +10,7 @@
 
 import { chatWithTools, stripPersonalData } from "./ai.js";
 import { readPublic, eventSpots } from "./public-data.js";
-import { notEndedFilter, notPastDeadlineFilter, sgToday } from "./dates.js";
+import { notEndedFilter, notPastDeadlineFilter, sgToday, sgTodayWords, sgWhen } from "./dates.js";
 import { SG_AREAS, areaOf } from "./urgency.js";
 import { ALL_CATEGORIES, extractItems, loadOpenRequests, scoreMatches } from "./match.js";
 import { LANGUAGE_NAMES, serverT } from "./messages.js";
@@ -116,17 +116,6 @@ const clampInt = (value, lo, hi, fallback) => (Number.isInteger(value) ? Math.mi
 const lowerWords = (text) => text.toLowerCase().split(/[^a-z0-9㐀-鿿]+/).filter((w) => w.length >= 3).map((w) => w.replace(/s$/, ""));
 /** @param {string} iso */
 const sgDay = (iso) => new Date(iso).toLocaleDateString("en-CA", { timeZone: "Asia/Singapore" });
-/** A time written out in Singapore time for the AI ("Sat, 7 Nov 2026, 9:00 am"), so it never reads UTC.
- *  @param {string | null | undefined} iso */
-const sgWhen = (iso) =>
-  iso
-    ? new Date(iso).toLocaleString("en-SG", {
-        timeZone: "Asia/Singapore", weekday: "short", day: "numeric", month: "short", year: "numeric", hour: "numeric", minute: "2-digit",
-      })
-    : null;
-/** "Monday, 2 Nov 2026" in Singapore, so the AI knows which days "this weekend" means. @param {Date} now */
-const sgTodayWords = (now) =>
-  now.toLocaleDateString("en-SG", { timeZone: "Asia/Singapore", weekday: "long", day: "numeric", month: "short", year: "numeric" });
 /** The organization of a row (PostgREST returns one embedded object). @param {any} row */
 const orgOf = (row) => (Array.isArray(row?.organization) ? row.organization[0] : row?.organization) ?? {};
 

@@ -1,7 +1,8 @@
 // @ts-check
 // Reading PUBLIC data for the chat (REQUIREMENTS.md 6.8): always with the anon key, so the database's own
 // rules decide what may be seen — the same as a visitor. Never profiles, offers, applications or tasks,
-// except the caller's own role (callerRole), read with the caller's own login token.
+// except the caller's own role (callerRole) and the caller's own matching details (callerMatchingProfile),
+// read with the caller's own login token.
 
 const TIMEOUT_MS = 10000;
 
@@ -88,5 +89,50 @@ export async function callerRole(req, deps) {
     return "donor";
   } catch {
     return "visitor";
+  }
+}
+
+/**
+ * The caller's OWN volunteer matching details, read with their login token (the database lets people read only
+ * their own profile): available days and times, interests, skills and area — never name, email or phone.
+ * Only returned when they allowed matching (profiles.matching_opt_in, REQUIREMENTS.md 4.2).
+ * @param {Request} req
+ * @param {DataDeps} deps
+ * @returns {Promise<{ status: 'ok', profile: { available_days: string[], available_times: string[], interests: string[], skills: string[], area: string | null } }
+ *   | { status: 'no_login' | 'no_consent' }>}
+ */
+export async function callerMatchingProfile(req, deps) {
+  const jwt = (req.headers.get("authorization") ?? "").replace(/^Bearer\s+/i, "").trim();
+  if (!jwt) return { status: "no_login" };
+  try {
+    const { url, anonKey } = anon(deps);
+    const asCaller = { apikey: anonKey, Authorization: `Bearer ${jwt}` };
+    const userResponse = await deps.fetch(`${url}/auth/v1/user`, { headers: asCaller, signal: AbortSignal.timeout(4000) });
+    if (!userResponse.ok) return { status: "no_login" };
+    const userId = (await userResponse.json())?.id;
+    if (typeof userId !== "string") return { status: "no_login" };
+    const select = "is_volunteer,matching_opt_in,available_days,available_times,interests,skills,area";
+    const profileResponse = await deps.fetch(`${url}/rest/v1/profiles?select=${select}&id=eq.${encodeURIComponent(userId)}`, {
+      headers: asCaller,
+      signal: AbortSignal.timeout(4000),
+    });
+    if (!profileResponse.ok) return { status: "no_login" };
+    const p = (await profileResponse.json())?.[0];
+    if (!p) return { status: "no_login" };
+    if (!p.is_volunteer || p.matching_opt_in !== true) return { status: "no_consent" };
+    /** @param {unknown} v */
+    const list = (v) => (Array.isArray(v) ? v.filter((x) => typeof x === "string") : []);
+    return {
+      status: "ok",
+      profile: {
+        available_days: list(p.available_days),
+        available_times: list(p.available_times),
+        interests: list(p.interests),
+        skills: list(p.skills),
+        area: typeof p.area === "string" && p.area.trim() ? p.area.trim() : null,
+      },
+    };
+  } catch {
+    return { status: "no_login" };
   }
 }

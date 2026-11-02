@@ -360,7 +360,7 @@ const EVENTS = [
   { key: "E8", org: "woodlands", start: 5, time: "08:30", hours: 3, needed: 10, review: "approve",
     situation: "In 5 days, many spots left (2 of 10)",
     title: "Community garden planting day", place: "Woodlands Avenue 6 community garden", lat: 1.4357, lng: 103.7871,
-    description: "Plant vegetables and herbs that our families can harvest next month." },
+    description: "Plant vegetables and herbs that our families can harvest next month. Must be able to lift 10 kg bags of soil." },
   { key: "E9", org: "circle", start: 6, time: "15:00", hours: 2, needed: 5, review: "approve",
     situation: "In 6 days, no applications yet",
     title: "Christmas card making with seniors", place: "Toa Payoh Lorong 1 senior activity centre", lat: 1.3367, lng: 103.8480,
@@ -380,7 +380,7 @@ const EVENTS = [
   { key: "E13", org: "circle", start: 13, time: "10:00", hours: 2, needed: 4, review: "approve",
     situation: "In 13 days, half full (2 of 4), Marcus waiting",
     title: "Grocery shopping with seniors", place: "Toa Payoh Central supermarket", lat: 1.3327, lng: 103.8478,
-    description: "Accompany seniors on their monthly grocery trip and help carry the bags home." },
+    description: "Accompany seniors on their monthly grocery trip and help carry the bags home. Driver with licence needed: you'll drive two seniors to the supermarket and back in our van." },
   { key: "E14", org: "woodlands", start: 10, time: "09:00", hours: 3, needed: 6, review: "wait",
     situation: "Waiting for admin approval",
     title: "Bicycle repair workshop", place: "Woodlands Avenue 6 void deck", lat: 1.4360, lng: 103.7868,
@@ -1141,6 +1141,8 @@ function demoGuide() {
     ["AI check: Halal, size and salt", "Anyone (logged out is fine)", "Home → What can you give?", "See “Make it fail” below: pork luncheon meat isn't sent to R17, rice is; instant noodles get a question (R19)"],
     ["Quick-pick rules", orgLogin("pantry"), "Requests → New request → an item's Other details", "Buttons such as “Halal-certified only” add the rule in English"],
     ["What can I donate?", "Anyone", "Browse needs → What can I donate?", "The general rules in your language"],
+    ["Find me where to help (AI)", login("priya"), "Volunteering → Find events", `See “Find me where to help” below: E13 needs a driver, E8 needs someone who can lift 10 kg`],
+    ["No “Use my profile” (matching off)", login("marcus"), "Volunteering → Find events", "Only the text box: Marcus didn't allow matching"],
     ["Rejected: doesn't match the size", login("siti"), "My offers → History, then Messages", "20 cm pot (R10) with Jurong Hearts' note and message"],
     ["Offer: “Request closed”", login("weiling"), "Donating → My offers → History", "Rice for Deepavali hampers (R7): Got enough from a school drive"],
     ["Empty states", login("kavitha"), "Overview, My offers, Messages", "Pinny and “nothing here yet” messages"],
@@ -1196,6 +1198,19 @@ Two separate AIs build the donation plan. The **first** finds requests by what e
 4. Bonus: \`home-cooked curry\` → "can't be donated: No cooked or home-made food." (a general rule, so it applies everywhere).
 5. If the AI is slow or down, there is **no plan at all**: "We couldn't check your items right now" with **Try again**. Nothing unchecked is ever shown.
 6. Organizations: when posting a request, the **Other details** field has quick-pick rules (e.g. **Halal-certified only**, **Low-salt, soft (seniors)**). The label is in your language; the rule is added in English so the checker always reads the same words.
+
+## 5. Find me where to help: AI volunteer matching
+
+The same two-AI design for volunteers. The **first** AI picks up to 5 events from when you're free and what you like doing; the **second** checks each one against what the event writes down that it needs: **${ev("E13").title}** says "Driver with licence needed", **${ev("E8").title}** says "Must be able to lift 10 kg bags of soil". It blocks only a clear conflict with your own words, and asks when you didn't say.
+
+1. **Log in as Priya** (\`${person("priya").email}\`) → **Volunteering** → **Find events**. Priya allowed matching, so **Use my profile** is there: it sends only her days, times, interests, skills and area (never her name or contact details).
+2. Type \`I can't drive and I have a bad back, I like gardening and helping seniors\` → **Find events**. **Not a fit**: ${ev("E13").title} (driver needed) and ${ev("E8").title} (lifting 10 kg), each with a **Why?**. Events without written needs that suit her appear under **Events that fit you · Checked by AI ✓**.
+3. Type \`I like gardening\` → **Needs your answer**: "Can you lift about 10 kg?" for ${ev("E8").title}. **Yes** checks again and it fits; **No** leaves it out.
+4. Press the example \`Free Saturday mornings, I can drive, I like helping seniors\`: events that need a driver fit, with a reason such as "Needs a driver; you said you can drive". **Apply** opens the normal application form on that event's card.
+5. **Log in as Marcus** (\`${person("marcus").email}\`): he didn't allow matching, so there is no **Use my profile** button.
+6. If the AI is slow or down: "We couldn't check right now. Please try again." and no list at all.
+
+Which events show depends on today's date (the seed sets them days ahead), so the days in your answers matter.
 `;
 }
 

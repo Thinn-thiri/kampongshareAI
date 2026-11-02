@@ -88,7 +88,7 @@ function rulesOf(o) {
 }
 
 /** The AI's JSON reply, or null. @param {string} content */
-function parseJson(content) {
+export function parseJson(content) {
   const text = content.replace(/```(?:json)?/gi, "");
   const start = text.indexOf("{");
   const end = text.lastIndexOf("}");
@@ -101,7 +101,7 @@ function parseJson(content) {
 }
 
 /** Short AI text, cleaned of personal data and links. @param {unknown} v @param {number} max */
-const cleanAiText = (v, max) =>
+export const cleanAiText = (v, max) =>
   typeof v === "string" ? toSimplified(stripPersonalData(v).replace(/https?:\/\/\S+/g, "").replace(/\s+/g, " ").trim()).slice(0, max) : "";
 
 /**
@@ -374,7 +374,7 @@ function readVerdicts(parsed, items, pairList) {
 }
 
 /** A question without a trailing "(yes/no)". @param {unknown} q */
-const cleanQuestion = (q) => cleanAiText(q, 160).replace(/\s*\((?:yes\s*\/\s*no|ya\s*\/\s*tidak|是\s*\/\s*否)\)\s*$/i, "");
+export const cleanQuestion = (q) => cleanAiText(q, 160).replace(/\s*\((?:yes\s*\/\s*no|ya\s*\/\s*tidak|是\s*\/\s*否)\)\s*$/i, "");
 
 /**
  * The whole checked plan for match-items.

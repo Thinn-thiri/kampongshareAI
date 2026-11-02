@@ -45,3 +45,25 @@ export function notEndedFilter(now = new Date()) {
   const iso = now.toISOString();
   return `(ends_at.gte.${iso},and(ends_at.is.null,starts_at.gte.${iso}))`;
 }
+
+/**
+ * A time written out in Singapore time for the AI ("Sat, 7 Nov 2026, 9:00 am"), so it never reads UTC.
+ * @param {string | null | undefined} iso
+ * @returns {string | null}
+ */
+export function sgWhen(iso) {
+  return iso
+    ? new Date(iso).toLocaleString("en-SG", {
+        timeZone: "Asia/Singapore", weekday: "short", day: "numeric", month: "short", year: "numeric", hour: "numeric", minute: "2-digit",
+      })
+    : null;
+}
+
+/**
+ * "Monday, 2 Nov 2026" in Singapore, so the AI knows which days "this weekend" means.
+ * @param {Date} now
+ * @returns {string}
+ */
+export function sgTodayWords(now) {
+  return now.toLocaleDateString("en-SG", { timeZone: "Asia/Singapore", weekday: "long", day: "numeric", month: "short", year: "numeric" });
+}
