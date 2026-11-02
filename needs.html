@@ -130,6 +130,27 @@
         <p class="mt-2 text-muted" data-i18n="needs.intro">Every open request from checked local groups, most urgent first.</p>
       </div>
 
+      <!-- the general donation rules (same as netlify/functions/_lib/general-rules.md, which the AI checker reads) -->
+      <details class="card space-y-3">
+        <summary class="flex min-h-11 cursor-pointer items-center gap-2">
+          <i class="ph ph-list-checks size-6 shrink-0" aria-hidden="true"></i>
+          <h2 id="rules-heading" class="card-title" data-i18n="needs.rulesTitle">What can I donate?</h2>
+        </summary>
+        <p class="text-muted" data-i18n="needs.rulesIntro">These rules apply to every donation. Each request can add its own, such as a size or “Halal-certified only”.</p>
+        <ul class="list-disc space-y-1 pl-6">
+          <li data-i18n="needs.rules.food">Food must be sealed, unopened and not expired.</li>
+          <li data-i18n="needs.rules.cooked">No cooked or home-made food.</li>
+          <li data-i18n="needs.rules.medicine">No medicines, supplements or medical items.</li>
+          <li data-i18n="needs.rules.alcohol">No alcohol, tobacco, vapes or e-cigarettes.</li>
+          <li data-i18n="needs.rules.dangerous">No weapons, fireworks, gas canisters or other dangerous items.</li>
+          <li data-i18n="needs.rules.electrical">Electrical items must be safe and working, with a Singapore 3-pin (type G) plug.</li>
+          <li data-i18n="needs.rules.clothing">Clothing and bedding must be clean, with no stains, holes or mould.</li>
+          <li data-i18n="needs.rules.baby">Baby items must be sealed or in safe, complete condition.</li>
+          <li data-i18n="needs.rules.kind">The item must be the kind of thing the request asks for.</li>
+        </ul>
+        <p class="text-sm text-muted" data-i18n="needs.rulesCheck">Before we suggest where your items go, an AI checks them against these rules and each request's own rules. It tells you why if something isn't matched, and asks you when it depends on the label.</p>
+      </details>
+
       <!-- Filters (kept in the URL): one slim row, no box; each picker's first choice ("All categories") names it, and the labels stay for screen readers -->
       <form class="filter-bar grid gap-3 sm:grid-cols-2 lg:grid-cols-[2fr_1fr_1fr_1fr]" role="search" aria-label="Filter needs" data-i18n-attr="aria-label:needs.filterLabel" @submit.prevent>
         <div class="sm:col-span-2 lg:col-span-1">

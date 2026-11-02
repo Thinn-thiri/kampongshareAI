@@ -158,6 +158,10 @@ const ITEM_DETAILS = {
   "Children's storybooks": { size: "Ages 6–10, English or Malay", cond: "good" },
   "T-shirts (M, L)": { size: "Size M–L, adult", material: "Cotton", cond: "good" },
   "Track pants": { size: "Size M–XL, elastic waist", cond: "good" },
+  "Canned meat": { size: "400 g cans", details: "Halal-certified only" },
+  "Rice": { size: "5 kg bags" },
+  "Diapers": { size: "Size 4", cond: "new", details: "Sealed packs only" },
+  "Instant noodles": { size: "Single packs", details: "Low-salt, soft and easy to chew (for seniors)" },
   "School shoes": { size: "EU 30–36 (Primary 1–6)", cond: "good", details: "Black, with Velcro or laces", describe: true },
 };
 /** Real photos for the offers that have one (fictional, no location data). */
@@ -252,6 +256,22 @@ const REQUESTS = [
     title: "Comfortable clothes for seniors",
     description: "Soft, loose clothes that are easy to put on. New or gently used, washed and in good condition.",
     items: [{ key: "tshirts", name: "T-shirts (M, L)", category: "clothing", unit: "pieces", qty: 30 }, { key: "pants", name: "Track pants", category: "clothing", unit: "pieces", qty: 20 }] },
+  // the matching guardrail (REQUIREMENTS.md 4.6): a Halal-only item, an exact diaper size and a plain item next to them
+  { key: "R17", org: "pantry", urgency: "medium", deadline: 18, postedDaysAgo: 3, review: "approve", dropoff: DROPOFF.pantry,
+    situation: "Halal-only canned meat next to plain rice (the AI check blocks pork luncheon meat here)",
+    title: "Canned meat and rice for Hari Raya hampers",
+    description: "Hampers for 30 Muslim families. All meat must be Halal-certified.",
+    items: [{ key: "meat", name: "Canned meat", category: "food", unit: "cans", qty: 30 }, { key: "rice5", name: "Rice", category: "food", unit: "bags", qty: 15 }] },
+  { key: "R18", org: "circle", urgency: "low", deadline: 20, postedDaysAgo: 2, review: "approve", dropoff: DROPOFF.circle,
+    situation: "Diapers in exactly size 4 (the AI check blocks size 2 diapers here)",
+    title: "Diapers for grandparents caring for babies",
+    description: "Some of our seniors look after their grandchildren during the day.",
+    items: [{ key: "diapers4", name: "Diapers", category: "baby", unit: "packs", qty: 20 }] },
+  { key: "R19", org: "circle", urgency: "low", deadline: 25, postedDaysAgo: 1, review: "approve", dropoff: DROPOFF.circle,
+    situation: "Low-salt food for seniors (the AI check asks donors of instant noodles about the salt)",
+    title: "Easy meals for seniors living alone",
+    description: "Simple meals our seniors can make at home. Many are watching their salt.",
+    items: [{ key: "noodles1", name: "Instant noodles", category: "food", unit: "packs", qty: 40 }] },
 ];
 
 /**
@@ -679,7 +699,7 @@ function checkDemoData() {
   const r10 = allRemaining(req("R10"));
   expect(r10.filter((n) => n === 0).length === 1 && r10.filter((n, i) => n > 0 && n < req("R10").items[i].qty).length === 1 && r10.filter((n, i) => n === req("R10").items[i].qty).length === 1, "R10 one item full, one partial, one empty");
   expect(ev("E11").linkRequest === "R11" && ev("E11").org === req("R11").org, "E11 linked to R11 of the same organization");
-  expect(REQUESTS.length === 16, `16 requests (found ${REQUESTS.length})`);
+  expect(REQUESTS.length === 19, `19 requests (found ${REQUESTS.length})`);
   expect(REQUESTS.every((r) => r.org !== "bedok"), "requests come from organizations 1–4");
 
   const offerStates = new Set(OFFERS.map((o) => /** @type {string} */ (o.final)));
@@ -1118,6 +1138,9 @@ function demoGuide() {
     ["Halal-only food, size 4 diapers, school shoes", "Anyone", "Browse needs → R12, R13 and R15", "Canned sardines “Halal-certified only”; Diapers (size 4); School shoes EU 30–36, Good or better"],
     ["Offer with condition, description and photo", login("weiling"), "Donating → My offers → Cooking pots → See timeline", "Like new · 26 cm stainless steel pots with lids, plus her photo"],
     ["Needed vs offered, with photos", orgLogin("hearts"), "Offers → the board", "Ahmad's school shoes in New (Needed: EU 30–36 · Good or better / Offered: Good · …) with the photo"],
+    ["AI check: Halal, size and salt", "Anyone (logged out is fine)", "Home → What can you give?", "See “Make it fail” below: pork luncheon meat isn't sent to R17, rice is; instant noodles get a question (R19)"],
+    ["Quick-pick rules", orgLogin("pantry"), "Requests → New request → an item's Other details", "Buttons such as “Halal-certified only” add the rule in English"],
+    ["What can I donate?", "Anyone", "Browse needs → What can I donate?", "The general rules in your language"],
     ["Rejected: doesn't match the size", login("siti"), "My offers → History, then Messages", "20 cm pot (R10) with Jurong Hearts' note and message"],
     ["Offer: “Request closed”", login("weiling"), "Donating → My offers → History", "Rice for Deepavali hampers (R7): Got enough from a school drive"],
     ["Empty states", login("kavitha"), "Overview, My offers, Messages", "Pinny and “nothing here yet” messages"],
@@ -1160,6 +1183,19 @@ ${situations.join("\n")}
 5. **Back as Tampines Kampung Pantry**: the chat icon → **Messages** → **Ahmad Ismail**: his Malay messages appear in English (press **See original** to show the Malay).
 6. **Home page**: the **Upcoming events** map. Open **${ev("E6").title}** (full), **${ev("E7").title}** (one spot left) and **${ev("E5").title}** (happening now).
 7. **Log in as your admin**: **To review** → **Organizations** → **Bedok Bright Futures Club** → **Approve**. Then **Browse** → **Reported**: Daniel's "Asked for money" report → **Mark resolved**.
+
+## 4. Make it fail: the AI check
+
+Two separate AIs build the donation plan. The **first** finds requests by what each item *is* and never sees the requests' rules. The **second** checks every pairing against the general rules (Browse needs → **What can I donate?**) and each request's own rules (size, condition, material, details such as "Halal-certified only"): **match**, **block** (only a clear conflict with a written rule) or **ask** (when it depends on the label). It takes about 10–20 seconds.
+
+1. **Home page → What can you give?**, type \`4 cans of pork luncheon meat and 3 bags of rice\` → **Find matches**.
+   - **Your donation plan · Checked by AI ✓**: the rice goes to **${req("R17").title}**.
+   - **Not matched**: pork luncheon meat → not sent to “${req("R17").title}” (Halal-certified only). Press **Why?** for the checker's reason. The rice still has its place, so one blocked item never hides the rest.
+2. Type \`4 cans of Halal-certified chicken luncheon meat\` → matched to the canned meat. It's not a list of banned words: the checker reasons about what the item really is.
+3. Type \`5 packs of instant noodles\` → **Needs your answer**: the checker asks whether they are low-salt, because **${req("R19").title}** says "Low-salt, soft and easy to chew (for seniors)". **Yes** checks again and matches; **No** leaves that request out; **Not sure** says "Check the label, then try again".
+4. Bonus: \`home-cooked curry\` → "can't be donated: No cooked or home-made food." (a general rule, so it applies everywhere).
+5. If the AI is slow or down, there is **no plan at all**: "We couldn't check your items right now" with **Try again**. Nothing unchecked is ever shown.
+6. Organizations: when posting a request, the **Other details** field has quick-pick rules (e.g. **Halal-certified only**, **Low-salt, soft (seniors)**). The label is in your language; the rule is added in English so the checker always reads the same words.
 `;
 }
 

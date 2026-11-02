@@ -207,48 +207,94 @@
             </button>
           </div>
         </form>
-
         <div aria-live="polite" class="space-y-4">
-          <p class="note-warning" x-show="status === 'rate_limited'" x-cloak data-i18n="match.rateLimited">
-            You've tried a lot of matches — please wait a minute.
-          </p>
-          <p class="note-danger" x-show="status === 'error'" x-cloak data-i18n="donor.matchFailed">
-            We couldn't find matches just now. Please try again, or browse the requests below.
-          </p>
-
-          <!-- Fallback: the AI isn't available -->
-          <div class="space-y-2" x-show="showCategories" x-cloak>
-            <p class="text-sm" data-i18n="match.fallback">Our AI helper isn't available right now. Pick a category instead:</p>
-            <div class="flex flex-wrap gap-2" role="group" aria-label="Categories" data-i18n-attr="aria-label:match.categories">
-              <template x-for="category in categories" :key="category.value">
-                <button type="button" class="chip gap-2" :aria-pressed="(pickedCategory === category.value).toString()"
-                  :disabled="busy" @click="searchCategory(category.value)">
-                  <i class="size-6" :class="categoryIcon(category.value)" aria-hidden="true"></i><span x-text="category.label"></span>
-                </button>
-              </template>
-            </div>
+          <p class="note-warning" x-show="status === 'rate_limited'" x-cloak data-i18n="match.rateLimited">You've tried a lot of matches — please wait a minute.</p>
+          <p class="note-danger" x-show="status === 'error'" x-cloak data-i18n="match.failed">We couldn't find matches. Check your connection and try again, or browse all needs.</p>
+          <!-- the AI check couldn't run: no plan at all, never an unchecked one (REQUIREMENTS.md 4.6) -->
+          <div class="note-warning flex flex-wrap items-center gap-3" x-show="status === 'unchecked'" x-cloak>
+            <p class="flex min-w-0 flex-1 items-start gap-2"><i class="ph ph-warning-circle mt-0.5 size-5 shrink-0" aria-hidden="true"></i><span data-i18n="match.unchecked">We couldn't check your items right now. Please try again in a minute.</span></p>
+            <button type="button" class="btn btn-secondary btn-sm" :disabled="busy" @click="retry()" data-i18n="match.tryAgain">Try again</button>
           </div>
-
-          <!-- Results -->
-          <div class="space-y-3" x-show="showResults" x-cloak>
-            <p class="text-sm text-muted" x-show="understood.length && status === 'ok'"
+          <div class="space-y-5" x-show="status === 'ok'" x-cloak>
+            <p class="text-sm text-muted" x-show="understood.length"
               x-text="$t('match.understood', { items: understood.map((i) => (i.quantity ? i.quantity + ' ' : '') + i.name).join(', ') })"></p>
-            <p class="note" x-show="matches.length === 0" data-i18n="donor.noMatch">
-              No open requests match that right now — try different words, or browse all requests below.
+
+            <!-- 1. Your donation plan: every match was checked by the second AI -->
+            <section class="space-y-3" aria-labelledby="plan-heading" x-show="plan.length">
+              <div class="flex flex-wrap items-center gap-2 rounded-md bg-primary-soft px-3 py-2">
+                <h4 id="plan-heading" class="font-bold text-primary" data-i18n="match.planTitle">Your donation plan</h4>
+                <span class="badge badge-success badge-sm"><span data-i18n="match.checkedByAi">Checked by AI ✓</span></span>
+              </div>
+              <ul class="grid gap-4 sm:grid-cols-2">
+                <template x-for="entry in plan" :key="entry.itemId">
+                  <li class="flex flex-col gap-2 rounded-lg border-[1.5px] border-edge bg-canvas p-4">
+                    <p class="font-bold break-words" x-text="planLine(entry)"></p>
+                    <p class="text-sm break-words" x-text="[entry.itemName, matchSpec(entry), entry.itemDetails].filter(Boolean).join(' · ')"></p>
+                    <p class="text-sm break-words" x-text="entry.organization"></p>
+                    <p class="text-sm text-muted tabular-nums" x-text="$t('match.resultLine', { count: entry.remaining, unit: entry.unit, deadline: deadlineText(entry.deadline) })"></p>
+                    <details class="text-sm" x-show="entry.why">
+                      <summary class="link inline-flex min-h-11 cursor-pointer items-center" data-i18n="match.why">Why?</summary>
+                      <p class="text-muted break-words" x-text="entry.why"></p>
+                    </details>
+                    <button type="button" class="btn btn-primary mt-auto self-start" @click="offer(entry)" :aria-label="$t('common.offerItem', { item: entry.itemName })" data-i18n="common.offer">Offer</button>
+                  </li>
+                </template>
+              </ul>
+            </section>
+
+            <!-- 2. Needs your answer: it depends on something the donor didn't say -->
+            <section class="space-y-3 rounded-md bg-warning-soft p-4" aria-labelledby="ask-heading" x-show="questions.length">
+              <h4 id="ask-heading" class="flex items-center gap-2 font-bold text-warning"><i class="ph ph-question size-5 shrink-0" aria-hidden="true"></i><span data-i18n="match.askTitle">Needs your answer</span></h4>
+              <ul class="space-y-4">
+                <template x-for="q in questions" :key="q.question">
+                  <li class="space-y-2 text-sm text-ink">
+                    <p class="text-muted break-words" x-show="q.requestTitle" x-text="$t('match.askFor', { item: q.item, request: q.requestTitle })"></p>
+                    <p class="font-bold break-words" x-text="q.question"></p>
+                    <div class="flex flex-wrap gap-2" role="group" :aria-label="q.question">
+                      <button type="button" class="btn btn-secondary btn-sm" :disabled="busy" @click="answer(q, 'yes')" data-i18n="match.yes">Yes</button>
+                      <button type="button" class="btn btn-secondary btn-sm" :disabled="busy" @click="answer(q, 'no')" data-i18n="match.no">No</button>
+                      <button type="button" class="btn btn-secondary btn-sm" :disabled="busy" @click="answer(q, 'not_sure')" data-i18n="match.notSure">Not sure</button>
+                    </div>
+                    <p class="flex items-start gap-2" x-show="notSure.includes(q.question)"><i class="ph ph-info mt-0.5 size-5 shrink-0" aria-hidden="true"></i><span data-i18n="match.checkLabel">Check the label, then try again.</span></p>
+                    <details x-show="q.reason">
+                      <summary class="link inline-flex min-h-11 cursor-pointer items-center" data-i18n="match.why">Why?</summary>
+                      <p class="break-words" x-text="q.reason"></p>
+                    </details>
+                  </li>
+                </template>
+              </ul>
+            </section>
+
+            <!-- 3. Not matched: a pairing that breaks a written rule (or a general rule), with the reason -->
+            <section class="space-y-3 rounded-md bg-danger-soft p-4" aria-labelledby="blocked-heading" x-show="blocked.length || unmatched.length">
+              <h4 id="blocked-heading" class="flex items-center gap-2 font-bold text-danger"><i class="ph ph-prohibit size-5 shrink-0" aria-hidden="true"></i><span data-i18n="match.blockedTitle">Not matched</span></h4>
+              <ul class="space-y-3 text-sm text-ink">
+                <template x-for="(b, i) in blocked" :key="'b' + i">
+                  <li class="flex items-start gap-2">
+                    <i class="ph ph-prohibit mt-0.5 size-5 shrink-0 text-danger" aria-hidden="true"></i>
+                    <div class="min-w-0">
+                      <p class="break-words" x-text="blockedText(b)"></p>
+                      <details x-show="b.reason">
+                        <summary class="link inline-flex min-h-11 cursor-pointer items-center" data-i18n="match.why">Why?</summary>
+                        <p class="break-words" x-text="b.reason"></p>
+                      </details>
+                    </div>
+                  </li>
+                </template>
+                <template x-for="u in unmatched" :key="'u' + u">
+                  <li class="flex items-start gap-2">
+                    <i class="ph ph-minus-circle mt-0.5 size-5 shrink-0 text-danger" aria-hidden="true"></i>
+                    <p class="min-w-0 break-words" x-text="$t('match.noSuitable', { item: u })"></p>
+                  </li>
+                </template>
+              </ul>
+            </section>
+
+            <p class="note" x-show="!plan.length && !questions.length && !blocked.length && !unmatched.length">
+              <span data-i18n="match.noMatchBefore">No open requests match that right now. Try different words, or</span>
+              <a href="/needs.html" class="link" data-i18n="match.noMatchLink">browse all needs</a><span data-i18n="match.noMatchAfter">.</span>
             </p>
-            <ul class="grid gap-3 sm:grid-cols-2" x-show="matches.length">
-              <template x-for="match in matches" :key="match.itemId">
-                <li class="flex flex-col gap-2 rounded-lg border-[1.5px] border-edge bg-canvas p-4">
-                  <p class="font-bold break-words" x-text="match.itemName"></p>
-                  <p class="text-[0.8125rem] leading-5 text-muted break-words" x-show="matchSpec(match)" x-text="matchSpec(match)"></p>
-                  <p class="text-sm break-words" x-text="[match.requestTitle, match.organization].filter(Boolean).join(' · ')"></p>
-                  <p class="text-sm text-muted" x-text="$t('match.resultLine', { count: match.remaining, unit: match.unit, deadline: deadlineText(match.deadline) })"></p>
-                  <p class="text-sm" x-text="match.reason"></p>
-                  <button type="button" class="btn btn-primary mt-auto self-start" @click="offer(match)" :aria-label="$t('common.offerItem', { item: match.itemName })" data-i18n="common.offer">Offer</button>
-                </li>
-              </template>
-            </ul>
-            <p class="text-sm text-muted" x-show="matches.length" data-i18n="donor.formulaNote">Suggestions are sorted by a simple formula (category, how much is still needed, deadline, urgency and distance). You decide what to give.</p>
+            <p class="text-sm text-muted" x-show="plan.length || questions.length || blocked.length" data-i18n="match.checkedNote">One AI finds requests for each item; a second AI checks them against our general rules and each request's own rules. You decide what to give.</p>
           </div>
         </div>
       </section>

@@ -573,6 +573,17 @@
                       :aria-invalid="errors[`items.${row.key}.details`] ? 'true' : null" :aria-describedby="`count-item-details-${row.key} err-item-details-${row.key}`"></textarea>
                     <p :id="`count-item-details-${row.key}`" class="counter" :class="row.details.length >= 300 ? 'counter-limit' : ''" x-text="row.details.length + ' / 300'"></p>
                     <p :id="`err-item-details-${row.key}`" class="field-error" x-show="errors[`items.${row.key}.details`]" x-text="errors[`items.${row.key}.details`]"></p>
+                    <!-- quick-pick rules: the label is translated, the inserted rule stays English for the AI checker -->
+                    <div class="mt-2 space-y-2" x-show="!locked && rulePicks(row.category).length">
+                      <p class="text-[0.8125rem] leading-5 text-muted" data-i18n="orgDash.quickRules">Add a common rule (you can still edit it):</p>
+                      <div class="flex flex-wrap gap-2">
+                        <template x-for="pick in rulePicks(row.category)" :key="pick.text">
+                          <button type="button" class="chip chip-sm gap-1" @click="addRule(row, pick.text)" :aria-pressed="hasRule(row, pick.text).toString()">
+                            <i class="ph size-4" :class="hasRule(row, pick.text) ? 'ph-check' : 'ph-plus'" aria-hidden="true"></i><span x-text="$t(pick.label)"></span>
+                          </button>
+                        </template>
+                      </div>
+                    </div>
                   </div>
                   <label class="flex items-start gap-3 text-[0.9375rem] leading-5">
                     <input :id="`item-describe-${row.key}`" type="checkbox" x-model="row.detailsRequired" :disabled="locked" />

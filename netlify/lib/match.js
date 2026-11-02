@@ -19,7 +19,8 @@ export const ALL_CATEGORIES = [...CATEGORIES, "other"];
 /**
  * @typedef {{ name: string, category: string, quantity: number | null }} WantedItem
  * @typedef {{ id: string, name: string, category: string, unit: string, quantity_needed: number, quantity_remaining: number,
- *             size_spec?: string | null, material?: string | null, min_condition?: string, details_required?: boolean }} OpenItem
+ *             size_spec?: string | null, material?: string | null, min_condition?: string, details_required?: boolean,
+ *             item_details?: string | null }} OpenItem
  * @typedef {{ id: string, title: string, deadline: string | null, urgency: string, ai_score: number | null,
  *             organization: { name: string, address: string | null }, request_items: OpenItem[] }} OpenRequest
  * @typedef {{ env: Record<string, string | undefined>, fetch: typeof fetch, today: Date }} Deps
@@ -42,10 +43,12 @@ export async function extractItems(cleanText, deps) {
           `Reply with JSON only, no other text: {"items":[{"name":string,"category":one of ${JSON.stringify(ALL_CATEGORIES)},"quantity":integer or null}]}. ` +
           "Always translate the item name into short English, even when the note is in Chinese or Malay " +
           '(e.g. "beras" / "大米" → "rice", "susu tepung" / "奶粉" → "milk powder", "lampin" / "尿布" → "baby diapers"), ' +
-          'without containers or amounts ("2 tin susu tepung" → name "milk powder", quantity 2). ' +
+          'without containers or amounts ("2 tin susu tepung" → name "milk powder", quantity 2), ' +
+          'but keep words the note uses that say exactly what it is: size, meat type, halal, material, condition ' +
+          '(e.g. "size 2 diapers", "pork luncheon meat", "halal chicken sausages", "used 20 cm pot"). ' +
           "Categories: milk powder, formula, diapers and baby wipes → baby; packed food and drinks → food; " +
           "soap, toothpaste, sanitary pads → hygiene; bedsheets, pots, fans → household; books, stationery → education. " +
-          "Ignore anything that isn't an item. " +
+          "Never add words that aren't in the note (\"luncheon meat\" stays \"luncheon meat\"). Ignore anything that isn't an item. " +
           'If there are no items, reply {"items":[]}.',
       },
       { role: "user", content: cleanText },
@@ -81,7 +84,7 @@ export async function loadOpenRequests(deps, headers) {
   const url = deps.env.SUPABASE_URL?.replace(/\/+$/, "");
   const params = new URLSearchParams({
     select:
-      "id,title,deadline,urgency,ai_score,organization:organizations!inner(name,address,approval),request_items(id,name,category,unit,quantity_needed,quantity_remaining,size_spec,material,min_condition,details_required)",
+      "id,title,deadline,urgency,ai_score,organization:organizations!inner(name,address,approval),request_items(id,name,category,unit,quantity_needed,quantity_remaining,size_spec,material,min_condition,details_required,item_details)",
     status: "eq.open",
     "organization.approval": "eq.approved",
     or: notPastDeadlineFilter(deps.today), // never suggest a request past its deadline
@@ -131,8 +134,9 @@ const URGENCY_POINTS = { critical: 15, high: 10, medium: 5, low: 0 };
  * @param {string | null} area
  * @param {Date} today
  * @param {Lang} lang  the language of the reasons
+ * @param {number} [limit]  how many to return (match-items asks for more, as candidates for the AI plan)
  */
-export function scoreMatches(wanted, requests, area, today, lang) {
+export function scoreMatches(wanted, requests, area, today, lang, limit = TOP_N) {
   /** @type {Map<string, { score: number, match: Record<string, unknown> }>} */
   const best = new Map();
   const areaLower = area?.toLowerCase() ?? null;
@@ -194,6 +198,10 @@ export function scoreMatches(wanted, requests, area, today, lang) {
               material: item.material ?? null,
               minCondition: item.category === "food" ? "any" : item.min_condition ?? "any",
               detailsRequired: Boolean(item.details_required),
+              itemDetails: item.item_details ?? null,
+              // which of the donor's items this is for (the plan and the checker need it)
+              wantedIndex: wanted.indexOf(want),
+              nameMatch,
               reason,
             },
           });
@@ -204,6 +212,6 @@ export function scoreMatches(wanted, requests, area, today, lang) {
 
   return [...best.values()]
     .sort((a, b) => b.score - a.score)
-    .slice(0, TOP_N)
+    .slice(0, limit)
     .map((entry) => entry.match);
 }

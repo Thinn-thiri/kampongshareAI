@@ -5,6 +5,37 @@
 let itemRowCount = 0;
 
 /**
+ * Quick-pick rules for "Other details" (REQUIREMENTS.md 4.7), by category. The button label is translated; the
+ * inserted text is always this English wording, so the AI checker always reads the same rule.
+ * @type {Partial<Record<ItemCategory, { label: string, text: string }[]>>}
+ */
+// i18n-ignore-start (the inserted rule text stays English on purpose)
+const RULE_PICKS = {
+  food: [
+    { label: "orgDash.rulePick.halal", text: "Halal-certified only" },
+    { label: "orgDash.rulePick.vegetarian", text: "Vegetarian only" },
+    { label: "orgDash.rulePick.noBeef", text: "No beef" },
+    { label: "orgDash.rulePick.noNuts", text: "No nuts" },
+    { label: "orgDash.rulePick.noSugar", text: "No added sugar" },
+    { label: "orgDash.rulePick.lowSalt", text: "Low-salt, soft and easy to chew (for seniors)" },
+    { label: "orgDash.rulePick.babyUnder1", text: "For babies under 1: no honey or nuts" },
+    { label: "orgDash.rulePick.noSpicy", text: "No spicy food" },
+  ],
+  baby: [
+    { label: "orgDash.rulePick.ages3to6", text: "For ages 3–6: no small parts" },
+    { label: "orgDash.rulePick.fragranceFree", text: "Fragrance-free" },
+  ],
+  household: [{ label: "orgDash.rulePick.plug", text: "Working, with Singapore 3-pin plug" }],
+  hygiene: [
+    { label: "orgDash.rulePick.unopened", text: "Unopened and not expired" },
+    { label: "orgDash.rulePick.fragranceFree", text: "Fragrance-free" },
+  ],
+  clothing: [{ label: "orgDash.rulePick.washed", text: "Washed, no stains or holes" }],
+};
+// i18n-ignore-end
+const DETAILS_MAX = 300;
+
+/**
  * An empty item row for the form.
  * @returns {ItemFormRow}
  */
@@ -76,6 +107,30 @@ document.addEventListener("alpine:init", () => {
         other: "orgDash.sizeOther",
       };
       return t(keys[category] ?? keys.other);
+    },
+    /**
+     * The quick-pick rules for an item's category.
+     * @param {ItemCategory} category
+     */
+    rulePicks(category) {
+      return RULE_PICKS[category] ?? [];
+    },
+
+    /**
+     * Adds a standard rule to the item's "Other details" (" · " between rules); never twice, never past 300 characters.
+     * @param {ItemFormRow} row
+     * @param {string} rule
+     */
+    addRule(row, rule) {
+      const current = row.details.trim();
+      if (current.toLowerCase().includes(rule.toLowerCase())) return;
+      const next = current ? `${current} · ${rule}` : rule;
+      if (next.length <= DETAILS_MAX) row.details = next;
+    },
+
+    /** @param {ItemFormRow} row @param {string} rule */
+    hasRule(row, rule) {
+      return row.details.toLowerCase().includes(rule.toLowerCase());
     },
     ...noticeHelpers(),
     today: todayIso(),
