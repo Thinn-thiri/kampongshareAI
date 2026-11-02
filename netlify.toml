@@ -2,6 +2,11 @@
   command = "npm run build"
   publish = "."
 
+# Netlify's secrets scan: the Supabase URL and anon key are PUBLIC on purpose (js/config.js, REQUIREMENTS.md 4.5),
+# so the scan may skip only those two. Every real secret (service role key, NVIDIA key, OneMap password) is still checked.
+[build.environment]
+  SECRETS_SCAN_OMIT_KEYS = "SUPABASE_URL,SUPABASE_ANON_KEY"
+
 # Shared event links: /e/<id> → server-made preview page (REQUIREMENTS.md 5.2)
 [[redirects]]
   from = "/e/:id"
