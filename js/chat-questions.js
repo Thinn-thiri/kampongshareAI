@@ -10,9 +10,10 @@
 /**
  * @typedef {Object} ChatQuestion
  * @property {string} id
- * @property {'start' | 'organization' | 'account' | 'about' | 'privacy' | 'live'} group
+ * @property {'agent' | 'start' | 'organization' | 'account' | 'about' | 'privacy' | 'live'} group
  * @property {(viewer: Viewer | null) => boolean} show
  * @property {'most_needed' | 'ending_soon' | 'upcoming_events' | 'areas'} [live]
+ * @property {boolean} [agent]   asked like a typed question: Pinny chooses its own tools (6.8)
  * @property {{ labelKey: string, href: string }[]} [links]
  * @property {string[]} followUps
  */
@@ -211,5 +212,20 @@ const CHAT_QUESTIONS = [
     show: everyone,
     live: "areas",
     followUps: ["most_needed", "ending_soon"],
+  },
+  // "Pinny can help": asked like a typed question, so Pinny picks its own tools and prepares drafts
+  {
+    id: "agent_rice",
+    group: "agent",
+    show: individuals,
+    agent: true,
+    followUps: ["how_offers", "how_volunteer"],
+  },
+  {
+    id: "agent_events",
+    group: "agent",
+    show: individuals,
+    agent: true,
+    followUps: ["how_volunteer", "upcoming_events"],
   },
 ];

@@ -10,7 +10,10 @@ let itemRowCount = 0;
  */
 function blankItemRow() {
   itemRowCount += 1;
-  return { key: `new-${itemRowCount}`, name: "", category: "food", unit: "", quantity: "", committed: 0 };
+  return {
+    key: `new-${itemRowCount}`, name: "", category: "food", unit: "", quantity: "", committed: 0,
+    size: "", material: "", minCondition: "any", details: "", detailsRequired: false,
+  };
 }
 
 /**
@@ -41,6 +44,11 @@ function requestToForm(request) {
       unit: item.unit,
       quantity: item.quantity_needed,
       committed: item.quantity_committed,
+      size: item.size_spec ?? "",
+      material: item.material ?? "",
+      minCondition: item.min_condition ?? "any",
+      details: item.item_details ?? "",
+      detailsRequired: Boolean(item.details_required),
     })),
   };
 }
@@ -50,6 +58,25 @@ document.addEventListener("alpine:init", () => {
   Alpine.data("orgRequests", (/** @type {string} */ orgId) => ({
     categories: ITEM_CATEGORIES,
     urgencies: URGENCY_OPTIONS,
+    minConditions: enumOptions("minCondition", MIN_CONDITIONS),
+
+    /**
+     * The size example for the item's category ("e.g. 24–28 cm" for household).
+     * @param {ItemCategory} category
+     */
+    sizePlaceholder(category) {
+      /** @type {Record<ItemCategory, string>} */
+      const keys = {
+        clothing: "orgDash.sizeClothing",
+        baby: "orgDash.sizeBaby",
+        household: "orgDash.sizeHousehold",
+        education: "orgDash.sizeEducation",
+        hygiene: "orgDash.sizeHygiene",
+        food: "orgDash.sizeFood",
+        other: "orgDash.sizeOther",
+      };
+      return t(keys[category] ?? keys.other);
+    },
     ...noticeHelpers(),
     today: todayIso(),
 

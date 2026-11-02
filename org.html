@@ -30,6 +30,7 @@
     <script src="/js/orgs.js"></script>
     <script src="/js/requests.js"></script>
     <script src="/js/offers.js"></script>
+    <script src="/js/offer-photos.js"></script>
     <script src="/js/request-panel.js"></script>
     <script src="/js/events.js"></script>
     <script src="/js/volunteering.js"></script>
@@ -206,6 +207,7 @@
                 </div>
                 <div>
                   <p class="tabular-nums" x-text="noticeNeed(request).text"></p>
+                  <p class="text-[0.8125rem] leading-5 text-muted break-words" x-show="noticeSpec(request)" x-text="noticeSpec(request)"></p>
                   <p class="text-sm text-muted" x-text="noticeEnds(request)"></p>
                 </div>
                 <button type="button" class="btn btn-primary mt-auto self-start" x-show="viewerReady" @click="openRequest(request, $event)"

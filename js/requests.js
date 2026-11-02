@@ -19,6 +19,11 @@
  * @property {number} quantity_committed   accepted + delivered offers
  * @property {number} quantity_received    delivered offers
  * @property {number} quantity_remaining   needed − committed (set by the database)
+ * @property {string | null} [size_spec]    "24–28 cm", "Size M–L" — required for new items (20261102120000_offer_photos.sql)
+ * @property {string | null} [material]     "Stainless steel" (optional)
+ * @property {ItemCondition} [min_condition]   the worst condition accepted ("any" = no rule)
+ * @property {string | null} [item_details] "Halal-certified only" (optional)
+ * @property {boolean} [details_required]   donors must describe their item
  */
 
 /**
@@ -53,7 +58,17 @@
  * @property {string} unit
  * @property {number | string} quantity
  * @property {number} committed   already promised by donors (0 for new items)
+ * @property {string} size
+ * @property {string} material
+ * @property {ItemCondition} minCondition
+ * @property {string} details
+ * @property {boolean} detailsRequired
  */
+
+/** Field limits for an item's details (the database checks them too). */
+const ITEM_SIZE_MAX = 80;
+const ITEM_MATERIAL_MAX = 80;
+const ITEM_DETAILS_MAX = 300;
 
 /**
  * What the request form edits.
@@ -251,7 +266,7 @@ function requestEndedText(request) {
 
 /**
  * @param {ItemFormRow} row
- * @returns {{ name: string, category: ItemCategory, unit: string, quantity_needed: number }}
+ * @returns {Record<string, unknown>}
  */
 function itemRow(row) {
   return {
@@ -259,6 +274,12 @@ function itemRow(row) {
     category: row.category,
     unit: row.unit.trim(),
     quantity_needed: Number(row.quantity),
+    size_spec: row.size.trim() || null,
+    material: row.material.trim() || null,
+    // food follows the food-safety rule instead of a condition
+    min_condition: row.category === "food" ? "any" : row.minCondition,
+    item_details: row.details.trim() || null,
+    details_required: row.detailsRequired,
   };
 }
 
@@ -499,6 +520,11 @@ function validateRequest(form, mode) {
       const unit = row.unit.trim();
       if (!unit) errors[`items.${row.key}.unit`] = t("form.errUnit");
       else if (unit.length > 30) errors[`items.${row.key}.unit`] = t("form.errUnitLong");
+      const size = row.size.trim();
+      if (!size) errors[`items.${row.key}.size`] = t("form.errSize");
+      else if (size.length > ITEM_SIZE_MAX) errors[`items.${row.key}.size`] = t("form.errSizeLong", { count: ITEM_SIZE_MAX });
+      if (row.material.trim().length > ITEM_MATERIAL_MAX) errors[`items.${row.key}.material`] = t("form.errMaterialLong", { count: ITEM_MATERIAL_MAX });
+      if (row.details.trim().length > ITEM_DETAILS_MAX) errors[`items.${row.key}.details`] = t("form.errDetailsLong", { count: ITEM_DETAILS_MAX });
     }
     const quantity = Number(row.quantity);
     if (!Number.isInteger(quantity) || quantity < 1) {

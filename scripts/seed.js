@@ -23,6 +23,7 @@
 // supabase/reset_data_keep_admins.sql in the Supabase SQL Editor first.
 
 import { readFileSync, existsSync, writeFileSync } from "node:fs";
+import { join } from "node:path";
 import { createClient } from "@supabase/supabase-js";
 import { loadRequest, scoreAndSave } from "../netlify/lib/score.js";
 import { scoreRequest } from "../netlify/lib/urgency.js";
@@ -124,6 +125,47 @@ const DROPOFF = {
   circle: "Toa Payoh Lorong 1 senior activity centre, weekdays 10am–5pm.",
   woodlands: "Woodlands Avenue 6 community garden shed, weekends 8am–12pm.",
 };
+/**
+ * Exactly what's needed for each item, by item name (20261102090000_item_details.sql). Every item has a size:
+ * the database requires one for new items. cond = the worst condition accepted (left out = any condition),
+ * describe = donors must describe their item.
+ * @type {Record<string, { size: string, material?: string, cond?: 'new' | 'like_new' | 'good' | 'fair', details?: string, describe?: boolean }>}
+ */
+const ITEM_DETAILS = {
+  "Breakfast cereal 500g": { size: "500 g boxes" },
+  "UHT milk 1L": { size: "1 L cartons", details: "Long-life (UHT) milk only" },
+  "Instant noodles (5-pack)": { size: "5-packs" },
+  "Rice 5kg": { size: "5 kg bags" },
+  "Adult diapers (size L)": { size: "Size L (waist 100–150 cm)", cond: "new", details: "Sealed packs only" },
+  "Exercise books": { size: "A4, 80 pages", cond: "new" },
+  "Fleece blankets": { size: "Single, about 150 × 200 cm", cond: "good" },
+  "Rice 10kg": { size: "10 kg bags" },
+  "Umbrellas": { size: "Foldable, adult size", cond: "good" },
+  "Raincoats": { size: "Adult, M–XL", cond: "like_new" },
+  "Garden gloves": { size: "Adult, M–L", cond: "new" },
+  "Hand trowels": { size: "About 30 cm", material: "Metal blade", cond: "good" },
+  "Bedsheets (single)": { size: "Single, 90 × 190 cm", details: "Fitted sheet with a pillowcase", cond: "like_new" },
+  "Cooking pots": { size: "24–28 cm", material: "Stainless steel", cond: "like_new", details: "With a lid, for family meals", describe: true },
+  "Rice cookers": { size: "1–1.8 L (5–10 cups)", cond: "like_new", describe: true },
+  "Bottled water 1.5L": { size: "1.5 L bottles" },
+  "Litter pickers": { size: "About 80 cm", cond: "good" },
+  "Cooking oil 2L": { size: "2 L bottles" },
+  "Canned sardines": { size: "155 g cans", details: "Halal-certified only" },
+  "Diapers (size 4)": { size: "Size 4 (9–14 kg)", cond: "new", details: "Sealed packs only" },
+  "Milk powder 800g": { size: "800 g tins, stage 2 (1–3 years)", cond: "new", details: "Sealed, at least 3 months before expiry" },
+  "Toothpaste": { size: "100 g tubes", cond: "new" },
+  "Bath soap": { size: "Bars of 90 g or more", cond: "new" },
+  "Children's storybooks": { size: "Ages 6–10, English or Malay", cond: "good" },
+  "T-shirts (M, L)": { size: "Size M–L, adult", material: "Cotton", cond: "good" },
+  "Track pants": { size: "Size M–XL, elastic waist", cond: "good" },
+  "School shoes": { size: "EU 30–36 (Primary 1–6)", cond: "good", details: "Black, with Velcro or laces", describe: true },
+};
+/** Real photos for the offers that have one (fictional, no location data). */
+const PHOTO_DIR = "scripts/demo-photos";
+
+/** @param {Item} i */
+const detailsOf = (i) => ITEM_DETAILS[i.name] ?? { size: "" };
+
 /** @type {Req[]} */
 const REQUESTS = [
   { key: "R1", org: "pantry", urgency: "medium", deadline: 7, postedDaysAgo: 12, review: "approve", dropoff: DROPOFF.pantry,
@@ -193,7 +235,7 @@ const REQUESTS = [
     situation: "Open, deadline in 7 days (baby items)",
     title: "Diapers and milk powder for young families",
     description: "Five new families joined us this month, three with babies under one year old.",
-    items: [{ key: "diapers", name: "Diapers (size L)", category: "baby", unit: "packs", qty: 30 }, { key: "milk", name: "Milk powder 800g", category: "baby", unit: "tins", qty: 12 }] },
+    items: [{ key: "diapers", name: "Diapers (size 4)", category: "baby", unit: "packs", qty: 30 }, { key: "milk", name: "Milk powder 800g", category: "baby", unit: "tins", qty: 12 }] },
   { key: "R14", org: "pantry", urgency: "medium", deadline: 10, postedDaysAgo: 9, review: "approve", dropoff: DROPOFF.pantry,
     situation: "Open, deadline in 10 days",
     title: "Hygiene kits for seniors living alone",
@@ -203,7 +245,8 @@ const REQUESTS = [
     situation: "Open, deadline in 14 days (education items)",
     title: "Storybooks and exercise books for our reading corner",
     description: "Our Saturday reading corner is growing. Children aged 6 to 10 come every week.",
-    items: [{ key: "storybooks", name: "Children's storybooks", category: "education", unit: "books", qty: 50 }, { key: "exercise", name: "Exercise books", category: "education", unit: "books", qty: 100 }] },
+    items: [{ key: "storybooks", name: "Children's storybooks", category: "education", unit: "books", qty: 50 }, { key: "exercise", name: "Exercise books", category: "education", unit: "books", qty: 100 },
+      { key: "shoes", name: "School shoes", category: "clothing", unit: "pairs", qty: 12 }] },
   { key: "R16", org: "circle", urgency: "low", deadline: 21, postedDaysAgo: 6, review: "approve", dropoff: DROPOFF.circle,
     situation: "Open, deadline in 21 days (clothing)",
     title: "Comfortable clothes for seniors",
@@ -213,7 +256,9 @@ const REQUESTS = [
 
 /**
  * @typedef {{ donor: string, item: string, qty: number, message?: string, final: 'pending' | 'accepted' | 'delivered' | 'rejected' | 'cancelled',
- *   rejectNote?: string, daysAgo: number }} Offer
+ *   rejectNote?: string, daysAgo: number, condition?: 'new' | 'like_new' | 'good' | 'fair', details?: string, photo?: string }} Offer
+ * photo: a file in scripts/demo-photos/ — the offer is made by the donor with that photo, as on the site.
+ * Offers without a photo stand for older offers, made before photos were required.
  * item is "<request key>.<item key>". Offers on a request that gets closed should be 'pending' (they become "Request closed").
  */
 /** @type {Offer[]} */
@@ -222,31 +267,37 @@ const OFFERS = [
   { donor: "weiling", item: "R1.milk", qty: 24, final: "accepted", daysAgo: 5 },
   { donor: "siti", item: "R2.noodles", qty: 6, final: "delivered", daysAgo: 10 },
   { donor: "ahmad", item: "R2.noodles", qty: 4, final: "delivered", daysAgo: 9 },
-  { donor: "daniel", item: "R3.rice", qty: 4, final: "delivered", daysAgo: 8 },
+  { donor: "daniel", item: "R3.rice", qty: 4, final: "delivered", daysAgo: 8, photo: "rice-5kg.jpg", details: "Sealed 5 kg bags, expiry next year" },
   { donor: "ravi", item: "R3.rice", qty: 2, final: "accepted", daysAgo: 3 },
   { donor: "siti", item: "R6.blankets", qty: 5, final: "pending", daysAgo: 3, message: "I can bring them on a weekday evening." },
   { donor: "ravi", item: "R6.blankets", qty: 8, final: "accepted", daysAgo: 7 },
   { donor: "weiling", item: "R7.rice10", qty: 3, final: "pending", daysAgo: 4 },
   { donor: "ahmad", item: "R10.bedsheets", qty: 12, final: "delivered", daysAgo: 7 },
   { donor: "daniel", item: "R10.bedsheets", qty: 8, final: "accepted", daysAgo: 4 },
-  { donor: "weiling", item: "R10.pots", qty: 5, final: "accepted", daysAgo: 3 },
+  { donor: "weiling", item: "R10.pots", qty: 5, final: "accepted", daysAgo: 3, condition: "like_new", photo: "cooking-pot.jpg",
+    details: "26 cm stainless steel pots with lids, used a few times" },
   { donor: "ravi", item: "R11.water", qty: 24, final: "delivered", daysAgo: 4 },
-  { donor: "ahmad", item: "R12.oil", qty: 6, final: "pending", daysAgo: 1, message: "Saya boleh hantar pada hari Sabtu." },
+  { donor: "ahmad", item: "R12.oil", qty: 6, final: "pending", daysAgo: 1, message: "Saya boleh hantar pada hari Sabtu.", photo: "cooking-oil.jpg" },
   { donor: "siti", item: "R12.sardines", qty: 12, final: "delivered", daysAgo: 6 },
   { donor: "weiling", item: "R12.oil", qty: 4, final: "delivered", daysAgo: 7 },
   { donor: "weiling", item: "R13.milk", qty: 5, final: "pending", daysAgo: 2 },
   { donor: "daniel", item: "R13.diapers", qty: 10, final: "delivered", daysAgo: 6 },
-  { donor: "siti", item: "R13.diapers", qty: 5, final: "accepted", daysAgo: 2 },
+  { donor: "siti", item: "R13.diapers", qty: 5, final: "accepted", daysAgo: 2, condition: "new", photo: "diapers-size4.jpg", details: "Size 4 packs, still sealed" },
   { donor: "siti", item: "R14.soap", qty: 10, final: "accepted", daysAgo: 3, message: "I can drop them off on Saturday morning." },
   { donor: "ahmad", item: "R14.toothpaste", qty: 10, final: "delivered", daysAgo: 8 },
   { donor: "ravi", item: "R14.toothpaste", qty: 6, final: "pending", daysAgo: 1 },
   { donor: "daniel", item: "R15.storybooks", qty: 20, final: "rejected", daysAgo: 7,
     rejectNote: "Thank you, Daniel! Our corner only takes books in English or Malay for now — we've sent you a message." },
-  { donor: "siti", item: "R15.exercise", qty: 30, final: "delivered", daysAgo: 9 },
+  { donor: "siti", item: "R15.exercise", qty: 30, final: "delivered", daysAgo: 9, condition: "new", photo: "exercise-books.jpg" },
   { donor: "daniel", item: "R16.pants", qty: 2, final: "cancelled", daysAgo: 5 },
   { donor: "ravi", item: "R16.tshirts", qty: 10, final: "accepted", daysAgo: 4 },
   { donor: "weiling", item: "R16.pants", qty: 6, final: "delivered", daysAgo: 5 },
   { donor: "ahmad", item: "R16.tshirts", qty: 5, final: "pending", daysAgo: 1 },
+  // exact item details: needed vs offered on Jurong Hearts' board
+  { donor: "ahmad", item: "R15.shoes", qty: 2, final: "pending", daysAgo: 1, condition: "good", photo: "school-shoes.jpg",
+    details: "Black school shoes, EU 33 and EU 34, worn for one term" },
+  { donor: "siti", item: "R10.pots", qty: 2, final: "rejected", daysAgo: 4, condition: "like_new", photo: "cooking-pot.jpg",
+    details: "20 cm pot with lid", rejectNote: "Doesn't match the size or condition — we need 24–28 cm pots for family meals. Thank you, Siti!" },
 ];
 
 /**
@@ -407,6 +458,10 @@ const CHATS = [
     { from: "org", body: "Hi Priya! Just comfortable shoes and a water bottle. We'll provide gloves and aprons." },
     { from: "person", body: "Noted, thanks. I can also drive the packs to the blocks afterwards." },
     { from: "org", body: "That would be a big help. We've added it to your tasks." },
+  ] },
+  { person: "siti", org: "hearts", topic: "Your offer: 2 pieces of Cooking pots", hoursAgo: 90, lines: [
+    { from: "org", body: "Thank you for offering 2 pieces of Cooking pots. We couldn't accept it: Doesn't match the size or condition — we need 24–28 cm pots for family meals." },
+    { from: "person", body: "Oh I see, mine is only 20 cm. I'll look for a bigger one!" },
   ] },
   { person: "daniel", org: "hearts", topic: "About: Storybooks and exercise books for our reading corner", hoursAgo: 70, lines: [
     { from: "person", body: "Hi, I saw my storybook offer was declined. Did I do something wrong?" },
@@ -576,6 +631,17 @@ function checkDemoData() {
   const categories = new Set(REQUESTS.filter((r) => r.review === "approve").flatMap((r) => r.items.map((i) => i.category)));
   for (const c of ["food", "clothing", "hygiene", "household", "baby", "education", "other"]) expect(categories.has(c), `an approved request uses category ${c}`);
 
+  // exact item details: every item has a size; photos exist; conditions meet the minimum; descriptions given
+  const rank = { new: 4, like_new: 3, good: 2, fair: 1 };
+  for (const r of REQUESTS) for (const i of r.items) expect(Boolean(detailsOf(i).size), `${r.key}.${i.key} (${i.name}) has a size`);
+  for (const o of OFFERS) {
+    const { item } = splitItem(o.item);
+    const d = detailsOf(item);
+    if (o.photo) expect(existsSync(join(PHOTO_DIR, o.photo)), `photo ${o.photo} exists`);
+    if (o.condition && d.cond && item.category !== "food") expect(rank[o.condition] >= rank[d.cond], `${o.item}: offered condition meets ${d.cond}`);
+  }
+  expect(OFFERS.some((o) => o.final === "rejected" && o.rejectNote?.startsWith("Doesn't match the size")), "one offer rejected as “Doesn't match the size”");
+
   // offers → what each item will have (committed = accepted + delivered, received = delivered)
   /** @type {Record<string, { committed: number, received: number }>} */
   const totals = {};
@@ -717,6 +783,18 @@ async function main() {
   }
   done("no demo accounts yet");
 
+  step("Emptying the private offer-photos folder (photos from an earlier seed)");
+  let removedPhotos = 0;
+  for (const folder of must(await admin.storage.from("offer-photos").list("", { limit: 1000 }), "listing offer photos")) {
+    for (const sub of must(await admin.storage.from("offer-photos").list(folder.name, { limit: 1000 }), "listing offer photos")) {
+      const files = must(await admin.storage.from("offer-photos").list(`${folder.name}/${sub.name}`, { limit: 100 }), "listing offer photos");
+      const paths = files.map((f) => `${folder.name}/${sub.name}/${f.name}`);
+      if (paths.length) must(await admin.storage.from("offer-photos").remove(paths), "removing old offer photos");
+      removedPhotos += paths.length;
+    }
+  }
+  done(removedPhotos ? `${removedPhotos} removed` : "already empty");
+
   /** @type {Map<string, string>} person key → user id */
   const userId = new Map();
   /** @type {Map<string, import('@supabase/supabase-js').SupabaseClient>} person key → signed-in client */
@@ -790,7 +868,14 @@ async function main() {
     );
     requestId.set(r.key, row.id);
     const items = must(
-      await client.from("request_items").insert(r.items.map((i) => ({ request_id: row.id, name: i.name, category: i.category, unit: i.unit, quantity_needed: i.qty }))).select("id,name"),
+      await client.from("request_items").insert(r.items.map((i) => {
+        const d = detailsOf(i);
+        return {
+          request_id: row.id, name: i.name, category: i.category, unit: i.unit, quantity_needed: i.qty,
+          size_spec: d.size, material: d.material ?? null, min_condition: i.category === "food" ? "any" : d.cond ?? "any",
+          item_details: d.details ?? null, details_required: Boolean(d.describe),
+        };
+      })).select("id,name"),
       `${r.key} items`,
     );
     for (const i of r.items) itemId.set(`${r.key}.${i.key}`, /** @type {string} */ (items.find((x) => x.name === i.name)?.id));
@@ -808,15 +893,31 @@ async function main() {
   step("Donors make offers");
   /** @type {string[]} */
   const offerIds = [];
-  for (const o of OFFERS) {
+  for (const [index, o] of OFFERS.entries()) {
     const { item } = splitItem(o.item);
-    const row = must(
-      await (await as(o.donor)).from("donation_offers").insert({ request_item_id: id(itemId, o.item), quantity: o.qty, message: o.message ?? null, food_safety_confirmed: item.category === "food" }).select("id").single(),
-      `${person(o.donor).name} offering ${o.qty} ${item.unit} of ${item.name} (${o.item})`,
-    );
+    const d = detailsOf(item);
+    const what = `${person(o.donor).name} offering ${o.qty} ${item.unit} of ${item.name} (${o.item})`;
+    /** @type {Record<string, unknown>} */
+    const offer = {
+      request_item_id: id(itemId, o.item), quantity: o.qty, message: o.message ?? null, food_safety_confirmed: item.category === "food",
+      // the condition is required when the item asks for one (the database checks it meets the minimum)
+      offer_condition: o.condition ?? (item.category !== "food" ? d.cond ?? null : null),
+      offer_details: o.details ?? (d.describe ? `${item.name}, ${d.size}` : null),
+    };
+    let row;
+    if (o.photo) {
+      // as on the site: the donor uploads the photo to their own private folder, then offers with it
+      const client = await as(o.donor);
+      const path = `${id(userId, o.donor)}/seed-${index + 1}/1.jpg`;
+      must(await client.storage.from("offer-photos").upload(path, readFileSync(join(PHOTO_DIR, o.photo)), { contentType: "image/jpeg" }), `uploading ${o.photo}`);
+      row = must(await client.from("donation_offers").insert({ ...offer, photo_paths: [path] }).select("id").single(), what);
+    } else {
+      // an older offer, from before photos were required (the admin client sets the donor)
+      row = must(await admin.from("donation_offers").insert({ ...offer, donor_id: id(userId, o.donor) }).select("id").single(), what);
+    }
     offerIds.push(row.id);
   }
-  done(`${OFFERS.length} offers, all waiting`);
+  done(`${OFFERS.length} offers, all waiting (${OFFERS.filter((o) => o.photo).length} with photos)`);
 
   step("Organizations accept, reject and mark offers delivered; a donor cancels");
   for (const [index, o] of OFFERS.entries()) {
@@ -1013,6 +1114,11 @@ function demoGuide() {
     ["Offer: delivered (stamp)", login("siti"), "My offers → History", "Delivered · Thank you! stamps"],
     ["Offer: rejected, with a note", login("daniel"), "My offers → History, then Messages", "Storybooks (R15) and Jurong Hearts' reply"],
     ["Offer: cancelled by the donor", login("daniel"), "My offers → History", "Track pants (R16)"],
+    ["Item details on a notice", "Anyone (logged out is fine)", "Browse needs → Starter kits (R10) → Offer", "Cooking pots: 24–28 cm · Stainless steel · Like new or better, “With a lid”, donors describe their item"],
+    ["Halal-only food, size 4 diapers, school shoes", "Anyone", "Browse needs → R12, R13 and R15", "Canned sardines “Halal-certified only”; Diapers (size 4); School shoes EU 30–36, Good or better"],
+    ["Offer with condition, description and photo", login("weiling"), "Donating → My offers → Cooking pots → See timeline", "Like new · 26 cm stainless steel pots with lids, plus her photo"],
+    ["Needed vs offered, with photos", orgLogin("hearts"), "Offers → the board", "Ahmad's school shoes in New (Needed: EU 30–36 · Good or better / Offered: Good · …) with the photo"],
+    ["Rejected: doesn't match the size", login("siti"), "My offers → History, then Messages", "20 cm pot (R10) with Jurong Hearts' note and message"],
     ["Offer: “Request closed”", login("weiling"), "Donating → My offers → History", "Rice for Deepavali hampers (R7): Got enough from a school drive"],
     ["Empty states", login("kavitha"), "Overview, My offers, Messages", "Pinny and “nothing here yet” messages"],
     ["Two roles: Donating ↔ Volunteering", login("weiling"), "Top bar avatar menu", "Switch between the donor and volunteer dashboards"],
@@ -1048,7 +1154,7 @@ ${situations.join("\n")}
 ## 3. Three-minute demo route
 
 1. **Home page, logged out** (\`/\`): "Most needed" shows the pinned notices, with **${req("R4").title}** first. Scroll to **What can you give?**, type \`I have 5 bags of rice\` and press **Find matches**: AI-suggested matches with one-line reasons.
-2. **Log in as Siti** (\`${person("siti").email}\`): **Find needs** → on **${req("R4").title}** press **Offer** → in the panel, **Offer** → choose 5 → **Offer 5 packs**.
+2. **Log in as Siti** (\`${person("siti").email}\`): **Find needs** → on **${req("R4").title}** press **Offer** → in the panel, **Offer** → choose 5 → condition **New** → **Add photos** (any picture, e.g. \`scripts/demo-photos/rice-5kg.jpg\`) → **Offer 5 packs**.
 3. **Log out, log in as Tampines Kampung Pantry** (\`${person("pantry").email}\`): **Offers** → the board (New · Accepted · Delivered) → Siti's offer is in **New** → **Accept offer** → it moves to **Accepted** → **Mark delivered**.
 4. **Log in as Siti again**: **My offers** → **History** shows **Delivered · Thank you!** (with Pinny the first time).
 5. **Back as Tampines Kampung Pantry**: the chat icon → **Messages** → **Ahmad Ismail**: his Malay messages appear in English (press **See original** to show the Malay).

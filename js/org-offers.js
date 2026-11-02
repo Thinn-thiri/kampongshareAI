@@ -139,6 +139,46 @@ document.addEventListener("alpine:init", () => {
       return t("orgDash.offerWhat", { quantity: offer.quantity, unit: offer.item.unit, item: offer.item.name });
     },
 
+    /**
+     * Sends the rejection note to the donor as a message. If messaging fails, the rejection still stands
+     * (the note is on their timeline anyway) and a toast says so.
+     * @param {IncomingOffer} offer
+     * @param {string} note
+     */
+    async tellDonor(offer, note) {
+      try {
+        const conversationId = await startConversation(orgId, offer.donor_id, t("messages.topicOffer", { what: this.what(offer) }));
+        await sendMessage(conversationId, t("orgDash.rejectMessage", { what: this.what(offer), note }));
+      } catch {
+        toast(t("orgDash.rejectMessageFailed"), "error");
+      }
+    },
+
+    /**
+     * Needed vs offered, side by side on the card: "Needed: 24–28 cm · Like new or better".
+     * @param {IncomingOffer} offer
+     */
+    neededLine(offer) {
+      return itemSpecLine(offer.item);
+    },
+
+    /** "Like new · 26 cm pot with lid" @param {IncomingOffer} offer */
+    offeredLine(offer) {
+      return offeredLine(offer);
+    },
+
+    /** @type {Record<string, string[]>} offer id → photo addresses (signed, 1 hour) */
+    photos: {},
+
+    /**
+     * Loads an offer's photos once (private: signed addresses only this organization can get).
+     * @param {IncomingOffer} offer
+     */
+    async loadPhotos(offer) {
+      if (!offer.photo_paths?.length || this.photos[offer.id]) return;
+      this.photos = { ...this.photos, [offer.id]: await photoUrls(offer.photo_paths) };
+    },
+
     /** "Message donor": a private conversation about this offer. @param {IncomingOffer} offer */
     messageDonor(offer) {
       if (offer.donor_id) this.messageTo(orgId, offer.donor_id, t("messages.topicOffer", { what: this.what(offer) }));
@@ -175,14 +215,16 @@ document.addEventListener("alpine:init", () => {
       };
       const dialog = dialogs[status];
       let note = "";
+      const mismatch = t("orgDash.rejectMismatch");
       if (status === "rejected") {
-        // an optional note the donor sees on their offer's timeline
+        // an optional note the donor sees on their offer's timeline; one tap for the usual reasons
         const answer = await reasonDialog(dialog.message, {
           title: dialog.title,
           label: t("orgDash.rejectNoteLabel"),
           maxLength: REASON_MAX_LENGTH,
           confirmText: dialog.confirmText,
           danger: true,
+          quickReasons: [mismatch, t("orgDash.rejectEnough"), t("orgDash.rejectFood")],
         });
         if (answer === null) return;
         note = answer;
@@ -200,6 +242,10 @@ document.addEventListener("alpine:init", () => {
       try {
         await setOfferStatus(offer.id, status, note);
         toast(dialog.done);
+        // "Doesn't match the size or condition": also tell the donor in a message, so they know why
+        if (status === "rejected" && note.startsWith(mismatch) && offer.donor_id) {
+          await this.tellDonor(offer, note);
+        }
         if (this.panelOffer?.id === offer.id) closeSidePanel("org-offer-panel");
         if (status !== "rejected") this.boardTab = status;
         moved = true;

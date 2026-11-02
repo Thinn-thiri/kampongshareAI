@@ -33,6 +33,7 @@
     <script src="/js/requests.js"></script>
     <script src="/js/org-requests.js"></script>
     <script src="/js/offers.js"></script>
+    <script src="/js/offer-photos.js"></script>
     <script src="/js/request-panel.js"></script>
     <script src="/js/org-offers.js"></script>
     <script src="/js/events.js"></script>
@@ -538,6 +539,45 @@
                       <p :id="`err-item-quantity-${row.key}`" class="field-error" x-show="errors[`items.${row.key}.quantity`]" x-text="errors[`items.${row.key}.quantity`]"></p>
                     </div>
                   </div>
+                  <!-- exactly what's needed: size (required), material, accepted condition, other details -->
+                  <div class="grid gap-2 sm:grid-cols-2">
+                    <div>
+                      <label :for="`item-size-${row.key}`" class="label" data-i18n="orgDash.sizeLabel">Size or specification</label>
+                      <input :id="`item-size-${row.key}`" class="input read-only:bg-surface read-only:text-muted" type="text" maxlength="80"
+                        :placeholder="sizePlaceholder(row.category)" x-model="row.size" :readonly="locked"
+                        :aria-invalid="errors[`items.${row.key}.size`] ? 'true' : null" :aria-describedby="`err-item-size-${row.key}`" />
+                      <p :id="`err-item-size-${row.key}`" class="field-error" x-show="errors[`items.${row.key}.size`]" x-text="errors[`items.${row.key}.size`]"></p>
+                    </div>
+                    <div>
+                      <label :for="`item-material-${row.key}`" class="label"><span data-i18n="orgDash.materialLabel">Material</span> <span class="optional" data-i18n="common.optional">(optional)</span></label>
+                      <input :id="`item-material-${row.key}`" class="input read-only:bg-surface read-only:text-muted" type="text" maxlength="80"
+                        placeholder="e.g. Stainless steel" data-i18n-attr="placeholder:orgDash.materialPlaceholder" x-model="row.material" :readonly="locked"
+                        :aria-invalid="errors[`items.${row.key}.material`] ? 'true' : null" :aria-describedby="`err-item-material-${row.key}`" />
+                      <p :id="`err-item-material-${row.key}`" class="field-error" x-show="errors[`items.${row.key}.material`]" x-text="errors[`items.${row.key}.material`]"></p>
+                    </div>
+                  </div>
+                  <!-- food follows the food-safety rule, so it has no condition -->
+                  <div x-show="row.category !== 'food'">
+                    <label :for="`item-condition-${row.key}`" class="label" data-i18n="orgDash.conditionLabel">Accepted condition</label>
+                    <select :id="`item-condition-${row.key}`" class="input" x-model="row.minCondition" :disabled="locked">
+                      <template x-for="option in minConditions" :key="option.value">
+                        <option :value="option.value" x-text="option.label" :selected="option.value === row.minCondition"></option>
+                      </template>
+                    </select>
+                  </div>
+                  <div>
+                    <label :for="`item-details-${row.key}`" class="label"><span data-i18n="orgDash.detailsLabel">Other details</span> <span class="optional" data-i18n="common.optional">(optional)</span></label>
+                    <textarea :id="`item-details-${row.key}`" class="input input-oneline block read-only:bg-surface read-only:text-muted" rows="1" maxlength="300"
+                      placeholder="e.g. Stainless steel, with lid · Halal-certified only" data-i18n-attr="placeholder:orgDash.detailsPlaceholder"
+                      x-model="row.details" :readonly="locked"
+                      :aria-invalid="errors[`items.${row.key}.details`] ? 'true' : null" :aria-describedby="`count-item-details-${row.key} err-item-details-${row.key}`"></textarea>
+                    <p :id="`count-item-details-${row.key}`" class="counter" :class="row.details.length >= 300 ? 'counter-limit' : ''" x-text="row.details.length + ' / 300'"></p>
+                    <p :id="`err-item-details-${row.key}`" class="field-error" x-show="errors[`items.${row.key}.details`]" x-text="errors[`items.${row.key}.details`]"></p>
+                  </div>
+                  <label class="flex items-start gap-3 text-[0.9375rem] leading-5">
+                    <input :id="`item-describe-${row.key}`" type="checkbox" x-model="row.detailsRequired" :disabled="locked" />
+                    <span class="pt-0.5" data-i18n="orgDash.askDescribe">Ask donors to describe their item</span>
+                  </label>
                   <div class="flex justify-end" x-show="!locked && form.items.length > 1">
                     <button type="button" class="btn btn-quiet min-h-11 gap-2 px-3 text-sm" @click="removeItem(row.key)"
                       :aria-label="row.name ? $t('orgDash.removeItemNamed', { number: index + 1, name: row.name }) : $t('orgDash.removeItem', { number: index + 1 })">
@@ -548,7 +588,7 @@
                 </div>
               </template>
               <p class="field-error" x-show="errors.items" x-text="errors.items"></p>
-              <p id="req-locked-note" class="mt-1 text-[0.8125rem] leading-5 text-muted" x-show="locked" data-i18n="orgDash.itemsLockedNote">Item names, categories and units are locked. To change this, close the request and post a new one.</p>
+              <p id="req-locked-note" class="mt-1 text-[0.8125rem] leading-5 text-muted" x-show="locked" data-i18n="orgDash.itemsLockedNote">Item names, sizes, materials, conditions and details are locked. To change this, close the request and post a new one.</p>
               <button id="req-items" type="button" class="btn btn-secondary" x-show="!locked" @click="addItem()" data-i18n="orgDash.addItem">+ Add item</button>
             </fieldset>
 
@@ -603,6 +643,7 @@
                 </div>
                 <div>
                   <p class="tabular-nums" x-text="noticeNeed(request).text"></p>
+                  <p class="text-[0.8125rem] leading-5 text-muted break-words" x-show="noticeSpec(request)" x-text="noticeSpec(request)"></p>
                   <p class="text-sm text-muted" x-text="noticeEnds(request)"></p>
                 </div>
                 <div class="mt-auto flex items-center gap-3">
@@ -740,6 +781,23 @@
                           <i class="ph ph-check-circle mt-0.5 size-4 shrink-0" aria-hidden="true"></i>
                           <span data-i18n="orgDash.foodConfirmed">Donor confirmed the food is sealed, unopened and not expired.</span>
                         </p>
+                        <!-- needed vs offered, to compare at a glance (the donor's words via x-text) -->
+                        <dl class="grid grid-cols-[max-content_1fr] gap-x-2 gap-y-0.5 text-[0.8125rem] leading-5" x-show="neededLine(offer) || offeredLine(offer)">
+                          <dt class="text-muted" x-show="neededLine(offer)" data-i18n="orgDash.needed">Needed</dt>
+                          <dd class="break-words" x-show="neededLine(offer)" x-text="neededLine(offer)"></dd>
+                          <dt class="text-muted" x-show="offeredLine(offer)" data-i18n="orgDash.offered">Offered</dt>
+                          <dd class="break-words font-bold" x-show="offeredLine(offer)" x-text="offeredLine(offer)"></dd>
+                        </dl>
+                        <!-- the donor's photos: tap one for the timeline with the large photos -->
+                        <div class="flex gap-1.5" x-show="offer.photo_paths?.length" x-init="loadPhotos(offer)">
+                          <template x-for="(url, n) in (photos[offer.id] ?? [])" :key="url">
+                            <button type="button" class="rounded-md" @click="openTimeline(offer, $event)" aria-haspopup="dialog"
+                              :aria-label="$t('photos.seeLarge', { item: offer.item.name })">
+                              <img :src="url" :alt="$t('photos.altNumber', { number: n + 1, item: offer.item.name })" class="size-16 rounded-md border-[1.5px] border-edge object-cover" loading="lazy" />
+                            </button>
+                          </template>
+                        </div>
+                        <p class="text-[0.75rem] leading-4 text-muted" x-show="!offer.photo_paths?.length" data-i18n="photos.noneOlder">No photos (offered before photos were required)</p>
                         <div class="flex flex-wrap gap-2 pt-1" x-show="offer.status === 'pending'">
                           <button type="button" class="btn btn-primary min-h-11 px-3" :disabled="busyId === offer.id" @click="act(offer, 'accepted')"
                             :aria-label="$t('orgDash.acceptWhat', { what: what(offer) })">
@@ -777,6 +835,20 @@
                     <p class="text-sm break-words" x-text="offer.donor ? (offer.donor.full_name || $t('admin.nameNotGiven')) : $t('admin.deletedAccount')"></p>
                   </div>
                   <span :class="statusInfo(offer.status, 'offer').className" x-text="statusInfo(offer.status, 'offer').label"></span>
+                </div>
+                <dl class="grid grid-cols-[max-content_1fr] gap-x-2 gap-y-0.5 text-[0.8125rem] leading-5" x-show="neededLine(offer) || offeredLine(offer)">
+                  <dt class="text-muted" x-show="neededLine(offer)" data-i18n="orgDash.needed">Needed</dt>
+                  <dd class="break-words" x-show="neededLine(offer)" x-text="neededLine(offer)"></dd>
+                  <dt class="text-muted" x-show="offeredLine(offer)" data-i18n="orgDash.offered">Offered</dt>
+                  <dd class="break-words font-bold" x-show="offeredLine(offer)" x-text="offeredLine(offer)"></dd>
+                </dl>
+                <div class="flex gap-1.5" x-show="offer.photo_paths?.length" x-init="loadPhotos(offer)">
+                  <template x-for="(url, n) in (photos[offer.id] ?? [])" :key="url">
+                    <button type="button" class="rounded-md" @click="openTimeline(offer, $event)" aria-haspopup="dialog"
+                      :aria-label="$t('photos.seeLarge', { item: offer.item.name })">
+                      <img :src="url" :alt="$t('photos.altNumber', { number: n + 1, item: offer.item.name })" class="size-16 rounded-md border-[1.5px] border-edge object-cover" loading="lazy" />
+                    </button>
+                  </template>
                 </div>
                 <div x-data="tracker(() => trackerFor(offer))"></div>
                 <div>
@@ -820,6 +892,24 @@
                   </dd>
                 </dl>
                 <p class="text-sm text-muted" data-i18n="orgDash.donorDetailsNote">The donor's details are only shown to you, to arrange drop-off.</p>
+                <!-- what was asked for and what the donor says they have -->
+                <dl class="grid grid-cols-[max-content_1fr] gap-x-3 gap-y-1 text-sm" x-show="neededLine(panelOffer) || offeredLine(panelOffer) || panelOffer.item.item_details">
+                  <dt class="text-muted" x-show="neededLine(panelOffer)" data-i18n="orgDash.needed">Needed</dt>
+                  <dd class="break-words" x-show="neededLine(panelOffer)" x-text="neededLine(panelOffer)"></dd>
+                  <dt class="text-muted" x-show="panelOffer.item.item_details" data-i18n="requests.specDetails">Details</dt>
+                  <dd class="break-words" x-show="panelOffer.item.item_details" x-text="panelOffer.item.item_details"></dd>
+                  <dt class="text-muted" x-show="offeredLine(panelOffer)" data-i18n="orgDash.offered">Offered</dt>
+                  <dd class="break-words font-bold" x-show="offeredLine(panelOffer)" x-text="offeredLine(panelOffer)"></dd>
+                </dl>
+                <p class="text-sm text-muted" x-show="!panelOffer.photo_paths?.length" data-i18n="photos.noneOlder">No photos (offered before photos were required)</p>
+                <p class="label mb-0" x-show="panelOffer.photo_paths?.length" data-i18n="photos.donorPhotos">The donor's photos</p>
+                <div class="grid grid-cols-3 gap-2" x-show="panelOffer.photo_paths?.length" x-effect="loadPhotos(panelOffer)">
+                  <template x-for="(url, n) in (photos[panelOffer.id] ?? [])" :key="url">
+                    <a :href="url" target="_blank" rel="noopener" class="block" :aria-label="$t('photos.openFull', { number: n + 1 })">
+                      <img :src="url" :alt="$t('photos.altNumber', { number: n + 1, item: panelOffer.item.name })" class="aspect-square w-full rounded-md border-[1.5px] border-edge object-cover" />
+                    </a>
+                  </template>
+                </div>
                 <div x-data="tracker(() => trackerFor(panelOffer), 'column')"></div>
                 <button type="button" class="btn btn-secondary" x-show="panelOffer.donor_id" :disabled="messaging" @click="messageDonor(panelOffer)"
                   :aria-label="$t('messages.messageDonorNamed', { name: panelOffer.donor?.full_name || $t('orgDash.theDonor') })">

@@ -546,6 +546,46 @@ function urgencyLevel(score) {
   return { level, label: enumLabel("urgency", level), className: classes[level] };
 }
 
+/** @typedef {'new' | 'like_new' | 'good' | 'fair' | 'any'} ItemCondition */
+
+/** The conditions a donor can choose, best first (donation_offers.offer_condition; never "any"). */
+const OFFER_CONDITIONS = /** @type {const} */ (["new", "like_new", "good", "fair"]);
+/** The accepted-condition choices for an item (request_items.min_condition), "any" first: the default. */
+const MIN_CONDITIONS = /** @type {const} */ (["any", "new", "like_new", "good", "fair"]);
+/** Higher = better, as public.condition_rank() in the database. @type {Record<ItemCondition, number>} */
+const CONDITION_RANK = { new: 4, like_new: 3, good: 2, fair: 1, any: 0 };
+
+/**
+ * The conditions that meet an item's minimum, e.g. "like_new" → new, like new (the offer form's radios).
+ * @param {ItemCondition | null | undefined} min
+ * @returns {ItemCondition[]}
+ */
+function conditionsMeeting(min) {
+  const floor = CONDITION_RANK[min ?? "any"] ?? 0;
+  return OFFER_CONDITIONS.filter((condition) => CONDITION_RANK[condition] >= floor);
+}
+
+/**
+ * True when an item asks for a minimum condition (food never does: the food-safety rule applies).
+ * @param {{ min_condition?: ItemCondition | null, category?: string }} item
+ * @returns {boolean}
+ */
+function needsCondition(item) {
+  return Boolean(item.min_condition && item.min_condition !== "any" && item.category !== "food");
+}
+
+/**
+ * The item's requirements as one short line, only the parts that exist: "24–28 cm · Stainless steel · Like new or better".
+ * Size and material are shown as the organization wrote them.
+ * @param {{ size_spec?: string | null, material?: string | null, min_condition?: ItemCondition | null, category?: string }} item
+ * @returns {string} "" when there's nothing to show
+ */
+function itemSpecLine(item) {
+  return [item.size_spec, item.material, needsCondition(item) ? enumLabel("minCondition", item.min_condition) : null]
+    .filter((part) => typeof part === "string" && part.trim())
+    .join(" · ");
+}
+
 /**
  * Every message the database raises on purpose ("raise exception" in supabase/migrations/), plus the
  * two the browser code throws itself, mapped to a translation key. Named groups fill the placeholders;
@@ -582,7 +622,19 @@ const DB_ERRORS = [
     enums: { from: "requestStatus", to: "requestStatus" },
   },
   { pattern: /^Items can't be added or removed after approval\./, key: "errors.db.itemsLocked" },
-  { pattern: /^After approval you can only change an item's quantity\.?$/, key: "errors.db.itemQuantityOnly" },
+  { pattern: /^After approval you can only change an item's quantity\.?(?:\s|$)/, key: "errors.db.itemQuantityOnly" },
+  // exact item details and photos (20261102090000_item_details.sql, 20261102120000_offer_photos.sql)
+  { pattern: /^Please add a size or specification for "(?<item>.*)"/, key: "errors.db.sizeNeeded" },
+  { pattern: /^Please say what condition your "(?<item>.*)" is in\.?$/, key: "errors.db.conditionNeeded" },
+  {
+    pattern: /^This request needs "(?<item>.*)" in (?<condition>.+?) condition or better\.?$/,
+    key: "errors.db.conditionTooLow",
+    enums: { condition: "condition" },
+  },
+  { pattern: /^Please describe your "(?<item>.*)"/, key: "errors.db.describeItem" },
+  { pattern: /^Please add at least one photo of your "(?<item>.*)"/, key: "errors.db.photoNeeded" },
+  { pattern: /^You can add up to 3 photos\.?$/, key: "errors.db.tooManyPhotos" },
+  { pattern: /^One of the photos could not be found\./, key: "errors.db.photoMissing" },
   { pattern: /^Request item not found\.?$/, key: "errors.db.itemNotFound" },
   { pattern: /^This request is not accepting donations right now\.?$/, key: "errors.db.requestNotOpen" },
   { pattern: /^Only (?<count>\d+) (?<unit>.*?) of "(?<item>.*)" still needed\.?$/, key: "errors.db.onlyStillNeeded" },

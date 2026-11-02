@@ -33,6 +33,7 @@
     <script src="/js/admin-counts.js"></script>
     <script src="/js/requests.js"></script>
     <script src="/js/offers.js"></script>
+    <script src="/js/offer-photos.js"></script>
     <script src="/js/request-panel.js"></script>
     <script src="/js/match.js"></script>
     <script src="/js/stats.js"></script>
@@ -217,6 +218,7 @@
               </div>
               <div>
                 <p class="tabular-nums" x-text="noticeNeed(request).text"></p>
+                <p class="text-[0.8125rem] leading-5 text-muted break-words" x-show="noticeSpec(request)" x-text="noticeSpec(request)"></p>
                 <p class="text-sm text-muted" x-text="noticeEnds(request)"></p>
               </div>
               <button type="button" class="btn btn-primary mt-auto self-start" x-show="viewerReady" @click="openRequest(request, $event)"
@@ -280,6 +282,7 @@
               <template x-for="match in matches" :key="match.itemId">
                 <li class="flex flex-col gap-2 rounded-lg border-[1.5px] border-edge bg-canvas p-4">
                   <p class="font-bold break-words" x-text="match.itemName"></p>
+                  <p class="text-[0.8125rem] leading-5 text-muted break-words" x-show="matchSpec(match)" x-text="matchSpec(match)"></p>
                   <p class="text-sm break-words" x-text="[match.requestTitle, match.organization].filter(Boolean).join(' · ')"></p>
                   <p class="text-sm text-muted tabular-nums" x-text="$t('match.resultLine', { count: match.remaining, unit: match.unit, deadline: deadlineText(match.deadline) })"></p>
                   <p class="text-sm" x-text="match.reason"></p>

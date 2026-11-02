@@ -60,6 +60,19 @@ function noticeNeed(request) {
 }
 
 /**
+ * One short line of requirements under a notice's "still needed" line, only when they exist:
+ * "24–28 cm · Like new or better" (one item), or "Cooking pot: 24–28 cm · …" (the first item with any).
+ * @param {DonationRequest} request
+ * @returns {string} "" when no item has a size, material or condition
+ */
+function noticeSpec(request) {
+  const items = (request.request_items ?? []).filter((item) => item.quantity_remaining > 0);
+  const item = items.find((i) => itemSpecLine(i));
+  if (!item) return "";
+  return items.length === 1 ? itemSpecLine(item) : t("requests.noticeSpecNamed", { item: item.name, spec: itemSpecLine(item) });
+}
+
+/**
  * "When it ends" on a notice: "Ends Sat 2 Nov" (or "No end date").
  * @param {DonationRequest} request
  * @returns {string}
@@ -77,9 +90,10 @@ function noticeEnds(request) {
  * @param {DonationRequest} request
  * @param {EventTarget | null} [opener] focus goes back here when the panel closes
  * @param {string | null} [itemId] scroll to this item (and open its Offer form for donors)
+ * @param {number | null} [quantity] fill in "How many?" (from Pinny's draft)
  */
-function openRequestPanel(request, opener = null, itemId = null) {
-  window.dispatchEvent(new CustomEvent("open-request", { detail: { request, opener, itemId } }));
+function openRequestPanel(request, opener = null, itemId = null, quantity = null) {
+  window.dispatchEvent(new CustomEvent("open-request", { detail: { request, opener, itemId, quantity } }));
 }
 
 /**
@@ -90,6 +104,7 @@ function noticeHelpers() {
   return {
     noticeCategory,
     noticeNeed,
+    noticeSpec,
     noticeEnds,
     noticeUrgency,
     categoryIcon,
@@ -166,6 +181,24 @@ const REQUEST_PANEL_MARKUP = `
                 <i class="size-7" :class="categoryIcon(item.category)" aria-hidden="true"></i>
                 <span x-text="item.name"></span>
               </p>
+              <!-- exactly what's needed, before anyone offers (the organization's own words via x-text) -->
+              <dl class="grid grid-cols-[max-content_1fr] gap-x-3 gap-y-1 text-sm" x-show="item.size_spec || item.material || needsCondition(item) || item.item_details || item.details_required">
+                <template x-if="item.size_spec">
+                  <div class="contents"><dt class="text-muted" data-i18n="requests.specSize">Size</dt><dd class="break-words" x-text="item.size_spec"></dd></div>
+                </template>
+                <template x-if="item.material">
+                  <div class="contents"><dt class="text-muted" data-i18n="requests.specMaterial">Material</dt><dd class="break-words" x-text="item.material"></dd></div>
+                </template>
+                <template x-if="needsCondition(item)">
+                  <div class="contents"><dt class="text-muted" data-i18n="requests.specCondition">Condition</dt><dd x-text="enumLabel('minCondition', item.min_condition)"></dd></div>
+                </template>
+                <template x-if="item.item_details">
+                  <div class="contents"><dt class="text-muted" data-i18n="requests.specDetails">Details</dt><dd class="whitespace-pre-line break-words" x-text="item.item_details"></dd></div>
+                </template>
+                <template x-if="item.details_required">
+                  <div class="contents"><dt class="sr-only" data-i18n="requests.specDescribe">Description</dt><dd class="col-span-2 text-muted" data-i18n="requests.specDescribeNote">Donors describe their item when offering.</dd></div>
+                </template>
+              </dl>
               <div class="need-bar" role="img" :aria-label="itemBarLabel(item)">
                 <span class="need-bar-received" :style="'width:' + itemPercent(item).received + '%'"></span>
                 <span class="need-bar-promised" :style="'width:' + itemPercent(item).promised + '%'"></span>
@@ -226,6 +259,57 @@ const REQUEST_PANEL_MARKUP = `
                   </div>
                 </template>
                 <p class="helper-text mt-0" x-show="item.category === 'clothing'" data-i18n="needs.clothingNote">Clothing should be clean and in usable condition.</p>
+                <!-- the condition: only the choices that meet the item's minimum -->
+                <template x-if="needsCondition(item)">
+                  <fieldset :aria-describedby="'offer-cond-err-' + item.id">
+                    <legend class="label" data-i18n="needs.conditionQuestion">What condition is it in?</legend>
+                    <div class="flex flex-wrap gap-2" :id="'offer-cond-' + item.id" tabindex="-1">
+                      <template x-for="condition in conditionsMeeting(item.min_condition)" :key="condition">
+                        <label class="check-pill">
+                          <input type="radio" :name="'offer-cond-' + item.id" :value="condition" x-model="offerForm.condition" />
+                          <span x-text="enumLabel('condition', condition)"></span>
+                        </label>
+                      </template>
+                    </div>
+                    <p :id="'offer-cond-err-' + item.id" class="field-error" x-show="offerErrors.condition" x-text="offerErrors.condition"></p>
+                  </fieldset>
+                </template>
+                <div>
+                  <label :for="'offer-details-' + item.id" class="label">
+                    <span data-i18n="needs.describeLabel">Describe your item</span>
+                    <span class="optional" x-show="!item.details_required" data-i18n="common.optional">(optional)</span>
+                  </label>
+                  <textarea :id="'offer-details-' + item.id" class="input input-oneline block" rows="1" maxlength="300" x-model="offerForm.details"
+                    placeholder="e.g. 26 cm stainless steel pot with lid, used twice" data-i18n-attr="placeholder:needs.describePlaceholder"
+                    :aria-invalid="offerErrors.details ? 'true' : null" :aria-describedby="'offer-details-hint-' + item.id + ' offer-details-count-' + item.id + ' offer-details-err-' + item.id"></textarea>
+                  <p :id="'offer-details-hint-' + item.id" class="helper-text" x-text="describeHint(item)"></p>
+                  <p :id="'offer-details-count-' + item.id" class="counter" :class="offerForm.details.length >= 300 ? 'counter-limit' : ''" x-text="offerForm.details.length + ' / 300'"></p>
+                  <p :id="'offer-details-err-' + item.id" class="field-error" x-show="offerErrors.details" x-text="offerErrors.details"></p>
+                </div>
+                <!-- 1–3 photos of the actual item; location data is removed before upload (js/offer-photos.js) -->
+                <div x-data="photoPicker" x-ref="photos" @photos-changed="offerForm.photos = $event.detail.photos" @offer-reset.window="clear()">
+                  <p class="label" :id="'offer-photos-label-' + item.id" data-i18n="photos.label">Photos of your item</p>
+                  <div class="flex flex-wrap items-center gap-2">
+                    <template x-for="photo in photos" :key="photo.key">
+                      <div class="relative">
+                        <img :src="photo.preview" alt="" class="size-20 rounded-md border-[1.5px] border-edge object-cover" />
+                        <button type="button" class="icon-btn absolute -top-2 -right-2 size-8 min-h-0 bg-surface" @click="remove(photo.key)"
+                          :aria-label="$t('photos.remove')"><i class="ph ph-x" aria-hidden="true"></i></button>
+                      </div>
+                    </template>
+                    <label class="btn btn-secondary btn-sm cursor-pointer" x-show="photos.length < max" :class="busy ? 'opacity-50' : ''">
+                      <i class="ph ph-camera" aria-hidden="true"></i>
+                      <span x-text="photos.length ? $t('photos.addMore') : $t('photos.add')"></span>
+                      <input :id="'offer-photos-' + item.id" type="file" class="sr-only" accept="image/jpeg,image/png,image/webp" multiple
+                        :disabled="busy" @change="pick($event)"
+                        :aria-describedby="'offer-photos-label-' + item.id + ' offer-photos-help-' + item.id + ' offer-photos-err-' + item.id" />
+                    </label>
+                  </div>
+                  <p :id="'offer-photos-help-' + item.id" class="helper-text" data-i18n="photos.help">1–3 photos. Location data is removed. Only this organization can see them.</p>
+                  <p :id="'offer-photos-err-' + item.id" class="field-error" x-show="error || offerErrors.photos" x-text="error || offerErrors.photos"></p>
+                </div>
+                <!-- what will be sent, in one sentence -->
+                <p class="note text-[0.9375rem] leading-5" x-show="offerSummary(offerForm, item)" x-text="offerSummary(offerForm, item)" aria-live="polite"></p>
                 <div role="alert">
                   <p class="note-danger" x-show="offerError" x-text="offerError"></p>
                 </div>
@@ -280,6 +364,10 @@ document.addEventListener("alpine:init", () => {
     noticeEnds,
     categoryIcon,
     statusInfo,
+    needsCondition,
+    conditionsMeeting,
+    enumLabel,
+    offerSummary,
     /** @type {DonationRequest | null} */
     request: null,
     whyOpen: false,
@@ -288,7 +376,7 @@ document.addEventListener("alpine:init", () => {
     /** @type {string | null} the item whose offer form is open */
     offerItemId: null,
     /** @type {OfferForm} */
-    offerForm: { quantity: "", message: "", foodSafetyConfirmed: false },
+    offerForm: emptyOfferForm(),
     /** @type {OfferErrors} */
     offerErrors: {},
     offerError: "",
@@ -298,8 +386,8 @@ document.addEventListener("alpine:init", () => {
       window.addEventListener("open-request", (event) => this.show(/** @type {CustomEvent} */ (event).detail));
     },
 
-    /** @param {{ request: DonationRequest, opener: EventTarget | null, itemId: string | null }} detail */
-    async show({ request, opener, itemId }) {
+    /** @param {{ request: DonationRequest, opener: EventTarget | null, itemId: string | null, quantity?: number | null }} detail */
+    async show({ request, opener, itemId, quantity = null }) {
       this.request = request;
       this.offerItemId = null;
       this.whyOpen = false;
@@ -308,7 +396,11 @@ document.addEventListener("alpine:init", () => {
       await this.loadMyOffers();
       const item = itemId ? request.request_items.find((i) => i.id === itemId) : null;
       if (!item) return;
-      if (this.donorMode() === "donor" && item.quantity_remaining > 0 && !this.activeOfferFor(item)) this.openOffer(item);
+      if (this.donorMode() === "donor" && item.quantity_remaining > 0 && !this.activeOfferFor(item)) {
+        this.openOffer(item);
+        // from Pinny's draft: the amount it prepared (never more than what's left)
+        if (quantity && quantity > 0) this.offerForm.quantity = Math.min(quantity, item.quantity_remaining);
+      }
       setTimeout(() => document.getElementById(`panel-item-${item.id}`)?.scrollIntoView({ block: "center" }), 50);
     },
 
@@ -348,10 +440,20 @@ document.addEventListener("alpine:init", () => {
       return Number.isInteger(count) && count > 0 ? t("needs.offerCount", { count, unit: item.unit }) : t("needs.sendOffer");
     },
 
+    /**
+     * The hint under "Describe your item", built from what the organization asked for:
+     * "Include the size (needed: 24–28 cm) and anything else that helps."
+     * @param {RequestItem} item
+     */
+    describeHint(item) {
+      return item.size_spec ? t("needs.describeHintSize", { size: item.size_spec }) : t("needs.describeHint");
+    },
+
     /** @param {RequestItem} item */
     openOffer(item) {
       this.offerItemId = item.id;
-      this.offerForm = { quantity: "", message: "", foodSafetyConfirmed: false };
+      this.offerForm = emptyOfferForm();
+      window.dispatchEvent(new CustomEvent("offer-reset"));
       this.offerErrors = {};
       this.offerError = "";
       setTimeout(() => document.getElementById(`offer-qty-${item.id}`)?.focus({ preventScroll: true }), 60);
@@ -359,6 +461,7 @@ document.addEventListener("alpine:init", () => {
 
     closeOffer() {
       this.offerItemId = null;
+      window.dispatchEvent(new CustomEvent("offer-reset"));
     },
 
     /** @param {RequestItem} item */
@@ -367,7 +470,7 @@ document.addEventListener("alpine:init", () => {
       this.offerErrors = validateOffer(this.offerForm, item);
       const firstError = Object.keys(this.offerErrors)[0];
       if (firstError) {
-        const ids = { quantity: "offer-qty", message: "offer-msg", foodSafety: "offer-food" };
+        const ids = { quantity: "offer-qty", message: "offer-msg", foodSafety: "offer-food", condition: "offer-cond", details: "offer-details", photos: "offer-photos" };
         document.getElementById(`${ids[/** @type {keyof typeof ids} */ (firstError)]}-${item.id}`)?.focus();
         return;
       }
@@ -376,6 +479,7 @@ document.addEventListener("alpine:init", () => {
         await makeOffer(item.id, this.offerForm);
         toast(t("needs.offerSent"));
         this.offerItemId = null;
+        window.dispatchEvent(new CustomEvent("offer-reset"));
         const fresh = this.request ? await getOpenRequest({ requestId: this.request.id }).catch(() => null) : null;
         if (fresh) this.request = fresh;
         await this.loadMyOffers();

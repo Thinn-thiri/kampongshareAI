@@ -48,6 +48,18 @@ document.addEventListener("alpine:init", () => {
     deliveredCount: 0,
     /** @type {DonationOffer | null} the offer in the timeline panel */
     panelOffer: null,
+    offeredLine,
+    /** @type {Record<string, string[]>} offer id → photo addresses (signed, 1 hour) */
+    photos: {},
+
+    /**
+     * Loads the donor's own photos for the timeline panel, once.
+     * @param {DonationOffer} offer
+     */
+    async loadPhotos(offer) {
+      if (!offer.photo_paths?.length || this.photos[offer.id]) return;
+      this.photos = { ...this.photos, [offer.id]: await photoUrls(offer.photo_paths) };
+    },
     /** @type {string | null} the delivered offer Pinny thanks (only the first time, REQUIREMENTS.md 12) */
     pinnyOfferId: null,
     offerTracker,

@@ -1,17 +1,22 @@
 // @ts-check
-// POST /api/chat-insights  { id, area?, lang? }  or, for a typed question, { id: "ask", question, previous?, lang? }
+// POST /api/chat-insights  { id, area?, lang? }  or, for a typed question, { id: "ask" | "agent", question, previous?, lang? }
 // Answers for the "Ask KampongShare" chat (REQUIREMENTS.md 6.8). Reads PUBLIC data with the anon key
 // only (never profiles, offers, applications or tasks). This code picks the facts; the AI only writes
 // short summaries of them (4.6), and a template is used when the AI isn't available.
 // Typed questions: personal data is removed first, fixed replies come before any AI, the AI only
 // classifies the topic, and help answers come only from the generated help text (_lib/chat-help.js).
 // Questions and data are text to read, never instructions. Nothing is stored or logged.
+// Agent mode ({ id: "agent" }, REQUIREMENTS.md 6.8): the same safety steps, then — for on-topic questions only —
+// Pinny chooses its own tools (netlify/lib/agent.js): public look-ups and DRAFTS the person confirms. The AI
+// learns only the caller's role (from their login token, if any). Shares this function's rate limit.
 // Languages: chip answers use `lang` (en, zh or ms — the site's language); a typed question is answered
 // in the language it's typed in. Fixed replies and templates come from netlify/lib/messages.js.
 // Env: SUPABASE_URL, SUPABASE_ANON_KEY (the same public key as in js/config.js), NVIDIA_API_KEY (optional).
 
 import { notEndedFilter, notPastDeadlineFilter, sgToday } from "../lib/dates.js";
 import { chat, stripPersonalData } from "../lib/ai.js";
+import { readPublic, callerRole } from "../lib/public-data.js";
+import { runAgent } from "../lib/agent.js";
 import { SG_AREAS, areaOf } from "../lib/urgency.js";
 import { HELP_TEXT, HELP_QUESTIONS } from "./_lib/chat-help.js";
 import { LANGUAGE_NAMES, LOCALES, isLang, questionLang, serverT, toSimplified } from "../lib/messages.js";
@@ -24,7 +29,14 @@ const MAX_WORDS = 60;
 const DAY_MS = 86_400_000;
 
 /** The questions this function answers ("ask" = a typed question). */
-const QUESTION_IDS = ["most_needed", "ending_soon", "upcoming_events", "areas", "area", "ask"];
+const QUESTION_IDS = ["most_needed", "ending_soon", "upcoming_events", "areas", "area", "ask", "agent"];
+
+/** The agent (with its topic check) finishes within this. Netlify's limit for a function is 60 s; 30 s leaves
+ *  room for 4 tool calls and NVIDIA's busy moments (single answers took 24–40 s on 2 Nov 2026; ai.js then
+ *  sends a second try after 3 s, which usually answers quickly). */
+const AGENT_BUDGET_MS = 30000;
+/** The topic check's own limit (it runs first, inside the budget above). */
+const CLASSIFY_TIMEOUT_MS = 15000;
 
 const MAX_QUESTION = 300;
 const MAX_HELP_WORDS = 100;
@@ -87,6 +99,8 @@ export const config = {
  * @property {number} remaining
  * @property {string} unit
  * @property {string | null} deadline   YYYY-MM-DD
+ * @property {string | null} [size]      the size or specification, as the organization wrote it
+ * @property {string} [condition]       the worst condition accepted ("any" = no rule)
  * @property {number} score             AI urgency score (0 when not scored yet)
  * @property {string | null} area
  */
@@ -111,25 +125,6 @@ function json(status, body) {
 }
 
 /**
- * Reads a public table with the anon key, so the database only returns what visitors may see.
- * @param {{ env: Record<string, string | undefined>, fetch: typeof fetch }} deps
- * @param {string} table
- * @param {URLSearchParams} params
- * @returns {Promise<any[]>}
- */
-async function readPublic(deps, table, params) {
-  const url = deps.env.SUPABASE_URL?.replace(/\/+$/, "");
-  const anonKey = deps.env.SUPABASE_ANON_KEY;
-  if (!url || !anonKey) throw new Error("not configured");
-  const response = await deps.fetch(`${url}/rest/v1/${table}?${params}`, {
-    headers: { apikey: anonKey, Authorization: `Bearer ${anonKey}` },
-    signal: AbortSignal.timeout(TIMEOUT_MS),
-  });
-  if (!response.ok) throw new Error("read failed");
-  return response.json();
-}
-
-/**
  * Every open request item that still needs something and isn't past its deadline, with public facts only (no descriptions).
  * @param {{ env: Record<string, string | undefined>, fetch: typeof fetch, now?: Date }} deps
  * @returns {Promise<ItemFact[]>}
@@ -139,7 +134,7 @@ async function loadOpenItems(deps) {
     deps,
     "donation_requests",
     new URLSearchParams({
-      select: "id,deadline,ai_score,organization:organizations(address),request_items(id,name,category,unit,quantity_remaining)",
+      select: "id,deadline,ai_score,organization:organizations(address),request_items(id,name,category,unit,quantity_remaining,size_spec,min_condition)",
       status: "eq.open",
       or: notPastDeadlineFilter(deps.now ?? new Date()), // never suggest a request past its deadline
     }),
@@ -154,6 +149,8 @@ async function loadOpenItems(deps) {
         remaining: Number(item.quantity_remaining),
         unit: String(item.unit ?? ""),
         deadline: request.deadline ?? null,
+        size: item.size_spec ?? null,
+        condition: item.category === "food" ? "any" : String(item.min_condition ?? "any"),
         score: Number(request.ai_score ?? 0),
         area: areaOf(request.organization?.address ?? null),
       })),
@@ -196,8 +193,11 @@ function eventDate(iso, lang) {
   return new Date(iso).toLocaleDateString(LOCALES[lang], { weekday: "short", day: "numeric", month: "short", timeZone: "Asia/Singapore" });
 }
 
+/** "like_new" → "like new or better" for the AI (English facts; it answers in the reader's language). @param {string | undefined} c */
+const conditionWords = (c) => (!c || c === "any" ? "" : c === "new" ? "new only" : `${c.replace("_", " ")} or better`);
+
 /**
- * The facts the AI may use — only item names, categories, quantities, deadlines, areas and event dates
+ * The facts the AI may use — only item names, categories, quantities, sizes, accepted conditions, deadlines, areas and event dates
  * (dates already written in the answer's language).
  * @param {ItemFact[]} items
  * @param {EventFact[]} events
@@ -206,7 +206,11 @@ function eventDate(iso, lang) {
  */
 function factLines(items, events, lang) {
   return [
-    ...items.map((i) => `- ${i.name} (${i.category}): ${i.remaining} ${i.unit} still needed, deadline ${shortDate(i.deadline, lang)}${i.area ? `, ${i.area}` : ""}`),
+    ...items.map(
+      (i) =>
+        `- ${i.name} (${i.category}${i.size ? `, size ${i.size}` : ""}${conditionWords(i.condition) ? `, ${conditionWords(i.condition)}` : ""}): ` +
+        `${i.remaining} ${i.unit} still needed, deadline ${shortDate(i.deadline, lang)}${i.area ? `, ${i.area}` : ""}`,
+    ),
     ...events.map((e) => `- volunteer event on ${eventDate(e.startsAt, lang)}${e.area ? ` in ${e.area}` : ""}`),
   ].join("\n");
 }
@@ -266,6 +270,8 @@ async function summarise(question, facts, deps, lang) {
  * @property {Lang} [lang]                 the language of the answer
  * @property {string[]} request_item_ids
  * @property {string[]} event_ids
+ * @property {{ tool: string, summary: string }[]} [steps]   agent mode: what Pinny did (written by code)
+ * @property {import("../lib/agent.js").Draft[]} [drafts]   agent mode: drafts the person confirms
  */
 
 /**
@@ -326,6 +332,7 @@ function closestQuestion(text) {
   /** @type {{ question: (typeof HELP_QUESTIONS)[number], score: number } | null} */
   let best = null;
   for (const question of HELP_QUESTIONS) {
+    if (question.agent) continue; // a "Pinny can help" chip is a prompt for the agent, not an answer
     for (const wording of chinese ? [question.labels.zh] : [question.labels.en, question.labels.ms]) {
       const label = new Set(chinese ? characterPairs(wording) : keywords(wording));
       const shared = [...label].filter((w) => words.has(w)).length;
@@ -451,7 +458,7 @@ async function classify(question, previous, deps) {
       },
       { role: "user", content: `${previous ? `<previous>${previous}</previous>\n` : ""}<question>${question}</question>` },
     ],
-    { apiKey: deps.env.NVIDIA_API_KEY, maxTokens: 30, fetch: deps.fetch },
+    { apiKey: deps.env.NVIDIA_API_KEY, maxTokens: 30, fetch: deps.fetch, timeoutMs: CLASSIFY_TIMEOUT_MS },
   );
   if (reply === null) return null;
   try {
@@ -570,9 +577,10 @@ async function helpAnswer(question, previous, deps, lang) {
  * @param {{ env: Record<string, string | undefined>, fetch: typeof fetch }} deps
  * @param {Date} now
  * @param {Lang} siteLang the site's language, used when the question's own language isn't clear
+ * @param {{ role: Promise<import("../lib/public-data.js").ViewerRole>, deadline: number } | null} [agent]  agent mode
  * @returns {Promise<AskReply>}
  */
-async function answerTyped(rawQuestion, rawPrevious, deps, now, siteLang) {
+async function answerTyped(rawQuestion, rawPrevious, deps, now, siteLang, agent = null) {
   // 1. clean: personal details are removed before anything else sees the text
   const question = stripPersonalData(rawQuestion.trim().slice(0, MAX_QUESTION));
   const previous = stripPersonalData(rawPrevious.trim().slice(0, MAX_QUESTION));
@@ -586,7 +594,16 @@ async function answerTyped(rawQuestion, rawPrevious, deps, now, siteLang) {
   if (!deps.env.NVIDIA_API_KEY) return unavailable;
   const type = await classify(question, previous, deps);
   if (type === null) return unavailable;
-  // 4. route by type, in code
+  // 4. agent mode: only on-topic questions reach Pinny's tools (the fixed replies above always come first)
+  const onTopic = ["how_to", "needs_now", "events", "organization_help", "about_site", "account_help"].includes(type);
+  if (agent && onTopic) {
+    const role = await agent.role;
+    const reply = await runAgent({ question, previous, lang, role, deps, now, deadline: agent.deadline, clean: cleanReply });
+    if (reply) return askReply(reply);
+    // the agent couldn't help: the typed answer below, if there's still time for it
+    if (agent.deadline - Date.now() < 2500) return unavailable;
+  }
+  // 5. route by type, in code
   switch (type) {
     case "personal_info":
       return personalReply(lang);
@@ -625,22 +642,29 @@ export async function handle(req, deps = { env: process.env, fetch }) {
   const area = body?.area;
   // the site's language: only en, zh or ms (anything else → 400)
   const lang = body?.lang ?? "en";
-  const allowedKeys = [...(id === "area" ? ["id", "area"] : id === "ask" ? ["id", "question", "previous"] : ["id"]), "lang"];
+  const typed = id === "ask" || id === "agent";
+  const allowedKeys = [...(id === "area" ? ["id", "area"] : typed ? ["id", "question", "previous"] : ["id"]), "lang"];
   if (
     typeof id !== "string" ||
     !QUESTION_IDS.includes(id) ||
     !isLang(lang) ||
     Object.keys(body).some((key) => !allowedKeys.includes(key)) ||
     (id === "area" && !SG_AREAS.includes(area)) ||
-    (id === "ask" && (typeof body.question !== "string" || !body.question.trim())) ||
-    (id === "ask" && body.previous !== undefined && typeof body.previous !== "string")
+    (typed && (typeof body.question !== "string" || !body.question.trim())) ||
+    (typed && body.previous !== undefined && typeof body.previous !== "string")
   ) {
-    return json(400, { message: id === "ask" ? "Please type a question." : "Unknown question." });
+    return json(400, { message: typed ? "Please type a question." : "Unknown question." });
   }
 
   const now = deps.now ?? new Date();
+  const started = Date.now();
   try {
     if (id === "ask") return json(200, { ...(await answerTyped(body.question, body.previous ?? "", deps, now, lang)) });
+    if (id === "agent") {
+      // the caller's role only (never their details), worked out while the safety steps run
+      const role = callerRole(req, deps);
+      return json(200, { ...(await answerTyped(body.question, body.previous ?? "", deps, now, lang, { role, deadline: started + AGENT_BUDGET_MS })) });
+    }
     if (id === "upcoming_events") {
       const events = (await loadUpcomingEvents(deps, now)).slice(0, MAX_RESULTS);
       const template = events.length

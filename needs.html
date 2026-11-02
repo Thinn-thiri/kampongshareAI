@@ -26,6 +26,7 @@
     <script src="/js/messaging.js"></script>
     <script src="/js/requests.js"></script>
     <script src="/js/offers.js"></script>
+    <script src="/js/offer-photos.js"></script>
     <script src="/js/request-panel.js"></script>
     <script src="/js/needs-page.js"></script>
     <script src="/js/chat-questions.js"></script>
@@ -238,6 +239,7 @@
             </div>
             <div>
               <p class="tabular-nums" x-text="noticeNeed(request).text"></p>
+              <p class="text-[0.8125rem] leading-5 text-muted break-words" x-show="noticeSpec(request)" x-text="noticeSpec(request)"></p>
               <p class="text-sm text-muted" x-text="noticeEnds(request)"></p>
             </div>
             <button type="button" class="btn btn-primary mt-auto self-start" @click="openRequest(request, $event)"

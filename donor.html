@@ -26,6 +26,7 @@
     <script src="/js/messaging.js"></script>
     <script src="/js/requests.js"></script>
     <script src="/js/offers.js"></script>
+    <script src="/js/offer-photos.js"></script>
     <script src="/js/request-panel.js"></script>
     <script src="/js/donor-dashboard.js"></script>
     <script src="/js/match.js"></script>
@@ -169,6 +170,7 @@
             <template x-for="offer in readyToDropOff" :key="offer.id">
               <li class="space-y-1 rounded-md bg-canvas p-4">
                 <p class="font-bold break-words" x-text="$t('orgDash.offerLine', { quantity: offer.quantity, unit: offer.item?.unit ?? '', item: offer.item?.name ?? $t('field.item') })"></p>
+                <p class="text-[0.8125rem] leading-5 text-muted break-words" x-show="offeredLine(offer)" x-text="offeredLine(offer)"></p>
                 <p class="text-sm text-primary break-words" x-text="[offer.item?.request?.title, offer.item?.request?.organization?.name].filter(Boolean).join(' · ')"></p>
                 <p class="text-sm whitespace-pre-line break-words"
                   x-text="offer.item?.request?.dropoff_instructions || $t('donor.orgWillContact')"></p>
@@ -238,6 +240,7 @@
               <template x-for="match in matches" :key="match.itemId">
                 <li class="flex flex-col gap-2 rounded-lg border-[1.5px] border-edge bg-canvas p-4">
                   <p class="font-bold break-words" x-text="match.itemName"></p>
+                  <p class="text-[0.8125rem] leading-5 text-muted break-words" x-show="matchSpec(match)" x-text="matchSpec(match)"></p>
                   <p class="text-sm break-words" x-text="[match.requestTitle, match.organization].filter(Boolean).join(' · ')"></p>
                   <p class="text-sm text-muted" x-text="$t('match.resultLine', { count: match.remaining, unit: match.unit, deadline: deadlineText(match.deadline) })"></p>
                   <p class="text-sm" x-text="match.reason"></p>
@@ -302,6 +305,7 @@
               </div>
               <div>
                 <p class="tabular-nums" x-text="noticeNeed(request).text"></p>
+                <p class="text-[0.8125rem] leading-5 text-muted break-words" x-show="noticeSpec(request)" x-text="noticeSpec(request)"></p>
                 <p class="text-sm text-muted" x-text="noticeEnds(request)"></p>
               </div>
               <button type="button" class="btn btn-primary mt-auto self-start" @click="openRequest(request, $event)"
@@ -341,6 +345,7 @@
                 <div class="flex flex-wrap items-start justify-between gap-3">
                   <div class="min-w-0">
                     <p class="font-bold break-words" x-text="$t('orgDash.offerLine', { quantity: offer.quantity, unit: offer.item?.unit ?? '', item: offer.item?.name ?? $t('donor.itemGone') })"></p>
+                    <p class="text-[0.8125rem] leading-5 text-muted break-words" x-show="offeredLine(offer)" x-text="offeredLine(offer)"></p>
                     <p class="text-sm text-muted break-words"
                       x-text="[offer.item?.request?.title, offer.item?.request?.organization?.name].filter(Boolean).join(' · ') || $t('donor.requestGone')"></p>
                     <p class="text-sm text-muted" x-text="$t('donor.offeredOn', { date: formatDate(offer.created_at) })"></p>
@@ -385,6 +390,7 @@
                 <div class="flex flex-wrap items-start justify-between gap-3">
                   <div class="min-w-0">
                     <p class="font-bold break-words" x-text="$t('orgDash.offerLine', { quantity: offer.quantity, unit: offer.item?.unit ?? '', item: offer.item?.name ?? $t('donor.itemGone') })"></p>
+                    <p class="text-[0.8125rem] leading-5 text-muted break-words" x-show="offeredLine(offer)" x-text="offeredLine(offer)"></p>
                     <p class="text-sm text-muted break-words"
                       x-text="[offer.item?.request?.title, offer.item?.request?.organization?.name].filter(Boolean).join(' · ') || $t('donor.requestGone')"></p>
                     <p class="text-sm text-muted" x-text="offerEndedText(offer)"></p>
@@ -433,6 +439,15 @@
               <p class="text-sm text-muted break-words" x-text="[panelOffer.item?.request?.title, panelOffer.item?.request?.organization?.name].filter(Boolean).join(' · ') || $t('donor.requestGone')"></p>
               <p class="mt-1 text-sm break-words" x-show="panelOffer.status === 'accepted' && panelOffer.item?.request?.organization?.address"
                 x-text="$t('donor.orgAddress', { address: panelOffer.item?.request?.organization?.address })"></p>
+            </div>
+            <!-- what the donor said about their item, and their photos (private) -->
+            <div class="space-y-2" x-show="offeredLine(panelOffer) || panelOffer.photo_paths?.length">
+              <p class="text-sm break-words" x-show="offeredLine(panelOffer)"><span class="text-muted" data-i18n="donor.yourItem">Your item:</span> <span x-text="offeredLine(panelOffer)"></span></p>
+              <div class="grid grid-cols-3 gap-2" x-show="panelOffer.photo_paths?.length" x-effect="loadPhotos(panelOffer)">
+                <template x-for="(url, n) in (photos[panelOffer.id] ?? [])" :key="url">
+                  <img :src="url" :alt="$t('photos.altNumber', { number: n + 1, item: panelOffer.item?.name ?? '' })" class="aspect-square w-full rounded-md border-[1.5px] border-edge object-cover" />
+                </template>
+              </div>
             </div>
             <div x-data="tracker(() => trackerFor(panelOffer, true), 'column')"></div>
           </div>

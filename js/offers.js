@@ -23,7 +23,11 @@
  * @property {string | null} [delivered_at]
  * @property {string | null} [cancelled_at]
  * @property {string | null} [reject_note]   the organization's note when it rejected the offer
+ * @property {ItemCondition | null} [offer_condition]   what condition the donor said it's in
+ * @property {string | null} [offer_details]   the donor's description of the item
+ * @property {string[]} [photo_paths]   1–3 private photos (js/offer-photos.js)
  * @property {{ name: string, unit: string, category: ItemCategory,
+ *              size_spec?: string | null, material?: string | null, min_condition?: ItemCondition, item_details?: string | null,
  *              request: { title: string, status: RequestStatus, deadline: string | null, dropoff_instructions: string | null,
  *                         close_reason: string | null, closed_at: string | null, organization_id?: string,
  *                         organization: { name: string, address: string | null } | null } | null } | null} item
@@ -31,7 +35,7 @@
 
 /** What the donor sees of each offer: the item, its request (incl. why it closed) and the organization. */
 const MY_OFFER_COLUMNS =
-  "*, item:request_items(name, unit, category, request:donation_requests(title, status, deadline, dropoff_instructions, close_reason, closed_at, organization_id, organization:organizations(name, address)))";
+  "*, item:request_items(name, unit, category, size_spec, material, min_condition, item_details, request:donation_requests(title, status, deadline, dropoff_instructions, close_reason, closed_at, organization_id, organization:organizations(name, address)))";
 
 /** Offer statuses that are finished and belong in History. */
 const PAST_OFFER_STATUSES = ["delivered", "cancelled", "rejected"];
@@ -42,9 +46,20 @@ const PAST_OFFER_STATUSES = ["delivered", "cancelled", "rejected"];
  * @property {number | string} quantity
  * @property {string} message
  * @property {boolean} foodSafetyConfirmed
+ * @property {ItemCondition | ""} condition   "" until chosen (only asked when the item needs a condition)
+ * @property {string} details   "Describe your item"
+ * @property {PreparedPhoto[]} photos   1–3, already cleaned of location data (js/offer-photos.js)
  */
 
-/** @typedef {Partial<Record<'quantity' | 'message' | 'foodSafety', string>>} OfferErrors */
+/** @typedef {Partial<Record<'quantity' | 'message' | 'foodSafety' | 'condition' | 'details' | 'photos', string>>} OfferErrors */
+
+/** The longest item description a donor can write (donation_offers.offer_details). */
+const OFFER_DETAILS_MAX = 300;
+
+/** An empty offer form. @returns {OfferForm} */
+function emptyOfferForm() {
+  return { quantity: "", message: "", foodSafetyConfirmed: false, condition: "", details: "", photos: [] };
+}
 
 /**
  * Open requests for donors: highest AI score first (unscored last), then the soonest deadline.
@@ -144,6 +159,8 @@ async function countMyDeliveredOffers(donorId) {
  * @returns {Promise<void>}
  */
 async function makeOffer(itemId, form) {
+  // photos first (the database checks they exist); removed again if the offer is refused
+  const photoPaths = await uploadOfferPhotos(form.photos);
   const { error } = await db()
     .from("donation_offers")
     .insert({
@@ -151,8 +168,14 @@ async function makeOffer(itemId, form) {
       quantity: Number(form.quantity),
       message: form.message.trim() || null,
       food_safety_confirmed: form.foodSafetyConfirmed,
+      offer_condition: form.condition || null,
+      offer_details: form.details.trim() || null,
+      photo_paths: photoPaths,
     });
-  if (error) throw error;
+  if (error) {
+    await removeUnusedPhotos(photoPaths);
+    throw error;
+  }
 }
 
 /**
@@ -183,8 +206,12 @@ async function cancelOffer(id) {
  * @property {string | null} [delivered_at]
  * @property {string | null} [cancelled_at]
  * @property {string | null} [reject_note]   the organization's note when it rejected the offer
+ * @property {ItemCondition | null} [offer_condition]   what the donor said about their item
+ * @property {string | null} [offer_details]
+ * @property {string[]} [photo_paths]   private photos (js/offer-photos.js)
  * @property {{ full_name: string, phone: string | null } | null} donor
  * @property {{ name: string, unit: string, category: ItemCategory, request_id: string,
+ *              size_spec?: string | null, material?: string | null, min_condition?: ItemCondition, item_details?: string | null,
  *              request: { title: string, status: RequestStatus, organization_id: string, deadline: string | null,
  *                         dropoff_instructions: string | null, close_reason: string | null, closed_at: string | null,
  *                         organization?: { name: string, address: string | null } | null } }} item
@@ -199,7 +226,7 @@ async function listIncomingOffers(orgId) {
   const { data, error } = await db()
     .from("donation_offers")
     .select(
-      "*, donor:profile_contacts(full_name, phone), item:request_items!inner(name, unit, category, request_id, request:donation_requests!inner(title, status, organization_id, deadline, dropoff_instructions, close_reason, closed_at, organization:organizations(name, address)))",
+      "*, donor:profile_contacts(full_name, phone), item:request_items!inner(name, unit, category, request_id, size_spec, material, min_condition, item_details, request:donation_requests!inner(title, status, organization_id, deadline, dropoff_instructions, close_reason, closed_at, organization:organizations(name, address)))",
     )
     .eq("item.request.organization_id", orgId)
     .order("created_at", { ascending: false });
@@ -285,7 +312,38 @@ function validateOffer(form, item) {
   if (item.category === "food" && !form.foodSafetyConfirmed) {
     errors.foodSafety = t("needs.errFood");
   }
+  if (needsCondition(item) && !conditionsMeeting(item.min_condition).includes(/** @type {ItemCondition} */ (form.condition))) {
+    errors.condition = t("needs.errCondition");
+  }
+  if (form.details.trim().length > OFFER_DETAILS_MAX) errors.details = t("needs.errDetailsLong", { count: OFFER_DETAILS_MAX });
+  else if (item.details_required && !form.details.trim()) errors.details = t("needs.errDetails");
+  if (!form.photos.length) errors.photos = t("needs.errPhotos");
   return errors;
+}
+
+/**
+ * "You're offering 2 × Cooking pot, Like new: 26 cm stainless steel pot with lid." — shown before sending.
+ * The item name and the donor's words stay as written.
+ * @param {OfferForm} form
+ * @param {RequestItem} item
+ * @returns {string} "" until a quantity is chosen
+ */
+function offerSummary(form, item) {
+  const count = Number(form.quantity);
+  if (!Number.isInteger(count) || count < 1) return "";
+  const what = [form.condition ? enumLabel("condition", form.condition) : "", form.details.trim()].filter(Boolean);
+  return what.length
+    ? t("needs.summaryWith", { count, item: item.name, what: what.join(t("needs.summaryJoin")) })
+    : t("needs.summary", { count, item: item.name });
+}
+
+/**
+ * What the donor said about their item, for cards and timelines: "Like new · 26 cm pot with lid".
+ * @param {Pick<DonationOffer, 'offer_condition' | 'offer_details'>} offer
+ * @returns {string} "" for older offers without details
+ */
+function offeredLine(offer) {
+  return [offer.offer_condition ? enumLabel("condition", offer.offer_condition) : "", offer.offer_details?.trim() ?? ""].filter(Boolean).join(" · ");
 }
 
 /**
@@ -334,7 +392,16 @@ function offerTracker(offer, options = {}) {
   const orgName = request?.organization?.name ?? t("common.organization");
   /** @type {TrackerStepDef[]} */
   const defs = [
-    { key: "sent", label: t("tracker.offer.sent"), at: offer.created_at, extra: offer.message ? t(viewer === "donor" ? "tracker.offer.yourMessage" : "tracker.offer.donorMessage", { message: offer.message }) : "" },
+    {
+      key: "sent",
+      label: t("tracker.offer.sent"),
+      at: offer.created_at,
+      // what the donor said about the item (condition · description), then their message
+      extra: [
+        offeredLine(/** @type {any} */ (offer)) ? t("tracker.offer.itemGiven", { what: offeredLine(/** @type {any} */ (offer)) }) : "",
+        offer.message ? t(viewer === "donor" ? "tracker.offer.yourMessage" : "tracker.offer.donorMessage", { message: offer.message }) : "",
+      ].filter(Boolean).join(" · "),
+    },
     {
       key: "accepted",
       label: t("tracker.offer.accepted"),

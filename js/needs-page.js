@@ -30,6 +30,8 @@ document.addEventListener("alpine:init", () => {
 
     /** @type {string | null} item highlighted from ?item= */
     focusItemId: null,
+    /** @type {number | null} */
+    focusQuantity: null,
     /** @type {DonationRequest | null} the linked request, when its deadline has passed */
     expiredRequest: null,
     DEADLINE_BADGE,
@@ -38,6 +40,8 @@ document.addEventListener("alpine:init", () => {
       const params = new URLSearchParams(location.search);
       for (const key of NEEDS_URL_KEYS) this.filters[key] = params.get(key) ?? "";
       this.focusItemId = params.get("item");
+      // Pinny's draft passes the amount it prepared (a number only)
+      this.focusQuantity = Number.parseInt(params.get("qty") ?? "", 10) || null;
 
       try {
         const [requests, profile] = await Promise.all([listOpenRequests(), getProfile().catch(() => null), this.loadViewer()]);
@@ -125,7 +129,7 @@ document.addEventListener("alpine:init", () => {
         return;
       }
       const request = this.requests.find((r) => r.request_items.some((i) => i.id === itemId));
-      if (request) openRequestPanel(request, null, itemId);
+      if (request) openRequestPanel(request, null, itemId, this.focusQuantity);
     },
 
     async turnOnDonating() {

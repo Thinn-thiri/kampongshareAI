@@ -14,8 +14,21 @@
  * @property {string} category
  * @property {number} remaining
  * @property {string | null} deadline
+ * @property {string | null} [sizeSpec]
+ * @property {string | null} [material]
+ * @property {ItemCondition} [minCondition]
+ * @property {boolean} [detailsRequired]
  * @property {string} reason
  */
+
+/**
+ * A match's requirements in one short line: "24–28 cm · Like new or better" ("" when none).
+ * @param {Match} match
+ * @returns {string}
+ */
+function matchSpec(match) {
+  return itemSpecLine({ size_spec: match.sizeSpec, material: match.material, min_condition: match.minCondition, category: match.category });
+}
 
 /**
  * @typedef {{ status: 'ok', items: { name: string, category: string, quantity: number | null }[], matches: Match[] }
@@ -54,6 +67,7 @@ async function findMatches(input) {
 document.addEventListener("alpine:init", () => {
   const Alpine = /** @type {any} */ (window).Alpine;
   Alpine.data("matchBox", () => ({
+    matchSpec,
     text: "",
     busy: false,
     /** @type {'' | 'ok' | 'fallback' | 'fallback_results' | 'rate_limited' | 'error'} 'fallback_results' = category results with the buttons still shown */
